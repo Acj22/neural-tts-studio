@@ -1,0 +1,2128 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neural TTS &amp; YouTube Auto-Video Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 15% 15%, #1e1b4b 0%, #090d16 55%, #05070b 100%);
+      color: #f1f5f9;
+      min-height: 100vh;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    input[type="range"] {
+      accent-color: #6366f1;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-indigo-500 selection:text-white">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header con Selector de Modo -->
+    <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <div class="flex items-center gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-2xl font-bold tracking-tight text-white">Neural TTS &amp; YouTube Studio</h1>
+            <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              100% Sin Tokens · CPU ONNX
+            </span>
+          </div>
+          <p class="text-sm text-slate-400">Voz neuronal local (<strong class="text-slate-200">Kokoro-82M</strong> &amp; <strong class="text-slate-200">Piper</strong>) + Automatización de Videos con Timestamps e Imágenes IA</p>
+        </div>
+      </div>
+
+      <!-- Pestañas de Modo -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="p-1 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-1">
+          <button
+            id="tabBtnTTS"
+            onclick="switchMode('tts')"
+            class="px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow"
+          >
+            🎙️ Estudio de Voz (TTS Rápido)
+          </button>
+          <button
+            id="tabBtnYT"
+            onclick="switchMode('youtube')"
+            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
+          >
+            🎬 Automatizador YouTube (Guion → Video)
+          </button>
+          <button
+            id="tabBtnFruti"
+            onclick="switchMode('fruti')"
+            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
+          >
+            🍓 Frutinovelas (Diálogos animados)
+          </button>
+        </div>
+
+        <a href="/docs" target="_blank" class="px-3 py-2 rounded-xl glass hover:bg-slate-800/80 text-xs font-medium text-slate-300 flex items-center gap-1.5 transition">
+          <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+          API (/docs)
+        </a>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Panel Izquierdo Compartido: Configuración del Motor y Voz -->
+      <aside class="lg:col-span-4 space-y-5">
+        <div class="glass rounded-2xl p-5 space-y-5">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+              1. Motor Neuronal de Voz
+            </label>
+            <div class="grid grid-cols-2 gap-2.5">
+              <button id="btnEngineKokoro" onclick="setEngine('kokoro')" class="p-3 rounded-xl border text-left transition-all bg-indigo-600/20 border-indigo-500 text-white">
+                <div class="font-semibold text-sm flex items-center justify-between">
+                  <span>Kokoro-82M</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200">v1.0</span>
+                </div>
+                <p class="text-xs text-slate-300 mt-1">Ultra expresivo + 11 voces masculinas ES</p>
+              </button>
+
+              <button id="btnEnginePiper" onclick="setEngine('piper')" class="p-3 rounded-xl border text-left transition-all bg-slate-900/50 border-slate-700/70 text-slate-300 hover:border-slate-600">
+                <div class="font-semibold text-sm flex items-center justify-between">
+                  <span>Piper ONNX</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">Turbo</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Velocidad extrema para guiones largos</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Selector de Voz Principal -->
+          <div>
+            <label for="voiceSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              2. Voz del Narrador
+            </label>
+            <select id="voiceSelect" onchange="onVoiceChange()" class="w-full rounded-xl bg-slate-900/90 border border-slate-700 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </select>
+          </div>
+
+          <!-- Idioma de fonemización (Kokoro) -->
+          <div id="kokoroLangBox">
+            <label for="langSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              Pronunciación / Fonemas
+            </label>
+            <select id="langSelect" class="w-full rounded-xl bg-slate-900/90 border border-slate-700 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              <option value="es-mx" selected>🇲🇽 Español Mexicano (es-mx · Seseo + fonética MX)</option>
+              <option value="es-419">🌎 Español Latinoamericano Neutro (es-419 · Seseo)</option>
+              <option value="es">🇪🇸 Español de España (es · Distinción Z/C)</option>
+              <option value="en-us">🇺🇸 Inglés EE.UU. (en-us)</option>
+              <option value="en-gb">🇬🇧 Inglés Británico (en-gb)</option>
+              <option value="fr-fr">🇫🇷 Francés (fr-fr)</option>
+              <option value="it">🇮🇹 Italiano (it)</option>
+              <option value="pt-br">🇧🇷 Portugués Brasil (pt-br)</option>
+            </select>
+          </div>
+
+          <!-- Laboratorio de Mezcla de Voces -->
+          <div id="kokoroBlendBox" class="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/25 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
+                  ✨ Mezclador de Voz Propia
+                </span>
+                <p class="text-[11px] text-slate-400">Fusiona 2 voces para crear un timbre único</p>
+              </div>
+              <input id="enableBlend" type="checkbox" onchange="toggleBlend()" class="w-4 h-4 rounded accent-indigo-500 cursor-pointer" />
+            </div>
+
+            <div id="blendControls" class="space-y-3 hidden pt-1 border-t border-indigo-500/20">
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Segunda voz para combinar:</label>
+                <select id="blendVoiceSelect" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs text-white">
+                </select>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span id="blendLabelA" class="text-indigo-300 font-medium">Voz Principal: 60%</span>
+                  <span id="blendLabelB" class="text-pink-300 font-medium">Segunda Voz: 40%</span>
+                </div>
+                <input id="blendWeight" type="range" min="0.05" max="0.95" step="0.05" value="0.40" oninput="updateBlendLabels()" class="w-full" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Controles de Velocidad y Cadencia -->
+          <div class="space-y-4 pt-1">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300 font-medium">Velocidad de narración</span>
+                <span id="speedVal" class="mono text-indigo-300">1.00x</span>
+              </div>
+              <input id="speedSlider" type="range" min="0.5" max="1.8" step="0.05" value="1.0" oninput="document.getElementById('speedVal').textContent = parseFloat(this.value).toFixed(2) + 'x'" class="w-full" />
+            </div>
+
+            <div id="pauseControlBox">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300 font-medium">Pausa entre oraciones/escenas</span>
+                <span id="pauseVal" class="mono text-indigo-300">0.25s</span>
+              </div>
+              <input id="pauseSlider" type="range" min="0.0" max="1.0" step="0.05" value="0.25" oninput="document.getElementById('pauseVal').textContent = parseFloat(this.value).toFixed(2) + 's'" class="w-full" />
+            </div>
+
+            <div id="noiseControlBox" class="hidden">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300 font-medium">Expresividad tonal (Noise Scale)</span>
+                <span id="noiseVal" class="mono text-indigo-300">0.67</span>
+              </div>
+              <input id="noiseSlider" type="range" min="0.2" max="1.2" step="0.05" value="0.67" oninput="document.getElementById('noiseVal').textContent = parseFloat(this.value).toFixed(2)" class="w-full" />
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MODO 1: Estudio de Voz Rápido -->
+      <main id="panelTTS" class="lg:col-span-8 space-y-5">
+        <div class="glass rounded-2xl p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <label for="textInput" class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              3. Texto a sintetizar (Soporta guiones largos +5,000 caracteres)
+            </label>
+            <div class="flex flex-wrap gap-1.5">
+              <button onclick="setPreset('es_welcome')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+                🇪🇸 Bienvenida
+              </button>
+              <button onclick="setPreset('es_story')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+                📖 Narración
+              </button>
+              <button onclick="setPreset('es_tech')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+                🤖 Documental
+              </button>
+              <button onclick="setPreset('en_demo')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+                🇺🇸 English Demo
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            id="textInput"
+            rows="6"
+            placeholder="Escribe o pega aquí tu guion..."
+            class="w-full rounded-xl bg-slate-950/80 border border-slate-800 p-4 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-y leading-relaxed"
+          >¡Hola! Este es nuestro propio sistema de Text to Speech neuronal corriendo cien por ciento en tu computadora, sin depender de servidores externos ni claves de API.</textarea>
+
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <span id="charCount" class="text-xs text-slate-400 mono">172 caracteres</span>
+
+            <button
+              id="generateBtn"
+              onclick="synthesize()"
+              class="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2.5 transition transform active:scale-[0.99]"
+            >
+              <span id="genBtnText">▶ Generar Voz Neuronal (Ctrl + Enter)</span>
+            </button>
+          </div>
+
+          <div id="errorAlert" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
+        </div>
+
+        <!-- Reproductor y Visualizador de Espectro -->
+        <div class="glass rounded-2xl p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Monitor de Audio y Métricas
+            </span>
+            <div id="metricsBadges" class="flex items-center gap-2 hidden">
+              <span id="badgeLatency" class="px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 text-xs mono"></span>
+              <span id="badgeDuration" class="px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 text-xs mono"></span>
+              <span id="badgeRTF" class="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs mono"></span>
+            </div>
+          </div>
+
+          <div class="relative rounded-xl overflow-hidden bg-slate-950/90 border border-slate-800/90 h-28 flex items-center justify-center">
+            <canvas id="visualizer" class="w-full h-full"></canvas>
+            <div id="visualizerPlaceholder" class="absolute inset-0 flex items-center justify-center text-xs text-slate-500 pointer-events-none">
+              Presiona "Generar Voz Neuronal" para escuchar y visualizar la onda
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center gap-3">
+            <audio id="audioPlayer" controls class="w-full h-10"></audio>
+            <a
+              id="downloadBtn"
+              href="#"
+              download="tts-output.wav"
+              class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 whitespace-nowrap flex items-center gap-1.5 transition pointer-events-none opacity-40"
+            >
+              ⬇ Descargar WAV
+            </a>
+          </div>
+        </div>
+
+        <!-- Historial de la sesión -->
+        <div class="glass rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Historial de Generaciones</h2>
+            <span id="historyCount" class="text-xs text-slate-500">0 audios</span>
+          </div>
+          <div id="historyList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <p class="text-xs text-slate-500 py-2">Los audios que generes aparecerán aquí para compararlos o descargarlos.</p>
+          </div>
+        </div>
+      </main>
+
+      <!-- MODO 2: Automatizador de Videos de YouTube -->
+      <main id="panelYouTube" class="lg:col-span-8 space-y-5 hidden">
+        <div class="glass rounded-2xl p-5 space-y-4 border-indigo-500/30">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                🎬 Automatizador de Guion a Video para YouTube
+              </h2>
+              <p class="text-xs text-slate-400">
+                Ingresa tu guion → Genera la narración con la voz elegida → Calcula los timestamps exactos → Crea las imágenes IA → Ensambla el video <code class="text-indigo-300">.MP4</code> y subtítulos <code class="text-indigo-300">.SRT</code>.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                id="ytSavedProjectsSelect"
+                onchange="if(this.value) loadProjectById(this.value)"
+                class="rounded-lg bg-slate-900 border border-indigo-500/40 px-3 py-1.5 text-xs text-indigo-200 focus:outline-none focus:border-indigo-400 max-w-xs sm:max-w-md"
+              >
+                <option value="">📂 Cargar proyecto anterior...</option>
+              </select>
+              <button onclick="loadYouTubeSample()" class="px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-medium transition">
+                📋 Cargar Guion de Ejemplo
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            id="ytScriptInput"
+            rows="7"
+            placeholder="Pega aquí el guion completo de tu video de YouTube. Puedes separar tus ideas por párrafos o dejar que el sistema lo divida automáticamente en escenas..."
+            class="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-y leading-relaxed"
+          >En las profundidades del océano Pacífico existe una fosa tan profunda que ni siquiera la luz del sol logra alcanzarla.
+
+A más de once mil metros bajo la superficie, la presión es mil veces superior a la que sentimos en la Tierra, pero aun así, criaturas bioluminiscentes han logrado adaptarse a la oscuridad eterna.
+
+Los científicos creen que explorar estos abismos podría revelarnos cómo surgió la vida en nuestro planeta y cómo podría existir en las lunas heladas de Júpiter.</textarea>
+
+          <!-- 🎙️ Panel Exclusivo de Voz Ultra-Natural para Creador de Videos de YouTube -->
+          <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-3">
+            <!-- Selector prominente de Proyectos Anteriores para cambiarles la voz o retomarlos -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-indigo-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                <span>📂 Mis Proyectos Guardados (Actuales y Anteriores):</span>
+              </div>
+              <select
+                id="ytSavedProjectsSelectMain"
+                onchange="if(this.value) loadProjectById(this.value)"
+                class="flex-1 sm:max-w-lg rounded-lg bg-slate-900 border border-indigo-500/50 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-400"
+              >
+                <option value="">📂 Cargando lista de proyectos guardados...</option>
+              </select>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                  🎙️ Narrador Ultra-Natural para YouTube (100% Gratis · Sin Suscripción)
+                </h3>
+                <p class="text-[11px] text-slate-400">
+                  Usa las voces <strong>Edge Neural HD</strong> con respiración y cadencia real + masterización de estudio (ecualizador cálido y De-Esser).
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  id="btnPreviewYTVoice"
+                  type="button"
+                  onclick="previewYouTubeVoice()"
+                  class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/40 text-emerald-200 text-xs font-semibold transition"
+                >
+                  🔊 Probar esta Voz (1 Frase)
+                </button>
+                <button
+                  id="btnUpdateVoiceExisting"
+                  type="button"
+                  onclick="updateExistingProjectVoice()"
+                  class="hidden px-3 py-1.5 rounded-lg bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition"
+                >
+                  🔄 Cambiar Voz en mi Proyecto Actual (Conserva tus Imágenes)
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end">
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                  Motor de Voz (YouTube)
+                </label>
+                <select id="ytEngineSelect" onchange="renderYTVoiceOptions()" class="w-full rounded-xl bg-slate-950 border border-emerald-500/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400">
+                  <option value="edge" selected>⭐ Edge Neural HD (Ultra-Natural YouTube · Gratis)</option>
+                  <option value="kokoro">🎙️ Kokoro-82M (Local CPU + Masterización)</option>
+                  <option value="piper">⚡ Piper ONNX (Local Turbo + Masterización)</option>
+                </select>
+              </div>
+
+              <div class="md:col-span-5">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                  Voz del Narrador de YouTube
+                </label>
+                <select id="ytVoiceSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400">
+                </select>
+              </div>
+
+              <div class="md:col-span-3">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                  Tono / Cuerpo de Locutor
+                </label>
+                <select id="ytPitchSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400">
+                  <option value="-2" selected>🎙️ Locutor Cálido (-2 Hz ★)</option>
+                  <option value="-4">🎬 Documental Profundo (-4 Hz)</option>
+                  <option value="-6">🔊 Voz Grave Cine (-6 Hz)</option>
+                  <option value="0">🗣️ Tono Natural Estándar (0 Hz)</option>
+                  <option value="2">⚡ Juvenil / Dinámico (+2 Hz)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                <input id="ytStudioMasteringChk" type="checkbox" checked class="rounded accent-emerald-500" />
+                <span>✨ Activar <strong>Masterización de Estudio (Shure SM7B Warmth + De-Esser anti-siseo + Prosodia natural)</strong></span>
+              </label>
+              <audio id="ytVoicePreviewPlayer" controls class="hidden h-8 w-64"></audio>
+            </div>
+          </div>
+
+          <!-- Configuración de Escenas, Estilo, Formato y Transición -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Frecuencia de Timestamps
+              </label>
+              <select id="ytSceneMode" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="sentence" selected>★ 1 Imagen por Frase (~4-7 seg)</option>
+                <option value="auto">Agrupado (~8-12 seg por imagen)</option>
+                <option value="paragraph">1 Imagen por Párrafo</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Estilo Visual IA
+              </label>
+              <select id="ytVisualStyle" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="none">⛔ Ninguno (solo Prompt Maestro)</option>
+                <option value="cinematic">🎥 Cinematográfico Realista 8K</option>
+                <option value="sketch_bw">✏️ Boceto B&amp;N / Stick Figure Minimalista</option>
+                <option value="documentary">🌍 Documental Histórico / NatGeo</option>
+                <option value="dark_mystery">🕵️ Misterio Oscuro / Suspenso</option>
+                <option value="scifi">🚀 Cyberpunk / Ciencia Ficción</option>
+                <option value="anime">🌸 Anime / Makoto Shinkai</option>
+                <option value="3d_animation">🧸 Animación 3D Estilo Pixar</option>
+                <option value="illustration">🎨 Ilustración Digital Editorial</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Formato del Video
+              </label>
+              <select id="ytAspectRatio" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="16:9">📺 16:9 Full HD YouTube (1920×1080 · 30fps)</option>
+                <option value="9:16">📱 9:16 Full HD Shorts/TikTok (1080×1920 · 30fps)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1">
+                ✨ Transición entre Imágenes
+              </label>
+              <select id="ytTransition" onchange="if(document.getElementById('ytRenderTransition')) document.getElementById('ytRenderTransition').value = this.value;" class="w-full rounded-xl bg-slate-900 border border-indigo-500/50 px-3 py-2 text-xs text-white">
+                <option value="crossfade" selected>🔀 Disolución suave (Crossfade)</option>
+                <option value="fade_black">🌑 Fundido a negro (Cine)</option>
+                <option value="fade_white">⚪ Flash blanco (Storyboard)</option>
+                <option value="slide_left">⬅️ Desplazamiento (Slide)</option>
+                <option value="none">✂️ Corte directo (Sin efecto)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Panel de Consistencia Visual: Imagen de Referencia + Prompt Maestro de Estilo -->
+          <div class="p-4 rounded-xl bg-indigo-950/25 border border-indigo-500/25 space-y-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                  🎨 Consistencia de Estilo Visual (Prompt Maestro + Imagen de Referencia)
+                </h3>
+                <p class="text-[11px] text-slate-400">
+                  Define las reglas visuales fijas (estética, iluminación, época o personaje recurrente) y sube una imagen de referencia para que todas las escenas mantengan el mismo estilo y atmósfera cromática.
+                </p>
+              </div>
+              <button
+                id="btnUpdateStyleExisting"
+                onclick="applyStyleToExistingProject()"
+                class="hidden px-3 py-1.5 rounded-lg bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition"
+              >
+                🔄 Actualizar Estilo en Escenas Actuales
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+              <!-- Prompt Maestro de Estilo -->
+              <div class="md:col-span-7 space-y-2">
+                <label for="ytCustomStylePrompt" class="block text-xs font-semibold text-slate-300">
+                  Prompt Maestro de Estilo / Personajes (Se inyecta en todas las escenas):
+                </label>
+                <textarea
+                  id="ytCustomStylePrompt"
+                  rows="3"
+                  placeholder="Ej: Estilo pintura al óleo oscura, iluminación dramática de claroscuro con tonos azul profundo y dorado cálido, protagonista explorador con abrigo negro, lente 35mm, sin texto..."
+                  class="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 leading-relaxed"
+                ></textarea>
+                <div class="flex flex-wrap gap-1.5">
+                  <button onclick="setStylePromptPreset('stick_sketch')" class="px-2 py-1 rounded bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-500/30 text-[11px] text-indigo-200 font-medium transition">
+                    + Stick Figure / Boceto B&amp;N
+                  </button>
+                  <button onclick="setStylePromptPreset('dark_doc')" class="px-2 py-1 rounded bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 transition">
+                    + Documental Oscuro 35mm
+                  </button>
+                  <button onclick="setStylePromptPreset('comic_noir')" class="px-2 py-1 rounded bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 transition">
+                    + Novela Gráfica / Noir
+                  </button>
+                  <button onclick="setStylePromptPreset('ghibli')" class="px-2 py-1 rounded bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 transition">
+                    + Anime Cinematográfico
+                  </button>
+                  <button onclick="setStylePromptPreset('oil_paint')" class="px-2 py-1 rounded bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 transition">
+                    + Pintura Clásica / Óleo
+                  </button>
+                </div>
+              </div>
+
+              <!-- Subida de Imagen de Referencia -->
+              <div class="md:col-span-5 space-y-2">
+                <label class="block text-xs font-semibold text-slate-300">
+                  Imagen de Referencia de Estilo (Opcional):
+                </label>
+
+                <div class="p-3 rounded-xl bg-slate-950/80 border border-dashed border-slate-700 space-y-2.5">
+                  <div class="flex items-center gap-3">
+                    <label class="cursor-pointer px-3 py-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition whitespace-nowrap">
+                      🖼️ Subir Imagen
+                      <input id="ytRefImageInput" type="file" accept="image/*" onchange="onRefImageSelected(this)" class="hidden" />
+                    </label>
+                    <span id="ytRefImageStatus" class="text-[11px] text-slate-400 truncate">Ninguna imagen seleccionada</span>
+                    <button id="btnClearRefImg" onclick="clearRefImage()" class="hidden text-xs text-rose-400 hover:text-rose-300 font-semibold">✕</button>
+                  </div>
+
+                  <!-- Vista previa y análisis automático -->
+                  <div id="ytRefPreviewBox" class="hidden space-y-2 pt-1 border-t border-slate-800">
+                    <div class="flex items-center gap-3">
+                      <img id="ytRefPreviewImg" src="" class="w-16 h-16 object-cover rounded-lg border border-slate-700 shrink-0" />
+                      <div class="min-w-0 flex-1 space-y-1">
+                        <p id="ytRefSummaryText" class="text-[11px] text-indigo-200 leading-tight"></p>
+                        <div id="ytRefPaletteSwatches" class="flex items-center gap-1 pt-0.5"></div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onclick="appendExtractedRefPrompt()"
+                      class="w-full py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-indigo-300 font-medium transition"
+                    >
+                      ➕ Copiar atmósfera detectada al Prompt Maestro
+                    </button>
+
+                    <div>
+                      <div class="flex justify-between text-[11px] mb-0.5">
+                        <span class="text-slate-400">Igualación de color (Color Match)</span>
+                        <span id="colorMatchVal" class="mono text-indigo-300">45%</span>
+                      </div>
+                      <input
+                        id="ytColorMatchSlider"
+                        type="range"
+                        min="0"
+                        max="0.85"
+                        step="0.05"
+                        value="0.45"
+                        oninput="document.getElementById('colorMatchVal').textContent = Math.round(parseFloat(this.value)*100) + '%'"
+                        class="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ajustes de Motor de Generación de Imágenes IA -->
+          <details id="imgSettingsBox" class="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/30" open>
+            <summary class="cursor-pointer text-xs font-bold text-emerald-300 flex flex-wrap items-center gap-2">
+              <span>🔑 Motor de Imágenes IA (Suscripción Gemini Pro · Google AI Studio · Hugging Face · Runware)</span>
+              <span id="providerStatusBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-200 text-[10px] font-semibold">Motor: Auto</span>
+              <span id="geminiProStatusBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">Gemini Pro: sin conectar</span>
+              <span id="geminiStatusBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">AI Studio: sin clave</span>
+              <span id="tokenStatusBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">HF: sin token</span>
+            </summary>
+            <div class="pt-3.5 space-y-3">
+              <!-- Tarjeta de Conexión Directa a Suscripción Gemini Pro (gemini.google.com) -->
+              <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/40 space-y-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div class="text-xs font-bold text-indigo-200">⭐ Opción A: Usar tu Suscripción de Gemini Pro (gemini.google.com)</div>
+                    <p class="text-[11px] text-slate-300">En <a href="https://gemini.google.com/app" target="_blank" class="underline text-indigo-300">gemini.google.com</a> presiona <strong>F12 → Application → Cookies → https://gemini.google.com</strong> y pega ambas cookies (<code>__Secure-1PSID</code> y <code>__Secure-1PSIDTS</code>):</p>
+                  </div>
+                  <a
+                    href="https://gemini.google.com/app"
+                    target="_blank"
+                    class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white text-xs font-semibold whitespace-nowrap shadow transition text-center"
+                  >
+                    🌐 Abrir gemini.google.com
+                  </a>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
+                  <div class="sm:col-span-5">
+                    <label id="lbl1psid" class="block text-[10px] text-slate-300 mb-1">1. Cookie <code>__Secure-1PSID</code> (REQUERIDA):</label>
+                    <input id="gemini1psidInput" type="password" placeholder="g.a000... (Cookie __Secure-1PSID)" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                  <div class="sm:col-span-5">
+                    <label id="lbl1psidts" class="block text-[10px] text-amber-300 font-semibold mb-1">2. Cookie <code>__Secure-1PSIDTS</code> (REQUERIDA junto con 1PSID):</label>
+                    <input id="gemini1psidtsInput" type="password" placeholder="sidts-... (Pega aquí __Secure-1PSIDTS)" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-950 border border-amber-500/40 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                  <div class="sm:col-span-2">
+                    <button type="button" onclick="saveImageSettings()" class="w-full py-1.5 px-3 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-500/40 text-indigo-100 text-xs font-semibold transition">
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-6">
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                    Selector de Motor Generador
+                  </label>
+                  <select id="imgProviderSelect" onchange="saveImageSettings()" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none">
+                    <option value="gemini_pro">⭐ Mi Suscripción de Gemini Pro (gemini.google.com · Nano Banana / Imagen 3)</option>
+                    <option value="auto">✨ Automático (Gemini Pro → Hugging Face FLUX.1 → MagicStudio)</option>
+                    <option value="magic">🎨 MagicStudio Gratis Ilimitado (100% Gratis · Sin cuenta ni límite de 15 imágenes)</option>
+                    <option value="hf_dev">🤗 Hugging Face · Alta Calidad (FLUX.1-dev 28 pasos + Router Oficial)</option>
+                    <option value="gemini">🏆 Google AI Studio · Gemini Flash Image (API Key + Director de Storyboard)</option>
+                    <option value="pollinations">🌐 Pollinations AI · Flux (100% Gratis sin cuenta ni API Key)</option>
+                    <option value="runware">💎 Runware.ai · FLUX.1-dev 28 pasos (~$0.08 USD por video de 64 escenas)</option>
+                    <option value="fal">⚡ Fal.ai · FLUX.1-dev 28 pasos (Alta Calidad sin límites)</option>
+                    <option value="together">🚀 Together AI · FLUX.1-dev 28 pasos</option>
+                    <option value="hf_fast">🤗 Hugging Face · Modo Rápido (FLUX.1-schnell 4 pasos)</option>
+                  </select>
+                </div>
+
+                <!-- Clave Gratuita de Google AI Studio (Recomendada para 1 video diario gratis) -->
+                <div class="md:col-span-6">
+                  <label class="block text-[11px] font-semibold text-emerald-300 mb-1">
+                    🏆 API Key Gratuita de Google AI Studio (<a href="https://aistudio.google.com/apikey" target="_blank" class="underline text-indigo-300">obtener gratis en aistudio.google.com/apikey</a>):
+                  </label>
+                  <div class="flex gap-2">
+                    <input id="geminiKeyInput" type="password" placeholder="AIzaSy... (Gratis para 1 video diario + lee tu imagen de referencia)" autocomplete="off"
+                      class="flex-1 rounded-xl bg-slate-950 border border-emerald-500/40 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-400" />
+                    <button onclick="saveImageSettings()" class="px-3.5 py-2 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-500/40 text-emerald-200 text-xs font-semibold transition">Guardar</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Otras claves opcionales (Hugging Face, Runware, Fal, Together) -->
+              <details class="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
+                <summary class="cursor-pointer text-[11px] font-semibold text-slate-300">
+                  ⚙️ Claves adicionales opcionales (Token Hugging Face, Runware.ai, Fal.ai, Together AI)
+                </summary>
+                <div class="pt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">
+                      Token Hugging Face (<a href="https://huggingface.co/settings/tokens" target="_blank" class="underline text-indigo-300">huggingface.co/settings/tokens</a>):
+                    </label>
+                    <input id="hfTokenInput" type="password" placeholder="hf_xxxxxxxxxxxxxxxx" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">
+                      Runware.ai API Key (<a href="https://my.runware.ai/keys" target="_blank" class="underline text-indigo-300">my.runware.ai</a> · ~$0.08/video):
+                    </label>
+                    <input id="runwareKeyInput" type="password" placeholder="Clave de Runware.ai (opcional)" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Fal.ai API Key (opcional):</label>
+                    <input id="falKeyInput" type="password" placeholder="key_id:key_secret" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Together AI API Key (opcional):</label>
+                    <input id="togetherKeyInput" type="password" placeholder="Clave de Together AI" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                </div>
+                <div class="pt-2 flex justify-end">
+                  <button onclick="saveImageSettings()" class="px-3 py-1.5 rounded-lg bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-500/40 text-indigo-200 text-xs font-semibold">Guardar Claves</button>
+                </div>
+              </details>
+
+              <label class="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <input id="allowFallbackChk" type="checkbox" onchange="saveImageSettings()" class="mt-0.5 rounded accent-indigo-500" />
+                <span>Activar respaldo automático con <strong>Pollinations Flux (Gratis sin cuenta)</strong> si el motor principal falla o agota su cuota.</span>
+              </label>
+            </div>
+          </details>
+
+          <!-- Botones de Acción del Pipeline -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+            <button
+              id="btnStep1"
+              onclick="runYouTubePipeline(false)"
+              class="flex-1 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-semibold text-xs flex items-center justify-center gap-2 transition"
+            >
+              <span>1️⃣ Solo Generar Narración + Timestamps + Prompts (Para revisar antes)</span>
+            </button>
+
+            <button
+              id="btnAutoAll"
+              onclick="runYouTubePipeline(true)"
+              class="flex-1 px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-semibold text-xs shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition"
+            >
+              <span>🚀 Automatizar Todo en 1 Clic (Voz + Timestamps + Imágenes + Video MP4)</span>
+            </button>
+          </div>
+
+          <!-- Barra de Progreso del Automatizador -->
+          <div id="ytProgressBox" class="hidden p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span id="ytProgressText" class="text-indigo-200 font-medium">Procesando...</span>
+              <span id="ytProgressPct" class="mono text-indigo-300">0%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div id="ytProgressBar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-300" style="width: 5%"></div>
+            </div>
+          </div>
+
+          <div id="ytErrorAlert" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
+        </div>
+
+        <!-- Resultado Maestro: Audio Completo, Subtítulos SRT, Video MP4 y Paquete ZIP -->
+        <div id="ytProjectResult" class="hidden space-y-5">
+          <div class="glass rounded-2xl p-5 space-y-4 border border-emerald-500/25">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  ✅ Narración Maestra y Recursos Sincronizados
+                  <span id="ytTotalDurationBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-xs mono"></span>
+                </h3>
+                <p class="text-xs text-slate-400">Puedes descargar los archivos por separado, editar cualquier prompt abajo o renderizar el video <code class="text-slate-200">.MP4</code>.</p>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <a id="ytMasterWavLink" href="#" download="narracion_completa.wav" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+                  🎵 Audio (.WAV)
+                </a>
+                <a id="ytSrtLink" href="#" download="subtitulos_timestamps.srt" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+                  💬 Timestamps (.SRT)
+                </a>
+                <a id="ytZipLink" href="#" class="px-3.5 py-2 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-xs font-semibold text-emerald-200 transition">
+                  📦 Descargar Todo (.ZIP)
+                </a>
+              </div>
+            </div>
+
+            <audio id="ytMasterAudioPlayer" controls class="w-full h-10"></audio>
+
+            <!-- Acciones de Imágenes en Lote y Renderizado de Video MP4 -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
+              <div class="flex flex-wrap items-center gap-3">
+                <button
+                  onclick="generateAllMissingImages()"
+                  class="px-4 py-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition"
+                >
+                  🎨 Generar Todas las Imágenes IA Faltantes
+                </button>
+                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                  <input id="ytBurnSubs" type="checkbox" checked class="rounded accent-indigo-500" />
+                  Incrustar subtítulos (.MP4)
+                </label>
+                <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                  <span class="text-indigo-300 font-semibold">✨ Transición:</span>
+                  <select id="ytRenderTransition" onchange="if(document.getElementById('ytTransition')) document.getElementById('ytTransition').value = this.value;" class="bg-transparent text-xs text-slate-200 focus:outline-none">
+                    <option value="crossfade" selected>🔀 Disolución suave (Crossfade)</option>
+                    <option value="fade_black">🌑 Fundido a negro (Cine)</option>
+                    <option value="fade_white">⚪ Flash blanco (Storyboard)</option>
+                    <option value="slide_left">⬅️ Desplazamiento (Slide)</option>
+                    <option value="none">✂️ Corte directo</option>
+                  </select>
+                  <select id="ytRenderDuration" class="bg-transparent text-xs text-slate-400 focus:outline-none border-l border-slate-800 pl-2">
+                    <option value="0.3">0.3s (Rápida)</option>
+                    <option value="0.5" selected>0.5s (Estándar)</option>
+                    <option value="0.8">0.8s (Cinemática)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                id="btnRenderMP4"
+                onclick="renderCurrentProjectVideo()"
+                class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition"
+              >
+                🎬 Renderizar / Actualizar Video (.MP4)
+              </button>
+            </div>
+
+            <!-- Reproductor de Video Final -->
+            <div id="ytVideoContainer" class="hidden pt-3 border-t border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-300">🎬 Video Final Renderizado (.MP4)</span>
+                <a id="ytVideoDownloadLink" href="#" download="video_youtube.mp4" class="px-3.5 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition">
+                  ⬇ Descargar Video .MP4
+                </a>
+              </div>
+              <video id="ytVideoPlayer" controls class="w-full max-h-[460px] rounded-xl bg-black border border-slate-800"></video>
+            </div>
+          </div>
+
+          <!-- Lista / Storyboard de Escenas con Timestamps Exactos -->
+          <div class="glass rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                Storyboard por Timestamps (Puedes editar cualquier prompt y regenerar su imagen)
+              </h3>
+              <span id="ytScenesCountBadge" class="text-xs text-slate-400 mono"></span>
+            </div>
+
+            <div id="ytScenesList" class="space-y-4"></div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ============================================================ -->
+      <!-- 🍓 PANEL FRUTINOVELAS: Diálogos multi-voz + animación         -->
+      <!-- ============================================================ -->
+      <main id="panelFruti" class="lg:col-span-8 space-y-5 hidden">
+        <div class="glass rounded-2xl p-5 space-y-4 border border-pink-500/25">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-base font-bold text-white">🍓 Frutinovelas — Diálogos multi-voz animados</h2>
+              <p class="text-[11px] text-slate-400">Escribe el guion por personaje. Cada uno tendrá su voz, su retrato y la boca se moverá al ritmo de su audio, con efectos de cámara de telenovela.</p>
+            </div>
+            <button onclick="frutiLoadSample()" class="px-3 py-1.5 rounded-lg bg-pink-500/20 hover:bg-pink-500/35 border border-pink-500/40 text-pink-200 text-xs font-semibold">📝 Cargar episodio de ejemplo</button>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+            <strong class="text-slate-200">Formato:</strong>
+            <code class="text-pink-300">[Fresa] (llorando): ¡Me engañaste!</code> ·
+            <code class="text-pink-300">Cocardo: Déjame explicarte</code> ·
+            <code class="text-pink-300">Narrador: Y así empezó todo...</code><br />
+            <strong class="text-slate-200">Emociones (entre paréntesis):</strong> gritando, llorando, sorprendida, drama, riendo, susurrando. Si no pones ninguna se detecta sola por los signos (<code>¡¡!!</code>, <code>¿¡!?</code>, MAYÚSCULAS). Las líneas con <code>#</code> son notas y se ignoran.
+          </div>
+
+          <textarea id="frutiScript" rows="10" class="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-3 text-sm text-slate-100 mono leading-relaxed focus:outline-none focus:border-pink-500" placeholder="[Fresa] (llorando): ¡Dime la verdad, Cocardo!"></textarea>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Escenario / Locación</label>
+              <input id="frutiSetting" value="sala de una mansión lujosa con candelabros y cortinas rojas" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Formato</label>
+              <select id="frutiAspect" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="9:16" selected>📱 9:16 TikTok / Reels / Shorts</option>
+                <option value="16:9">📺 16:9 YouTube</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Pausa entre diálogos: <span id="frutiPauseVal">0.35</span>s</label>
+              <input id="frutiPause" type="range" min="0" max="1.2" step="0.05" value="0.35" oninput="document.getElementById('frutiPauseVal').textContent=this.value" class="w-full" />
+            </div>
+          </div>
+
+          <details class="rounded-xl bg-slate-950/60 border border-slate-800 p-3">
+            <summary class="text-xs font-semibold text-slate-300 cursor-pointer">🎨 Estilo visual de los personajes (opcional, en inglés)</summary>
+            <textarea id="frutiStyle" rows="3" class="mt-2 w-full rounded-lg bg-slate-950 border border-slate-800 p-2 text-xs text-slate-300" placeholder="Vacío = estilo 3D Pixar/DreamWorks de frutinovela"></textarea>
+          </details>
+
+          <button id="frutiBtnParse" onclick="frutiParse()" class="w-full px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-semibold text-xs">
+            1️⃣ Detectar personajes del guion
+          </button>
+          <div id="frutiError" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
+          <div id="frutiProgress" class="hidden p-3 rounded-xl bg-slate-900/90 border border-pink-500/30 text-xs text-pink-200"></div>
+        </div>
+
+        <!-- Elenco: voz y descripción de cada personaje -->
+        <div id="frutiCastBox" class="hidden glass rounded-2xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-pink-300">🎭 Elenco detectado — asigna voz y apariencia</h3>
+            <span id="frutiCastCount" class="text-xs text-slate-400 mono"></span>
+          </div>
+          <div id="frutiCastList" class="space-y-3"></div>
+          <button id="frutiBtnCreate" onclick="frutiCreate()" class="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 hover:from-pink-400 hover:to-orange-300 text-white font-semibold text-xs shadow-lg shadow-pink-500/25">
+            2️⃣ Generar voces de todos los personajes + timestamps
+          </button>
+        </div>
+
+        <!-- Proyecto: imágenes, boca, emociones y render -->
+        <div id="frutiProjectBox" class="hidden space-y-5">
+          <div class="glass rounded-2xl p-5 space-y-4 border border-emerald-500/25">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-white">✅ Voces listas <span id="frutiDurBadge" class="ml-2 px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 text-xs mono"></span></h3>
+              <div class="flex gap-2">
+                <a id="frutiWavLink" href="#" download="frutinovela.wav" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">🎵 Audio (.WAV)</a>
+                <a id="frutiSrtLink" href="#" download="subtitulos.srt" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">💬 Subtítulos (.SRT)</a>
+              </div>
+            </div>
+            <audio id="frutiAudio" controls class="w-full h-10"></audio>
+          </div>
+
+          <div class="glass rounded-2xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-pink-300">🖼️ Retratos de los personajes</h3>
+                <p class="text-[11px] text-slate-400">Solo se necesita <strong>1 imagen por personaje</strong> + 1 toma grupal para el narrador. Después <strong>haz clic sobre la boca</strong> del personaje para que se anime.</p>
+              </div>
+              <button onclick="frutiGenerateAllImages()" class="px-3 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200">🎨 Generar imágenes faltantes</button>
+            </div>
+            <div id="frutiCharGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+          </div>
+
+          <div class="glass rounded-2xl p-5 space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-pink-300">🎬 Línea de tiempo de diálogos (puedes cambiar la emoción de cada uno)</h3>
+            <div id="frutiLines" class="space-y-2"></div>
+          </div>
+
+          <div class="glass rounded-2xl p-5 space-y-4 border border-emerald-500/25">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🎞️ Animar y renderizar episodio</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <label class="flex items-center gap-2 text-slate-300"><input id="frutiSubs" type="checkbox" checked class="accent-pink-500" /> Subtítulos con nombre del personaje</label>
+              <div>
+                <span class="text-slate-400">Intensidad de efectos: <span id="frutiIntVal">1.0</span></span>
+                <input id="frutiIntensity" type="range" min="0" max="2" step="0.1" value="1" oninput="document.getElementById('frutiIntVal').textContent=this.value" class="w-full" />
+              </div>
+              <div>
+                <span class="text-slate-400">Volumen música: <span id="frutiMusVal">0.15</span></span>
+                <input id="frutiMusicVol" type="range" min="0" max="0.6" step="0.01" value="0.15" oninput="document.getElementById('frutiMusVal').textContent=this.value" class="w-full" />
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+              <label class="cursor-pointer px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold">
+                🎻 Música de fondo (mp3/wav)
+                <input id="frutiMusicInput" type="file" accept="audio/*" class="hidden" onchange="frutiOnMusic(this)" />
+              </label>
+              <span id="frutiMusicStatus" class="text-slate-400">Sin música (opcional: violines de suspenso, piano dramático...)</span>
+            </div>
+            <button id="frutiBtnRender" onclick="frutiRender()" class="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20">
+              🎬 Animar y Renderizar Frutinovela (.MP4)
+            </button>
+            <div id="frutiVideoBox" class="hidden space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-emerald-300">🎬 Episodio renderizado</span>
+                <a id="frutiVideoLink" href="#" download="frutinovela.mp4" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs">⬇ Descargar .MP4</a>
+              </div>
+              <video id="frutiVideo" controls class="w-full max-h-[620px] rounded-xl bg-black border border-slate-800"></video>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      es_welcome: {
+        text: "¡Hola! Este es nuestro propio sistema de Text to Speech neuronal corriendo cien por ciento en tu computadora, sin depender de servidores externos ni claves de API.",
+        lang: "es"
+      },
+      es_story: {
+        text: "Aquella noche, las luces de la ciudad se reflejaban sobre el asfalto mojado. Nadie imaginaba que dentro de aquel pequeño laboratorio nacía una voz artificial capaz de contar historias con emoción.",
+        lang: "es"
+      },
+      es_tech: {
+        text: "Bienvenido al panel de control. Todos los sistemas locales están operativos. El modelo neuronal ha sido cargado en memoria y está listo para sintetizar respuestas en tiempo real.",
+        lang: "es"
+      },
+      en_demo: {
+        text: "Welcome to your personal Neural Text to Speech Studio! Everything you hear is synthesized locally on your CPU using lightweight ONNX neural networks.",
+        lang: "en-us"
+      }
+    };
+
+    let currentEngine = "kokoro";
+    let voicesCatalog = { kokoro: [], piper: [] };
+    let historyItems = [];
+    let currentProject = null;
+    let audioCtx = null;
+    let analyser = null;
+    let sourceNode = null;
+
+    const textInput = document.getElementById("textInput");
+    const charCount = document.getElementById("charCount");
+
+    textInput.addEventListener("input", () => {
+      charCount.textContent = `${textInput.value.length} caracteres`;
+    });
+
+    textInput.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        synthesize();
+      }
+    });
+
+    function switchMode(mode) {
+      const panels = { tts: "panelTTS", youtube: "panelYouTube", fruti: "panelFruti" };
+      const tabs = { tts: "tabBtnTTS", youtube: "tabBtnYT", fruti: "tabBtnFruti" };
+      const active = "px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow";
+      const inactive = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white";
+      Object.keys(panels).forEach((k) => {
+        document.getElementById(panels[k]).classList.toggle("hidden", k !== mode);
+        document.getElementById(tabs[k]).className = k === mode ? active : inactive;
+      });
+    }
+
+    async function loadVoices() {
+      const res = await fetch("/api/voices");
+      voicesCatalog = await res.json();
+      renderVoiceOptions();
+      renderYTVoiceOptions();
+    }
+
+    function renderYTVoiceOptions() {
+      const ytEngEl = document.getElementById("ytEngineSelect");
+      const ytVoiceEl = document.getElementById("ytVoiceSelect");
+      if (!ytEngEl || !ytVoiceEl) return;
+      const eng = ytEngEl.value || "edge";
+      const list = voicesCatalog[eng] || [];
+      ytVoiceEl.innerHTML = "";
+
+      if (eng === "edge" || eng === "kokoro") {
+        const groups = {
+          es_m: { label: "🇲🇽🌎 Voces Masculinas Ultra-Naturales (Español / Podcast)", items: [] },
+          es_f: { label: "🇲🇽🌎 Voces Femeninas Ultra-Naturales (Español / Podcast)", items: [] },
+          other: { label: "🇺🇸🇬🇧 Otras Voces", items: [] }
+        };
+        list.forEach((v) => {
+          const isEs = (v.lang || "").toLowerCase().startsWith("es");
+          if (isEs && v.gender === "Masculina") groups.es_m.items.push(v);
+          else if (isEs) groups.es_f.items.push(v);
+          else groups.other.items.push(v);
+        });
+        Object.values(groups).forEach((g) => {
+          if (!g.items.length) return;
+          const optgroup = document.createElement("optgroup");
+          optgroup.label = g.label;
+          g.items.forEach((v) => {
+            const opt = document.createElement("option");
+            opt.value = v.id;
+            opt.textContent = v.name;
+            optgroup.appendChild(opt);
+          });
+          ytVoiceEl.appendChild(optgroup);
+        });
+      } else {
+        list.forEach((v) => {
+          const opt = document.createElement("option");
+          opt.value = v.id;
+          opt.textContent = v.name;
+          ytVoiceEl.appendChild(opt);
+        });
+      }
+    }
+
+    async function previewYouTubeVoice() {
+      const btn = document.getElementById("btnPreviewYTVoice");
+      const player = document.getElementById("ytVoicePreviewPlayer");
+      const errBox = document.getElementById("ytErrorAlert");
+      errBox.classList.add("hidden");
+
+      const rawScript = (document.getElementById("ytScriptInput").value || "").trim();
+      const firstSentence = (rawScript.split(/(?<=[.!?…])\s+|\n+/)[0] || "").trim().slice(0, 260)
+        || "En las profundidades del océano Pacífico existe un misterio que ningún científico ha logrado explicar.";
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Generando muestra...";
+      try {
+        const res = await fetch("/api/youtube/voice-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: firstSentence,
+            engine: document.getElementById("ytEngineSelect").value,
+            voice: document.getElementById("ytVoiceSelect").value,
+            lang: document.getElementById("langSelect").value,
+            speed: parseFloat(document.getElementById("speedSlider").value),
+            sentence_pause: parseFloat(document.getElementById("pauseSlider").value),
+            noise_scale: parseFloat(document.getElementById("noiseSlider").value),
+            pitch_hz: parseInt(document.getElementById("ytPitchSelect").value, 10) || 0,
+            studio_mastering: document.getElementById("ytStudioMasteringChk").checked
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        const blob = await res.blob();
+        player.src = URL.createObjectURL(blob);
+        player.classList.remove("hidden");
+        player.play();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔊 Probar esta Voz (1 Frase)";
+      }
+    }
+
+    async function updateExistingProjectVoice() {
+      if (!currentProject) return;
+      const btn = document.getElementById("btnUpdateVoiceExisting");
+      const errBox = document.getElementById("ytErrorAlert");
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.textContent = "⏳ Regenerando voz de todas las escenas...";
+      setYTProgress(true, "Regenerando narración con la nueva voz ultra-natural (conservando tus imágenes IA)...", 40);
+      try {
+        const res = await fetch(`/api/project/${currentProject.project_id}/update-voice`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            engine: document.getElementById("ytEngineSelect").value,
+            voice: document.getElementById("ytVoiceSelect").value,
+            lang: document.getElementById("langSelect").value,
+            speed: parseFloat(document.getElementById("speedSlider").value),
+            sentence_pause: parseFloat(document.getElementById("pauseSlider").value),
+            noise_scale: parseFloat(document.getElementById("noiseSlider").value),
+            pitch_hz: parseInt(document.getElementById("ytPitchSelect").value, 10) || 0,
+            studio_mastering: document.getElementById("ytStudioMasteringChk").checked
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        const hadVideo = !!currentProject.video_url;
+        currentProject = await res.json();
+        renderProjectUI();
+        if (hadVideo) {
+          setYTProgress(true, "Actualizando también el video .MP4 con la nueva voz...", 85);
+          await renderCurrentProjectVideo(true);
+        }
+        setYTProgress(false);
+        const masterPlayer = document.getElementById("ytMasterAudioPlayer");
+        if (masterPlayer) masterPlayer.play().catch(() => {});
+      } catch (err) {
+        setYTProgress(false);
+        errBox.textContent = err.message;
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔄 Cambiar Voz en mi Proyecto Actual (Conserva tus Imágenes)";
+      }
+    }
+
+    function setEngine(engine) {
+      currentEngine = engine;
+      const btnKokoro = document.getElementById("btnEngineKokoro");
+      const btnPiper = document.getElementById("btnEnginePiper");
+
+      if (engine === "kokoro") {
+        btnKokoro.className = "p-3 rounded-xl border text-left transition-all bg-indigo-600/20 border-indigo-500 text-white";
+        btnPiper.className = "p-3 rounded-xl border text-left transition-all bg-slate-900/50 border-slate-700/70 text-slate-300 hover:border-slate-600";
+        document.getElementById("kokoroLangBox").classList.remove("hidden");
+        document.getElementById("kokoroBlendBox").classList.remove("hidden");
+        document.getElementById("pauseControlBox").classList.remove("hidden");
+        document.getElementById("noiseControlBox").classList.add("hidden");
+      } else {
+        btnPiper.className = "p-3 rounded-xl border text-left transition-all bg-indigo-600/20 border-indigo-500 text-white";
+        btnKokoro.className = "p-3 rounded-xl border text-left transition-all bg-slate-900/50 border-slate-700/70 text-slate-300 hover:border-slate-600";
+        document.getElementById("kokoroLangBox").classList.add("hidden");
+        document.getElementById("kokoroBlendBox").classList.add("hidden");
+        document.getElementById("pauseControlBox").classList.add("hidden");
+        document.getElementById("noiseControlBox").classList.remove("hidden");
+      }
+      renderVoiceOptions();
+    }
+
+    function renderVoiceOptions() {
+      const select = document.getElementById("voiceSelect");
+      const blendSelect = document.getElementById("blendVoiceSelect");
+      select.innerHTML = "";
+      blendSelect.innerHTML = "";
+
+      const list = voicesCatalog[currentEngine] || [];
+
+      if (currentEngine === "kokoro") {
+        const groups = {
+          es_m: { label: "🇲🇽🌎 Español — Voces Masculinas", items: [] },
+          es_f: { label: "🇲🇽🌎 Español — Voces Femeninas", items: [] },
+          en: { label: "🇺🇸🇬🇧 Inglés — Voces Masculinas y Femeninas", items: [] }
+        };
+
+        list.forEach((v) => {
+          const isEs = (v.lang || "").startsWith("es");
+          if (isEs && v.gender === "Masculina") groups.es_m.items.push(v);
+          else if (isEs) groups.es_f.items.push(v);
+          else groups.en.items.push(v);
+
+          const opt2 = document.createElement("option");
+          opt2.value = v.id;
+          opt2.textContent = `${v.name}`;
+          blendSelect.appendChild(opt2);
+        });
+
+        Object.values(groups).forEach((g) => {
+          if (!g.items.length) return;
+          const optgroup = document.createElement("optgroup");
+          optgroup.label = g.label;
+          g.items.forEach((v) => {
+            const opt = document.createElement("option");
+            opt.value = v.id;
+            opt.textContent = v.name;
+            optgroup.appendChild(opt);
+          });
+          select.appendChild(optgroup);
+        });
+      } else {
+        list.forEach((v) => {
+          const opt = document.createElement("option");
+          opt.value = v.id;
+          const badge = v.installed ? "✓ Instalada" : "⬇ Descarga automática";
+          opt.textContent = `${v.name} — [${badge}]`;
+          select.appendChild(opt);
+        });
+      }
+
+      if (currentEngine === "kokoro" && blendSelect.options.length > 3) {
+        blendSelect.selectedIndex = 3;
+      }
+      onVoiceChange();
+      updateBlendLabels();
+    }
+
+    function onVoiceChange() {
+      if (currentEngine === "kokoro") {
+        const vid = document.getElementById("voiceSelect").value;
+        const found = (voicesCatalog.kokoro || []).find((x) => x.id === vid);
+        if (found && found.lang) {
+          const langSel = document.getElementById("langSelect");
+          const currLang = langSel.value || "";
+          // Si ya tenía seleccionado es-mx, es-419 o es y cambia a otra voz en español, conservar su variante de español preferida
+          if (currLang.startsWith("es") && found.lang.startsWith("es")) {
+            // mantener currLang
+          } else {
+            langSel.value = found.lang;
+          }
+        }
+      }
+      updateBlendLabels();
+    }
+
+    function toggleBlend() {
+      const enabled = document.getElementById("enableBlend").checked;
+      const box = document.getElementById("blendControls");
+      if (enabled) box.classList.remove("hidden");
+      else box.classList.add("hidden");
+    }
+
+    function updateBlendLabels() {
+      const w = parseFloat(document.getElementById("blendWeight").value);
+      const pctB = Math.round(w * 100);
+      const pctA = 100 - pctB;
+      document.getElementById("blendLabelA").textContent = `Voz Principal: ${pctA}%`;
+      document.getElementById("blendLabelB").textContent = `Segunda Voz: ${pctB}%`;
+    }
+
+    function setPreset(key) {
+      const p = PRESETS[key];
+      if (!p) return;
+      textInput.value = p.text;
+      charCount.textContent = `${p.text.length} caracteres`;
+      if (currentEngine === "kokoro") {
+        if (p.lang === "en-us") {
+          document.getElementById("langSelect").value = "en-us";
+          document.getElementById("voiceSelect").value = "af_heart";
+        } else if (p.lang === "es") {
+          if (!document.getElementById("langSelect").value.startsWith("es")) {
+            document.getElementById("langSelect").value = "es-mx";
+          }
+          document.getElementById("voiceSelect").value = "es_m_mateo";
+        }
+      }
+    }
+
+    function parseErrorDetail(errData, status) {
+      let msg = `Error HTTP ${status}`;
+      if (typeof errData.detail === "string") {
+        msg = errData.detail;
+      } else if (Array.isArray(errData.detail)) {
+        msg = errData.detail.map((e) => e.msg || JSON.stringify(e)).join(" | ");
+      } else if (errData.detail) {
+        msg = JSON.stringify(errData.detail);
+      }
+      return msg;
+    }
+
+    async function synthesize() {
+      const text = textInput.value.trim();
+      const errBox = document.getElementById("errorAlert");
+      errBox.classList.add("hidden");
+
+      if (!text) {
+        errBox.textContent = "Por favor escribe algún texto antes de generar el audio.";
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      const btn = document.getElementById("generateBtn");
+      const btnText = document.getElementById("genBtnText");
+      btn.disabled = true;
+      btn.classList.add("opacity-70");
+      const approxChunks = Math.max(1, Math.ceil(text.length / 320));
+      btnText.textContent = approxChunks > 2
+        ? `Sintetizando guion largo (~${approxChunks} fragmentos)...`
+        : "Sintetizando voz neuronal...";
+
+      const payload = {
+        text,
+        engine: currentEngine,
+        voice: document.getElementById("voiceSelect").value,
+        lang: document.getElementById("langSelect").value,
+        speed: parseFloat(document.getElementById("speedSlider").value),
+        sentence_pause: parseFloat(document.getElementById("pauseSlider").value),
+        noise_scale: parseFloat(document.getElementById("noiseSlider").value),
+        blend_voice: (currentEngine === "kokoro" && document.getElementById("enableBlend").checked)
+          ? document.getElementById("blendVoiceSelect").value
+          : null,
+        blend_weight: parseFloat(document.getElementById("blendWeight").value)
+      };
+
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+
+        const inferMs = res.headers.get("X-Inference-Time-Ms") || "—";
+        const audioDur = res.headers.get("X-Audio-Duration-Sec") || "—";
+        const rtf = res.headers.get("X-Real-Time-Factor") || "—";
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        const player = document.getElementById("audioPlayer");
+        player.src = url;
+        setupVisualizer(player);
+        player.play();
+
+        const dl = document.getElementById("downloadBtn");
+        dl.href = url;
+        dl.download = `tts-${payload.engine}-${payload.voice}-${Date.now()}.wav`;
+        dl.classList.remove("pointer-events-none", "opacity-40");
+
+        document.getElementById("metricsBadges").classList.remove("hidden");
+        document.getElementById("badgeLatency").textContent = `⚡ ${inferMs} ms`;
+        document.getElementById("badgeDuration").textContent = `🕒 ${audioDur} s`;
+        document.getElementById("badgeRTF").textContent = `RTF ${rtf}x`;
+
+        addHistoryItem({
+          url,
+          text,
+          engine: payload.engine,
+          voice: payload.blend_voice ? `${payload.voice} + ${payload.blend_voice}` : payload.voice,
+          inferMs,
+          audioDur
+        });
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove("opacity-70");
+        btnText.textContent = "▶ Generar Voz Neuronal (Ctrl + Enter)";
+      }
+    }
+
+    function addHistoryItem(item) {
+      historyItems.unshift(item);
+      document.getElementById("historyCount").textContent = `${historyItems.length} audio(s)`;
+      const container = document.getElementById("historyList");
+      container.innerHTML = "";
+
+      historyItems.forEach((h, idx) => {
+        const row = document.createElement("div");
+        row.className = "p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3";
+        row.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-medium">${h.engine.toUpperCase()}</span>
+              <span class="text-slate-300 font-semibold">${h.voice}</span>
+              <span class="text-slate-500 mono">${h.audioDur}s · ${h.inferMs}ms</span>
+            </div>
+            <p class="text-xs text-slate-400 truncate mt-1">${h.text.replace(/</g, "&lt;")}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="playHistory(${idx})" class="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-medium transition">
+              ▶ Reproducir
+            </button>
+            <a href="${h.url}" download="tts-${idx + 1}.wav" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">
+              ⬇
+            </a>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function playHistory(idx) {
+      const item = historyItems[idx];
+      if (!item) return;
+      const player = document.getElementById("audioPlayer");
+      player.src = item.url;
+      player.play();
+    }
+
+    // =========================================================================
+    // AUTOMATIZADOR DE YOUTUBE (Guion -> Voz + Timestamps + Imágenes + Video)
+    // =========================================================================
+
+    let currentRefImageB64 = null;
+    let currentRefAnalysis = null;
+
+    const STYLE_PROMPT_PRESETS = {
+      stick_sketch: "Hand-drawn sketch style, simple black ink line art on a pure white background, no color, no text, no letters, no captions. Stick figure character with a round head, a few messy spiky hair strokes, two small dot eyes, thin line body, small simple hands, and small oval shoes, same character design in every image. Minimalist, loose pencil-sketch look, wide 16:9 composition.",
+      dark_doc: "Dark cinematic documentary photography, 35mm film grain, moody chiaroscuro lighting, deep teal and warm amber shadows, hyper-detailed, no text",
+      comic_noir: "Graphic novel noir illustration, bold ink shadows, dramatic rim lighting, muted palette with high-contrast highlights, consistent character design, no text",
+      ghibli: "Hand-painted anime feature film art style, atmospheric lighting, soft painterly backgrounds, expressive cinematic framing, no text",
+      oil_paint: "Classical baroque oil painting on canvas, dramatic Rembrandt lighting, rich brushstroke texture, warm golden highlights and deep shadows, no text"
+    };
+
+    function setStylePromptPreset(key) {
+      const val = STYLE_PROMPT_PRESETS[key];
+      if (!val) return;
+      document.getElementById("ytCustomStylePrompt").value = val;
+      syncStyleLock();
+    }
+
+    // Si hay Prompt Maestro, el estilo visual predefinido se anula (y se bloquea) para no mezclar estilos.
+    let lastPresetStyle = "cinematic";
+    function syncStyleLock() {
+      const master = document.getElementById("ytCustomStylePrompt").value.trim();
+      const sel = document.getElementById("ytVisualStyle");
+      if (master) {
+        if (!sel.disabled) lastPresetStyle = sel.value;
+        sel.value = "none";
+        sel.disabled = true;
+        sel.title = "Anulado: se está usando tu Prompt Maestro";
+      } else if (sel.disabled) {
+        sel.disabled = false;
+        sel.value = lastPresetStyle === "none" ? "cinematic" : lastPresetStyle;
+        sel.title = "";
+      }
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("ytCustomStylePrompt").addEventListener("input", syncStyleLock);
+      syncStyleLock();
+    });
+
+    async function onRefImageSelected(inputEl) {
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+
+      document.getElementById("ytRefImageStatus").textContent = file.name;
+      document.getElementById("btnClearRefImg").classList.remove("hidden");
+
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        currentRefImageB64 = ev.target.result;
+        document.getElementById("ytRefPreviewImg").src = currentRefImageB64;
+        document.getElementById("ytRefPreviewBox").classList.remove("hidden");
+        document.getElementById("ytRefSummaryText").textContent = "Analizando estilo e iluminación...";
+
+        try {
+          const res = await fetch("/api/style/analyze-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image_b64: currentRefImageB64 })
+          });
+          if (res.ok) {
+            currentRefAnalysis = await res.json();
+            document.getElementById("ytRefSummaryText").textContent = currentRefAnalysis.summary_es;
+            const swatchesEl = document.getElementById("ytRefPaletteSwatches");
+            swatchesEl.innerHTML = "";
+            (currentRefAnalysis.palette || []).forEach((hex) => {
+              const sw = document.createElement("span");
+              sw.className = "w-4 h-4 rounded-full border border-white/20 inline-block";
+              sw.style.backgroundColor = hex;
+              sw.title = hex;
+              swatchesEl.appendChild(sw);
+            });
+          }
+        } catch (err) {
+          document.getElementById("ytRefSummaryText").textContent = "Imagen cargada como referencia";
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearRefImage() {
+      currentRefImageB64 = null;
+      currentRefAnalysis = null;
+      document.getElementById("ytRefImageInput").value = "";
+      document.getElementById("ytRefImageStatus").textContent = "Ninguna imagen seleccionada";
+      document.getElementById("btnClearRefImg").classList.add("hidden");
+      document.getElementById("ytRefPreviewBox").classList.add("hidden");
+    }
+
+    function appendExtractedRefPrompt() {
+      if (!currentRefAnalysis || !currentRefAnalysis.extracted_prompt) return;
+      const box = document.getElementById("ytCustomStylePrompt");
+      const curr = box.value.trim();
+      box.value = curr ? `${curr}. ${currentRefAnalysis.extracted_prompt}` : currentRefAnalysis.extracted_prompt;
+    }
+
+    async function applyStyleToExistingProject() {
+      if (!currentProject) return;
+      const btn = document.getElementById("btnUpdateStyleExisting");
+      btn.disabled = true;
+      btn.textContent = "⏳ Actualizando prompts...";
+      try {
+        const res = await fetch(`/api/project/${currentProject.project_id}/update-style`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            style: document.getElementById("ytVisualStyle").value,
+            custom_style_prompt: document.getElementById("ytCustomStylePrompt").value.trim(),
+            reference_image_b64: currentRefImageB64,
+            color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value)
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        currentProject = await res.json();
+        renderProjectUI();
+      } catch (err) {
+        const errBox = document.getElementById("ytErrorAlert");
+        errBox.textContent = err.message;
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔄 Actualizar Estilo en Escenas Actuales";
+      }
+    }
+
+    function loadYouTubeSample() {
+      document.getElementById("ytScriptInput").value =
+`En las profundidades del océano Pacífico existe una fosa tan profunda que ni siquiera la luz del sol logra alcanzarla.
+
+A más de once mil metros bajo la superficie, la presión es mil veces superior a la que sentimos en la Tierra, pero aun así, criaturas bioluminiscentes han logrado adaptarse a la oscuridad eterna.
+
+Los científicos creen que explorar estos abismos podría revelarnos cómo surgió la vida en nuestro planeta y cómo podría existir en las lunas heladas de Júpiter.`;
+    }
+
+    function setYTProgress(visible, text = "", pct = 0) {
+      const box = document.getElementById("ytProgressBox");
+      if (!visible) {
+        box.classList.add("hidden");
+        return;
+      }
+      box.classList.remove("hidden");
+      document.getElementById("ytProgressText").textContent = text;
+      document.getElementById("ytProgressPct").textContent = `${Math.round(pct)}%`;
+      document.getElementById("ytProgressBar").style.width = `${Math.max(4, Math.min(100, pct))}%`;
+    }
+
+    async function runYouTubePipeline(fullAuto = false) {
+      const script = document.getElementById("ytScriptInput").value.trim();
+      const errBox = document.getElementById("ytErrorAlert");
+      errBox.classList.add("hidden");
+
+      if (!script) {
+        errBox.textContent = "Por favor ingresa el guion de tu video primero.";
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      const btn1 = document.getElementById("btnStep1");
+      const btn2 = document.getElementById("btnAutoAll");
+      btn1.disabled = true;
+      btn2.disabled = true;
+
+      try {
+        setYTProgress(true, "Paso 1: Sintetizando narración neuronal y calculando timestamps exactos...", 15);
+
+        const createPayload = {
+          script,
+          engine: document.getElementById("ytEngineSelect") ? document.getElementById("ytEngineSelect").value : currentEngine,
+          voice: document.getElementById("ytVoiceSelect") ? document.getElementById("ytVoiceSelect").value : document.getElementById("voiceSelect").value,
+          lang: document.getElementById("langSelect").value,
+          speed: parseFloat(document.getElementById("speedSlider").value),
+          sentence_pause: parseFloat(document.getElementById("pauseSlider").value),
+          noise_scale: parseFloat(document.getElementById("noiseSlider").value),
+          pitch_hz: document.getElementById("ytPitchSelect") ? (parseInt(document.getElementById("ytPitchSelect").value, 10) || 0) : -2,
+          studio_mastering: document.getElementById("ytStudioMasteringChk") ? document.getElementById("ytStudioMasteringChk").checked : true,
+          scene_mode: document.getElementById("ytSceneMode").value,
+          style: document.getElementById("ytVisualStyle").value,
+          custom_style_prompt: document.getElementById("ytCustomStylePrompt").value.trim(),
+          reference_image_b64: currentRefImageB64,
+          color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value),
+          aspect_ratio: document.getElementById("ytAspectRatio").value,
+          transition: document.getElementById("ytTransition").value,
+          transition_duration: 0.5
+        };
+
+        const res = await fetch("/api/project/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createPayload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+
+        currentProject = await res.json();
+        renderProjectUI();
+
+        if (fullAuto) {
+          const totalScenes = currentProject.scenes.length;
+          let consecutiveFails = 0;
+          for (let i = 0; i < totalScenes; i++) {
+            const sc = currentProject.scenes[i];
+            const pct = 25 + ((i / totalScenes) * 55);
+            setYTProgress(true, `Paso 2: Generando imagen IA para Escena ${sc.index} de ${totalScenes} [${sc.timestamp_label}]...`, pct);
+            const ok = await generateSceneImage(sc.index, false);
+            if (ok) {
+              consecutiveFails = 0;
+            } else {
+              consecutiveFails++;
+              if (consecutiveFails >= 2) {
+                break;
+              }
+            }
+          }
+
+          const generatedCount = currentProject.scenes.filter((s) => !!s.image_url).length;
+          if (generatedCount === 0) {
+            const existingErr = errBox.textContent.trim();
+            throw new Error(existingErr || "No se pudo generar ninguna imagen para las escenas. Revisa la configuración del motor de imágenes e inténtalo de nuevo.");
+          }
+
+          setYTProgress(true, "Paso 3: Ensamblando video Full HD 1080p (.MP4) con narración, imágenes y transiciones...", 90);
+          await renderCurrentProjectVideo(true);
+        }
+
+        setYTProgress(false);
+      } catch (err) {
+        setYTProgress(false);
+        errBox.textContent = err.message;
+        errBox.classList.remove("hidden");
+      } finally {
+        btn1.disabled = false;
+        btn2.disabled = false;
+      }
+    }
+
+    function renderProjectUI() {
+      if (!currentProject) return;
+      document.getElementById("ytProjectResult").classList.remove("hidden");
+      document.getElementById("btnUpdateStyleExisting").classList.remove("hidden");
+      if (document.getElementById("btnUpdateVoiceExisting")) {
+        document.getElementById("btnUpdateVoiceExisting").classList.remove("hidden");
+      }
+      document.getElementById("ytTotalDurationBadge").textContent = `${currentProject.scenes.length} escenas · ${currentProject.total_duration_sec}s totales`;
+      const freshAudioUrl = currentProject.master_audio_url.includes("?")
+        ? `${currentProject.master_audio_url}&r=${Date.now()}`
+        : `${currentProject.master_audio_url}?t=${Date.now()}`;
+      document.getElementById("ytMasterWavLink").href = freshAudioUrl;
+      document.getElementById("ytSrtLink").href = currentProject.srt_url;
+      document.getElementById("ytZipLink").href = currentProject.zip_url;
+      const masterPlayerEl = document.getElementById("ytMasterAudioPlayer");
+      masterPlayerEl.src = freshAudioUrl;
+      masterPlayerEl.load();
+      document.getElementById("ytScenesCountBadge").textContent = `${currentProject.scenes.length} segmentos con timestamp`;
+
+      if (currentProject.transition && document.getElementById("ytRenderTransition")) {
+        document.getElementById("ytRenderTransition").value = currentProject.transition;
+      }
+      if (currentProject.transition_duration && document.getElementById("ytRenderDuration")) {
+        document.getElementById("ytRenderDuration").value = String(currentProject.transition_duration);
+      }
+
+      if (currentProject.video_url) {
+        document.getElementById("ytVideoContainer").classList.remove("hidden");
+        document.getElementById("ytVideoPlayer").src = currentProject.video_url;
+        document.getElementById("ytVideoDownloadLink").href = currentProject.video_url;
+      } else {
+        document.getElementById("ytVideoContainer").classList.add("hidden");
+      }
+
+      const listEl = document.getElementById("ytScenesList");
+      listEl.innerHTML = "";
+
+      currentProject.scenes.forEach((sc) => {
+        const card = document.createElement("div");
+        card.className = "p-4 rounded-xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4 items-start";
+
+        const imgHtml = sc.image_url
+          ? `<img id="sceneImg_${sc.index}" src="${sc.image_url}" class="w-full h-44 object-cover rounded-lg border border-slate-700" />`
+          : `<div id="sceneImgBox_${sc.index}" class="w-full h-44 rounded-lg bg-slate-950 border border-dashed border-slate-700 flex flex-col items-center justify-center text-xs text-slate-500 p-3 text-center">
+               <span>Sin imagen generada aún</span>
+               <span class="text-[11px] text-slate-600 mt-1">Haz clic en "Generar Imagen IA"</span>
+             </div>`;
+
+        card.innerHTML = `
+          <div class="md:col-span-7 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-bold text-xs">
+                  Escena #${String(sc.index).padStart(2, "0")}
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs mono">
+                  ⏱ ${sc.timestamp_label} (${sc.duration_sec}s)
+                </span>
+              </div>
+              <audio src="${sc.audio_url}" controls class="h-7 w-44"></audio>
+            </div>
+
+            <div class="bg-slate-950/70 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+              <div class="text-[11px] font-semibold text-slate-400">🗣️ Lo que dice la narración en este Timestamp:</div>
+              <p class="text-sm text-slate-100 leading-relaxed">
+                "${sc.text.replace(/</g, "&lt;")}"
+              </p>
+              ${sc.translated_en ? `
+              <div class="pt-1 border-t border-slate-800/80 text-[11px] text-indigo-300">
+                <span class="font-semibold text-indigo-400">🎯 Escena alusiva traducida (EN):</span> ${sc.translated_en.replace(/</g, "&lt;")}
+              </div>` : ""}
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Prompt Completo de Imagen IA (Basado en este Timestamp + Estilo):
+              </label>
+              <textarea
+                id="promptInput_${sc.index}"
+                rows="3"
+                oninput="this.dataset.dirty='true'"
+                class="w-full rounded-lg bg-slate-950 border border-slate-800 p-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+              >${sc.image_prompt.replace(/</g, "&lt;")}</textarea>
+            </div>
+          </div>
+
+          <div class="md:col-span-5 space-y-2">
+            <div id="imgPreviewWrapper_${sc.index}">
+              ${imgHtml}
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <button
+                id="btnGenImg_${sc.index}"
+                onclick="generateSceneImage(${sc.index}, false)"
+                class="w-full py-2 px-3 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition"
+              >
+                🎨 ${sc.image_url ? "Regenerar Imagen IA" : "Generar Imagen IA"}
+              </button>
+              ${sc.image_url ? `<a href="${sc.image_url}" download="escena_${sc.index}.png" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200">⬇</a>` : ""}
+            </div>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    async function generateSceneImage(sceneIndex, silent = false) {
+      if (!currentProject) return;
+      const btn = document.getElementById(`btnGenImg_${sceneIndex}`);
+      const promptEl = document.getElementById(`promptInput_${sceneIndex}`);
+      const customPrompt = (promptEl && promptEl.dataset.dirty === "true") ? promptEl.value.trim() : null;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Generando con FLUX.1...";
+      }
+
+      try {
+        const res = await fetch(`/api/project/${currentProject.project_id}/scene/${sceneIndex}/image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: customPrompt,
+            variation: !!(currentProject.scenes.find((s) => s.index === sceneIndex) || {}).image_url && !silent,
+            color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value)
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        const updatedScene = await res.json();
+        const idx = currentProject.scenes.findIndex((s) => s.index === sceneIndex);
+        if (idx !== -1) {
+          currentProject.scenes[idx] = updatedScene;
+        }
+        renderProjectUI();
+        return true;
+      } catch (err) {
+        if (!silent) {
+          const errBox = document.getElementById("ytErrorAlert");
+          errBox.textContent = `Escena #${sceneIndex}: ${err.message}`;
+          errBox.classList.remove("hidden");
+        }
+        return false;
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+        }
+      }
+    }
+
+    async function generateAllMissingImages() {
+      if (!currentProject) return;
+      const missing = currentProject.scenes.filter((s) => !s.image_url);
+      if (missing.length === 0) {
+        alert("¡Todas las escenas ya tienen su imagen generada!");
+        return;
+      }
+
+      setYTProgress(true, `Generando ${missing.length} imágenes faltantes con FLUX.1...`, 10);
+      let done = 0;
+      for (const sc of missing) {
+        done++;
+        const pct = 10 + (done / missing.length) * 80;
+        setYTProgress(true, `Generando imagen ${done} de ${missing.length} (Escena #${sc.index} [${sc.timestamp_label}])...`, pct);
+        try {
+          await generateSceneImage(sc.index, false);
+          // Si falló y no se actualizó la imagen, detener el bucle para no saturar con errores
+          const check = currentProject.scenes.find((s) => s.index === sc.index);
+          if (!check || !check.image_url) {
+            setYTProgress(false);
+            break;
+          }
+        } catch (e) {
+          setYTProgress(false);
+          break;
+        }
+      }
+      setYTProgress(false);
+    }
+
+    async function renderCurrentProjectVideo(silent = false) {
+      if (!currentProject) return;
+      const btn = document.getElementById("btnRenderMP4");
+      const errBox = document.getElementById("ytErrorAlert");
+      errBox.classList.add("hidden");
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Renderizando Video .MP4 con FFmpeg...";
+
+      try {
+        const burnSubs = document.getElementById("ytBurnSubs").checked;
+        const transEl = document.getElementById("ytRenderTransition");
+        const durEl = document.getElementById("ytRenderDuration");
+        const transition = transEl ? transEl.value : (currentProject.transition || "crossfade");
+        const transition_duration = durEl ? parseFloat(durEl.value) : (currentProject.transition_duration || 0.5);
+
+        const res = await fetch(`/api/project/${currentProject.project_id}/render`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            burn_subtitles: burnSubs,
+            transition: transition,
+            transition_duration: transition_duration
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        currentProject = await res.json();
+        renderProjectUI();
+      } catch (err) {
+        if (!silent) {
+          errBox.textContent = err.message;
+          errBox.classList.remove("hidden");
+        } else {
+          throw err;
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🎬 Renderizar / Actualizar Video (.MP4)";
+      }
+    }
+
+    function setupVisualizer(audioEl) {
+      document.getElementById("visualizerPlaceholder").classList.add("hidden");
+      const canvas = document.getElementById("visualizer");
+      const ctx = canvas.getContext("2d");
+
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        sourceNode = audioCtx.createMediaElementSource(audioEl);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        requestAnimationFrame(draw);
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        analyser.getByteFrequencyData(dataArray);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const barWidth = (canvas.width / bufferLength) * 1.6;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 255;
+          const barHeight = Math.max(4, v * (canvas.height - 16));
+          const y = (canvas.height - barHeight) / 2;
+
+          const grad = ctx.createLinearGradient(0, y, 0, y + barHeight);
+          grad.addColorStop(0, "#818cf8");
+          grad.addColorStop(0.5, "#c084fc");
+          grad.addColorStop(1, "#f472b6");
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(x, y, Math.max(2, barWidth - 3), barHeight, 4);
+          ctx.fill();
+
+          x += barWidth;
+        }
+      }
+      draw();
+    }
+
+    async function loadImageSettings() {
+      try {
+        const s = await (await fetch("/api/settings")).json();
+        const provSel = document.getElementById("imgProviderSelect");
+        if (provSel && s.provider) provSel.value = s.provider;
+
+        const provNames = {
+          auto: "Auto",
+          gemini_pro: "Gemini Pro Web ⭐",
+          gemini: "Google AI Studio",
+          magic: "MagicStudio",
+          hf_dev: "HF 28 pasos",
+          hf_fast: "HF Rápido",
+          pollinations: "Pollinations",
+          runware: "Runware",
+          fal: "Fal.ai",
+          together: "Together AI"
+        };
+        const pBadge = document.getElementById("providerStatusBadge");
+        if (pBadge) {
+          pBadge.textContent = `Motor: ${provNames[s.provider] || "Auto"}`;
+        }
+
+        const gpBadge = document.getElementById("geminiProStatusBadge");
+        if (gpBadge) {
+          if (s.has_gemini_pro) {
+            gpBadge.textContent = `Gemini Pro: conectado (${s.gemini_pro_hint})`;
+            gpBadge.className = "px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold";
+          } else if (s.has_gemini_pro_psid && !s.has_gemini_pro_psidts) {
+            gpBadge.textContent = `⚠️ Gemini Pro: falta __Secure-1PSIDTS`;
+            gpBadge.className = "px-2 py-0.5 rounded text-[10px] bg-amber-500/25 text-amber-200 font-semibold";
+          } else {
+            gpBadge.textContent = "Gemini Pro: sin conectar";
+            gpBadge.className = "px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300";
+          }
+        }
+        const lbl1 = document.getElementById("lbl1psid");
+        if (lbl1) {
+          lbl1.innerHTML = s.has_gemini_pro_psid
+            ? `1. Cookie <code>__Secure-1PSID</code>: <span class="text-emerald-300 font-bold">✅ Guardada (${s.gemini_pro_hint})</span>`
+            : `1. Cookie <code>__Secure-1PSID</code> (REQUERIDA):`;
+        }
+        const lbl2 = document.getElementById("lbl1psidts");
+        if (lbl2) {
+          lbl2.innerHTML = s.has_gemini_pro_psidts
+            ? `2. Cookie <code>__Secure-1PSIDTS</code>: <span class="text-emerald-300 font-bold">✅ Guardada (${s.gemini_pro_ts_hint})</span>`
+            : `2. Cookie <code>__Secure-1PSIDTS</code> (⚠️ Falta pegar esta cookie):`;
+        }
+
+        const gBadge = document.getElementById("geminiStatusBadge");
+        if (gBadge) {
+          gBadge.textContent = s.has_gemini ? `AI Studio: activa ${s.gemini_hint}` : "AI Studio: sin clave";
+          gBadge.className = "px-2 py-0.5 rounded text-[10px] " + (s.has_gemini ? "bg-emerald-500/20 text-emerald-300 font-semibold" : "bg-slate-800 text-slate-300");
+        }
+
+        const b = document.getElementById("tokenStatusBadge");
+        if (b) {
+          b.textContent = s.has_token ? `HF: activo ${s.token_hint}` : "HF: sin token";
+          b.className = "px-2 py-0.5 rounded text-[10px] " + (s.has_token ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-300");
+        }
+        document.getElementById("allowFallbackChk").checked = !!s.allow_fallback;
+      } catch (e) { /* ignorar */ }
+    }
+
+    async function saveImageSettings() {
+      const provSel = document.getElementById("imgProviderSelect");
+      const psidVal = (document.getElementById("gemini1psidInput") || {}).value?.trim();
+      const psidtsVal = (document.getElementById("gemini1psidtsInput") || {}).value?.trim();
+      const gemVal = (document.getElementById("geminiKeyInput") || {}).value?.trim();
+      const tokenVal = (document.getElementById("hfTokenInput") || {}).value?.trim();
+      const rwVal = (document.getElementById("runwareKeyInput") || {}).value?.trim();
+      const falVal = (document.getElementById("falKeyInput") || {}).value?.trim();
+      const togVal = (document.getElementById("togetherKeyInput") || {}).value?.trim();
+
+      const body = {
+        provider: provSel ? provSel.value : "auto",
+        allow_fallback: document.getElementById("allowFallbackChk").checked
+      };
+      if (psidVal) {
+        body.gemini_1psid = psidVal;
+        body.provider = "gemini_pro";
+        if (provSel) provSel.value = "gemini_pro";
+      }
+      if (psidtsVal) {
+        body.gemini_1psidts = psidtsVal;
+        body.provider = "gemini_pro";
+        if (provSel) provSel.value = "gemini_pro";
+      }
+      if (gemVal) {
+        body.gemini_api_key = gemVal;
+        if (!psidVal && provSel && provSel.value === "auto") {
+          body.provider = "gemini";
+          provSel.value = "gemini";
+        }
+      }
+      if (tokenVal) body.hf_token = tokenVal;
+      if (rwVal) body.runware_api_key = rwVal;
+      if (falVal) body.fal_api_key = falVal;
+      if (togVal) body.together_api_key = togVal;
+
+      await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      ["gemini1psidInput", "gemini1psidtsInput", "geminiKeyInput", "hfTokenInput", "runwareKeyInput", "falKeyInput", "togetherKeyInput"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      loadImageSettings();
+    }
+
+    async function connectGeminiProBrowser() {
+      const btn = document.getElementById("btnLoginGeminiPro");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Inicia sesión en la ventana de Chrome que se abrió...";
+      }
+      try {
+        const res = await fetch("/api/gemini-pro/login-browser", { method: "POST" });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        await loadImageSettings();
+        alert("✅ ¡Tu suscripción de Gemini Pro quedó conectada! Ya puedes generar tus escenas con Nano Banana / Imagen 3.");
+      } catch (err) {
+        alert("Aviso: " + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "🌐 Conectar Gemini Pro en 1 Clic (Abrir Navegador)";
+        }
+      }
+    }
+
+    async function loadProjectsList() {
+      const sel1 = document.getElementById("ytSavedProjectsSelect");
+      const sel2 = document.getElementById("ytSavedProjectsSelectMain");
+      if (!sel1 && !sel2) return;
+      try {
+        const res = await fetch("/api/projects");
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = data.projects || [];
+        [sel1, sel2].forEach((sel) => {
+          if (!sel) return;
+          sel.innerHTML = `<option value="">📂 Elegir proyecto guardado (${items.length} disponibles)...</option>`;
+          items.forEach((p) => {
+            const opt = document.createElement("option");
+            opt.value = p.project_id;
+            const vidBadge = p.has_video ? "🎬 MP4" : `${p.images_count}/${p.scenes_count} imgs`;
+            opt.textContent = `[${vidBadge} · ${p.scenes_count} esc] ${p.preview}`;
+            if (currentProject && currentProject.project_id === p.project_id) {
+              opt.selected = true;
+            }
+            sel.appendChild(opt);
+          });
+        });
+      } catch (e) { /* ignorar */ }
+    }
+
+    async function loadProjectById(projectId) {
+      if (!projectId) return;
+      try {
+        const res = await fetch(`/api/project/${projectId}`);
+        if (!res.ok) return;
+        const proj = await res.json();
+        if (proj && proj.project_id) {
+          currentProject = proj;
+          if (proj.scenes && proj.scenes.length) {
+            document.getElementById("ytScriptInput").value = proj.scenes.map((s) => s.text).join("\n\n");
+          }
+          if (proj.custom_style_prompt !== undefined) {
+            document.getElementById("ytCustomStylePrompt").value = proj.custom_style_prompt || "";
+            syncStyleLock();
+          }
+          renderProjectUI();
+          loadProjectsList();
+        }
+      } catch (e) { /* ignorar */ }
+    }
+
+    async function loadLatestProjectIfExists() {
+      try {
+        const res = await fetch("/api/project/latest");
+        if (res.ok) {
+          const proj = await res.json();
+          if (proj && proj.project_id) {
+            currentProject = proj;
+            if (proj.custom_style_prompt) {
+              const csp = document.getElementById("ytCustomStylePrompt");
+              if (csp && !csp.value.trim()) csp.value = proj.custom_style_prompt;
+            }
+            renderProjectUI();
+          }
+        }
+      } catch (e) { /* ignorar */ }
+      loadProjectsList();
+    }
+
+    loadImageSettings();
+    loadVoices();
+    loadLatestProjectIfExists();
+  </script>
+  <script src="/static/fruti.js"></script>
+</body>
+</html>

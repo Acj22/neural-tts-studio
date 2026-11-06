@@ -1,0 +1,10 @@
+.venv
+.git
+__pycache__
+*.pyc
+models
+projects
+outputs
+.gemini_pro_browser
+settings.json
+iniciar_tts.bat
