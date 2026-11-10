@@ -1107,10 +1107,12 @@ def _generate_with_gemini_pro_web(
             if not response.images and (
                 "Solo soy una IA que trabaja con textos" in txt_first
                 or "text-based AI" in txt_first
+                or "can't create it" in txt_first
+                or "I can try to find an image" in txt_first
             ):
                 return (
                     None,
-                    "Tu cookie temporal '__Secure-1PSIDTS' de Gemini Pro caducó tras ~15 min (Google bajó la sesión a modo invitado de solo texto). Copia de nuevo '__Secure-1PSIDTS' desde gemini.google.com (F12 → Application → Cookies), pégala en '🔑 Configurar Motor de Imágenes', cierra la pestaña de gemini.google.com y dale a '🎨 Generar Faltantes'.",
+                    "Tu cookie temporal '__Secure-1PSIDTS' de Gemini Pro caducó (Google bajó la sesión a modo invitado sin generador de imágenes). Entra a gemini.google.com (F12 → Application → Cookies), copia el nuevo valor de '__Secure-1PSIDTS', pégalo en '🔑 Configurar Motor de Imágenes' → Guardar, cierra la pestaña de gemini.google.com y vuelve a generar.",
                 )
 
             if not response.images:
@@ -1348,13 +1350,532 @@ def _draw_subtitle_on_image(img: Image.Image, text: str) -> Image.Image:
     return Image.alpha_composite(out, overlay).convert("RGB")
 
 
-def _create_placeholder_image(width: int, height: int, scene_idx: int, text: str, ts_label: str) -> Image.Image:
+def _create_placeholder_image(
+    width: int,
+    height: int,
+    scene_idx: int,
+    text: str,
+    ts_label: str,
+    draw_sub: bool = True,
+) -> Image.Image:
     img = Image.new("RGB", (width, height), (15, 23, 42))
     draw = ImageDraw.Draw(img)
     draw.rectangle([40, 40, width - 40, height - 40], outline=(99, 102, 241), width=3)
     font_title = _load_ui_font(34, bold=False)
     draw.text((80, 80), f"Escena #{scene_idx}  [{ts_label}]", fill=(165, 180, 252), font=font_title)
-    return _draw_subtitle_on_image(img, text)
+    return _draw_subtitle_on_image(img, text) if draw_sub else img
+
+
+# ==============================================================================
+# 1. GENERADOR DE SUBTÍTULOS DINÁMICOS (.ASS) ESTILO VIRAL / HORMOZI / DOCUMENTAL
+# ==============================================================================
+
+def _format_ass_time(seconds: float) -> str:
+    """Convierte segundos a formato ASS H:MM:SS.cc (centésimas)."""
+    seconds = max(0.0, float(seconds))
+    total_cs = int(round(seconds * 100))
+    hrs = total_cs // 360000
+    rem = total_cs % 360000
+    mins = rem // 6000
+    rem = rem % 6000
+    secs = rem // 100
+    cs = rem % 100
+    return f"{hrs}:{mins:02d}:{secs:02d}.{cs:02d}"
+
+
+def _escape_ass_text(text: str) -> str:
+    return (
+        text.replace("\\", "")
+        .replace("{", "(")
+        .replace("}", ")")
+        .replace("\n", " ")
+        .strip()
+    )
+
+
+def _group_words_for_dynamic_subs(words: list[str], max_words: int = 4, max_chars: int = 26) -> list[list[str]]:
+    """Agrupa las palabras de una escena en bloques cortos de 3 a 5 palabras de alto impacto visual."""
+    groups: list[list[str]] = []
+    current: list[str] = []
+    curr_len = 0
+    for w in words:
+        w_len = len(w)
+        if current and (len(current) >= max_words or (curr_len + 1 + w_len > max_chars and len(current) >= 2)):
+            groups.append(current)
+            current = [w]
+            curr_len = w_len
+        else:
+            current.append(w)
+            curr_len += (1 + w_len) if curr_len > 0 else w_len
+    if current:
+        groups.append(current)
+    return groups
+
+
+def generate_ass_subtitles(
+    scenes: list[dict[str, Any]],
+    width: int = 1920,
+    height: int = 1080,
+    subtitle_style: str = "hormozi_yellow",
+) -> str:
+    """Genera un archivo de subtítulos Advanced SubStation Alpha (.ASS) con resaltado palabra por palabra,
+    animación Pop suave y bordes gruesos de alto contraste para atrapar la atención del espectador."""
+    is_vertical = height > width
+    font_size = int(height * 0.052) if not is_vertical else int(width * 0.068)
+    margin_v = int(height * 0.095) if not is_vertical else int(height * 0.16)
+    margin_h = int(width * 0.08)
+
+    # Colores en formato ASS (&HAABBGGRR)
+    # Blanco puro: &H00FFFFFF
+    # Amarillo vibrante (#FACC15 -> R=FA, G=CC, B=15): &H0015CCFA
+    # Cyan neón (#38BDF8 -> R=38, G=BD, B=F8): &H00F8BD38
+    # Verde esmeralda (#4ADE80 -> R=4A, G=DE, B=80): &H0080DE4A
+    highlight_map = {
+        "hormozi_yellow": "&H0015CCFA&",
+        "hormozi_cyan": "&H00F8BD38&",
+        "hormozi_green": "&H0080DE4A&",
+    }
+    active_color = highlight_map.get(subtitle_style, "&H0015CCFA&")
+    base_white = "&H00FFFFFF&"
+
+    header = f"""[Script Info]
+Title: Dynamic YouTube Subtitles
+ScriptType: v4.00+
+PlayResX: {width}
+PlayResY: {height}
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: ViralSub,Arial,{font_size},&H00FFFFFF,&H0015CCFA,&H00080808,&H88000000,-1,0,0,0,100,100,1.2,0,1,5.0,2.8,2,{margin_h},{margin_h},{margin_v},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    events: list[str] = []
+
+    max_words_per_chunk = 3 if is_vertical else 4
+    max_chars_per_chunk = 20 if is_vertical else 27
+
+    for sc in scenes:
+        raw_text = _escape_ass_text(sc.get("text", ""))
+        if not raw_text:
+            continue
+        words = [w for w in raw_text.split() if w]
+        if not words:
+            continue
+
+        start_sec = float(sc.get("start_sec", 0.0))
+        end_sec = float(sc.get("end_sec", start_sec + 2.0))
+        scene_dur = max(0.3, end_sec - start_sec)
+        # Descontar la pequeña pausa de silencio al final de cada escena para que las palabras sincronicen con la voz
+        speak_dur = max(0.25, scene_dur - min(0.22, scene_dur * 0.12))
+
+        # Peso temporal proporcional a la longitud de cada palabra (+ pequeña pausa tras comas/puntos)
+        weights: list[float] = []
+        for w in words:
+            base_w = max(2.2, float(len(w)))
+            if w.endswith((",", ";", ":")):
+                base_w += 2.2
+            elif w.endswith((".", "!", "?", "…")):
+                base_w += 3.0
+            weights.append(base_w)
+        total_weight = sum(weights) or 1.0
+
+        groups = _group_words_for_dynamic_subs(words, max_words=max_words_per_chunk, max_chars=max_chars_per_chunk)
+
+        word_cursor = 0
+        curr_t = start_sec
+
+        for grp in groups:
+            grp_len = len(grp)
+            grp_weights = weights[word_cursor : word_cursor + grp_len]
+            grp_dur = speak_dur * (sum(grp_weights) / total_weight)
+            grp_start = curr_t
+            grp_end = min(end_sec, grp_start + grp_dur)
+
+            if subtitle_style == "cinematic_pop":
+                # Frase corta completa con entrada Pop elástica
+                phrase_str = " ".join(grp)
+                pop_tag = r"{\fscx88\fscy88\t(0,110,\fscx103\fscy103)\t(110,200,\fscx100\fscy100)}"
+                events.append(
+                    f"Dialogue: 0,{_format_ass_time(grp_start)},{_format_ass_time(grp_end)},ViralSub,,0,0,0,,{pop_tag}{phrase_str}"
+                )
+            else:
+                # Resaltado palabra por palabra estilo Hormozi / Viral con color activo y escala 112%
+                w_time = grp_start
+                grp_w_sum = sum(grp_weights) or 1.0
+                for j, w_active in enumerate(grp):
+                    w_dur = grp_dur * (grp_weights[j] / grp_w_sum)
+                    w_start = w_time
+                    w_end = grp_end if j == grp_len - 1 else min(grp_end, w_start + w_dur)
+                    w_time = w_end
+
+                    if w_end - w_start < 0.03:
+                        continue
+
+                    rendered_tokens: list[str] = []
+                    for k, token in enumerate(grp):
+                        if k == j:
+                            rendered_tokens.append(
+                                f"{{\\c{active_color}\\fscx112\\fscy112}}{token}{{\\c{base_white}\\fscx100\\fscy100}}"
+                            )
+                        else:
+                            rendered_tokens.append(token)
+
+                    line_prefix = r"{\fscx93\fscy93\t(0,85,\fscx100\fscy100)}" if j == 0 else ""
+                    line_text = line_prefix + " ".join(rendered_tokens)
+                    events.append(
+                        f"Dialogue: 0,{_format_ass_time(w_start)},{_format_ass_time(w_end)},ViralSub,,0,0,0,,{line_text}"
+                    )
+
+            curr_t = grp_end
+            word_cursor += grp_len
+
+    return header + "\n".join(events) + "\n"
+
+
+# ==============================================================================
+# 2. MÚSICA DE FONDO SIN COPYRIGHT (100% LIBRE DE CONTENT ID) + VOICE DUCKING
+# ==============================================================================
+
+ROYALTY_FREE_MUSIC_CATALOG: dict[str, dict[str, str]] = {
+    "doc_mystery": {
+        "id": "doc_mystery",
+        "name": "🕵️ Misterio / Investigación Documental (Pad Profundo + Pulso ★)",
+        "desc": "Atmósfera envolvente estilo documental de investigación, historia y misterios.",
+    },
+    "warm_story": {
+        "id": "warm_story",
+        "name": "🌅 Storytelling Cálido / Reflexivo (Piano Rhodes + Cuerdas ★)",
+        "desc": "Acordes cálidos e íntimos ideales para historias humanas, finanzas y análisis.",
+    },
+    "lofi_chill": {
+        "id": "lofi_chill",
+        "name": "☕ Lo-Fi Chill / Estudio Suave (Acordes Jazz + Pulso Relajado)",
+        "desc": "Fondo moderno y relajado que acompaña la voz sin distraer.",
+    },
+    "dark_suspense": {
+        "id": "dark_suspense",
+        "name": "🌑 Suspenso Oscuro / Intriga Cinematográfica",
+        "desc": "Tensión cinematográfica profunda para temas de impacto o revelaciones.",
+    },
+    "inspiring_science": {
+        "id": "inspiring_science",
+        "name": "🚀 Ciencia, Futuro y Descubrimiento (Ambient Cristalino)",
+        "desc": "Arpegios espaciales e inspiradores para tecnología, ciencia y universo.",
+    },
+    "none": {
+        "id": "none",
+        "name": "🔇 Sin Música de Fondo (Solo la voz del narrador)",
+        "desc": "El video se renderiza únicamente con la voz del locutor.",
+    },
+}
+
+
+def generate_royalty_free_music(style: str = "doc_mystery", duration_sec: float = 15.0, sr: int = 24000) -> np.ndarray:
+    """Sintetiza música instrumental de fondo 100% libre de derechos de autor y Content ID
+    con progresiones armónicas ricas, filtro cálido y reverberación ambiental."""
+    dur = max(3.0, min(float(duration_sec), 1800.0))
+    n_samples = int(sr * dur)
+    if style == "none" or not style:
+        return np.zeros(n_samples, dtype=np.float32)
+
+    # Sintetizamos un ciclo musical de 16 segundos (4 acordes de 4 segundos) perfectamente loopable
+    loop_sec = 16.0
+    loop_n = int(sr * loop_sec)
+    t = np.linspace(0.0, loop_sec, loop_n, endpoint=False, dtype=np.float32)
+
+    # Progresiones de acordes en Hz (4 compases de 4.0s cada uno)
+    progressions: dict[str, list[list[float]]] = {
+        "doc_mystery": [
+            # Dm9 -> Bbmaj7 -> Gm9 -> A7sus4
+            [73.42, 146.83, 174.61, 220.00, 261.63, 329.63],
+            [58.27, 116.54, 174.61, 220.00, 293.66, 349.23],
+            [98.00, 146.83, 196.00, 233.08, 293.66, 392.00],
+            [55.00, 110.00, 164.81, 196.00, 220.00, 293.66],
+        ],
+        "warm_story": [
+            # Am9 -> Fmaj7 -> Cmaj9 -> G6
+            [110.00, 164.81, 220.00, 261.63, 329.63, 493.88],
+            [87.31, 174.61, 220.00, 261.63, 329.63, 440.00],
+            [65.41, 130.81, 196.00, 246.94, 293.66, 392.00],
+            [98.00, 146.83, 196.00, 246.94, 329.63, 392.00],
+        ],
+        "lofi_chill": [
+            # Fmaj9 -> Em7 -> Dm9 -> Cmaj7
+            [87.31, 174.61, 220.00, 261.63, 329.63, 392.00],
+            [82.41, 164.81, 196.00, 246.94, 293.66, 392.00],
+            [73.42, 146.83, 174.61, 220.00, 261.63, 329.63],
+            [65.41, 130.81, 164.81, 196.00, 246.94, 329.63],
+        ],
+        "dark_suspense": [
+            # Cm -> Abmaj7 -> Fm7 -> G7b9
+            [65.41, 130.81, 155.56, 196.00, 261.63, 311.13],
+            [51.91, 103.83, 155.56, 207.65, 246.94, 311.13],
+            [43.65, 87.31, 130.81, 174.61, 207.65, 261.63],
+            [49.00, 98.00, 146.83, 196.00, 233.08, 293.66],
+        ],
+        "inspiring_science": [
+            # Cmaj9 -> Gadd9 -> Am7 -> Fmaj7#11
+            [65.41, 130.81, 196.00, 246.94, 293.66, 392.00],
+            [98.00, 146.83, 196.00, 246.94, 293.66, 440.00],
+            [110.00, 164.81, 220.00, 261.63, 329.63, 392.00],
+            [87.31, 174.61, 220.00, 261.63, 329.63, 369.99],
+        ],
+    }
+
+    chords = progressions.get(style, progressions["doc_mystery"])
+    bar_sec = 4.0
+    bar_n = int(sr * bar_sec)
+    loop_buf = np.zeros(loop_n, dtype=np.float32)
+
+    for b_idx, notes in enumerate(chords):
+        start_i = b_idx * bar_n
+        end_i = min(loop_n, start_i + bar_n)
+        seg_n = end_i - start_i
+        bt = np.linspace(0.0, bar_sec, seg_n, endpoint=False, dtype=np.float32)
+
+        # Envolvente suave de pad con fundido cruzado natural
+        env_pad = np.sin(np.pi * (bt / bar_sec)) ** 0.65
+        chord_sig = np.zeros(seg_n, dtype=np.float32)
+
+        for n_i, freq in enumerate(notes):
+            # Ligero detune analógico (chorus cálido) para sonido rico y orgánico
+            detune = 1.0 + (0.0018 if n_i % 2 == 0 else -0.0018)
+            amp = 0.28 if n_i == 0 else (0.18 / (1.0 + 0.22 * n_i))
+            sig = np.sin(2.0 * np.pi * freq * bt) + 0.45 * np.sin(2.0 * np.pi * (freq * detune) * bt + 0.4)
+            if style in ("warm_story", "lofi_chill"):
+                # Segundo armónico suave tipo piano eléctrico Rhodes
+                sig += 0.18 * np.sin(2.0 * np.pi * (freq * 2.0) * bt) * np.exp(-bt * 0.9)
+            chord_sig += amp * sig * env_pad
+
+        # Arpegio / pulso melódico sutil según el estilo
+        arp_notes = notes[1:]
+        steps = 8 if style in ("doc_mystery", "inspiring_science", "warm_story") else 4
+        step_sec = bar_sec / float(steps)
+        step_n = int(sr * step_sec)
+        for s_i in range(steps):
+            s_start = s_i * step_n
+            s_end = min(seg_n, s_start + step_n)
+            if s_end <= s_start:
+                continue
+            st = np.linspace(0.0, (s_end - s_start) / float(sr), s_end - s_start, endpoint=False, dtype=np.float32)
+            note_f = arp_notes[(s_i + b_idx) % len(arp_notes)] * (2.0 if style == "inspiring_science" else 1.0)
+            pluck_env = np.clip(st / 0.025, 0.0, 1.0) * np.exp(-st * (3.8 if style != "dark_suspense" else 2.2))
+            pluck = np.sin(2.0 * np.pi * note_f * st) + 0.25 * np.sin(2.0 * np.pi * (note_f * 2.0) * st)
+            arp_gain = 0.09 if style != "dark_suspense" else 0.05
+            chord_sig[s_start:s_end] += arp_gain * pluck * pluck_env
+
+        # Pulso sub-grave suave (heartbeat / lo-fi pulse)
+        if style in ("doc_mystery", "dark_suspense", "lofi_chill"):
+            beats = 4 if style != "dark_suspense" else 2
+            beat_n = seg_n // beats
+            for k in range(beats):
+                k_start = k * beat_n
+                k_end = min(seg_n, k_start + int(sr * 0.45))
+                kt = np.linspace(0.0, (k_end - k_start) / float(sr), k_end - k_start, endpoint=False, dtype=np.float32)
+                sub_f = 55.0 * (1.0 + 0.6 * np.exp(-kt * 18.0))
+                sub_env = np.exp(-kt * 7.5)
+                chord_sig[k_start:k_end] += 0.16 * np.sin(2.0 * np.pi * sub_f * kt) * sub_env
+
+        loop_buf[start_i:end_i] += chord_sig
+
+    # Reverberación ambiental multi-tap (delays primos para cola espacial sin resonancia metálica)
+    reverb = loop_buf.copy()
+    for delay_ms, decay in ((113, 0.36), (197, 0.26), (311, 0.18), (463, 0.12)):
+        shift = int(sr * (delay_ms / 1000.0))
+        reverb += decay * np.roll(loop_buf, shift)
+
+    # Filtro paso-bajo FFT (< 2400 Hz) para que la música sea cálida y deje libre la banda de la voz (2.5-5 kHz)
+    freqs = np.fft.rfftfreq(loop_n, d=1.0 / float(sr))
+    spec = np.fft.rfft(reverb)
+    cutoff = 1600.0 if style in ("lofi_chill", "dark_suspense") else 2300.0
+    lp_mask = 1.0 / (1.0 + (freqs / cutoff) ** 4)
+    # También atenuamos ligeramente 350-800 Hz para dar espacio al cuerpo del locutor
+    voice_pocket = 1.0 - 0.22 * np.exp(-0.5 * ((freqs - 520.0) / 220.0) ** 2)
+    filtered_loop = np.fft.irfft(spec * lp_mask * voice_pocket, n=loop_n).astype(np.float32)
+
+    peak = float(np.max(np.abs(filtered_loop)))
+    if peak > 1e-5:
+        filtered_loop = (filtered_loop / peak) * 0.85
+
+    # Repetir el ciclo para cubrir toda la duración del video
+    repeats = (n_samples // loop_n) + 2
+    full_music = np.tile(filtered_loop, repeats)[:n_samples]
+
+    # Fade-in suave de 1.2s y fade-out de 2.2s al final
+    fade_in = min(int(sr * 1.2), n_samples // 4)
+    fade_out = min(int(sr * 2.2), n_samples // 3)
+    if fade_in > 10:
+        full_music[:fade_in] *= np.linspace(0.0, 1.0, fade_in, dtype=np.float32)
+    if fade_out > 10:
+        full_music[-fade_out:] *= np.linspace(1.0, 0.0, fade_out, dtype=np.float32)
+
+    return full_music
+
+
+def _load_custom_music_resampled(custom_path: Path, target_n: int, sr: int = 24000) -> np.ndarray:
+    """Carga un archivo MP3/WAV personalizado usando FFmpeg a la frecuencia de muestreo de la narración."""
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    tmp_wav = custom_path.parent / "_tmp_custom_music_24k.wav"
+    cmd = [
+        ffmpeg_exe,
+        "-nostdin",
+        "-y",
+        "-i",
+        str(custom_path),
+        "-ac",
+        "1",
+        "-ar",
+        str(sr),
+        str(tmp_wav),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0 or not tmp_wav.exists():
+        return np.zeros(target_n, dtype=np.float32)
+    try:
+        import soundfile as sf
+
+        data, _ = sf.read(tmp_wav, dtype="float32")
+        if data.ndim > 1:
+            data = data.mean(axis=1)
+        if len(data) < 100:
+            return np.zeros(target_n, dtype=np.float32)
+        peak = float(np.max(np.abs(data)))
+        if peak > 1e-5:
+            data = (data / peak) * 0.85
+        repeats = (target_n // len(data)) + 2
+        looped = np.tile(data, repeats)[:target_n]
+        fade_out = min(int(sr * 2.2), target_n // 3)
+        if fade_out > 10:
+            looped[-fade_out:] *= np.linspace(1.0, 0.0, fade_out, dtype=np.float32)
+        return looped.astype(np.float32)
+    finally:
+        try:
+            tmp_wav.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def mix_narration_with_bg_music(
+    narration_wav_path: Path,
+    output_wav_path: Path,
+    bg_music_style: str = "doc_mystery",
+    bg_music_volume: float = 0.14,
+    custom_music_path: Optional[Path] = None,
+) -> Path:
+    """Mezcla la narración maestra con música de fondo aplicando Auto-Ducking inteligente:
+    cuando el narrador habla, la música se mantiene suave debajo de la voz; en las pausas,
+    respira ligeramente hacia arriba para mantener el ritmo cinematográfico."""
+    import soundfile as sf
+
+    if not narration_wav_path.exists():
+        return narration_wav_path
+
+    if bg_music_style == "none" or bg_music_volume <= 0.005:
+        return narration_wav_path
+
+    voice_samples, sr = sf.read(narration_wav_path, dtype="float32")
+    if voice_samples.ndim > 1:
+        voice_samples = voice_samples.mean(axis=1)
+    n_samples = len(voice_samples)
+    dur_sec = n_samples / float(sr)
+
+    if bg_music_style == "custom" and custom_music_path and custom_music_path.exists():
+        music_samples = _load_custom_music_resampled(custom_music_path, n_samples, sr=sr)
+    else:
+        music_samples = generate_royalty_free_music(bg_music_style, duration_sec=dur_sec, sr=sr)
+
+    if len(music_samples) < n_samples:
+        music_samples = np.pad(music_samples, (0, n_samples - len(music_samples)))
+    else:
+        music_samples = music_samples[:n_samples]
+
+    # Auto-Ducking envolvente suave (ventana de 280ms)
+    win = max(64, int(sr * 0.28))
+    kernel = np.ones(win, dtype=np.float32) / float(win)
+    voice_env = np.convolve(np.abs(voice_samples), kernel, mode="same")
+    speaking_mask = np.clip(voice_env / 0.035, 0.0, 1.0)
+
+    # Durante la voz: volumen base (ej. 0.14); en pausas: sube suavemente x1.38
+    base_vol = float(np.clip(bg_music_volume, 0.0, 0.55))
+    ducking_gain = base_vol * (1.38 - 0.38 * speaking_mask)
+
+    mixed = voice_samples + (music_samples * ducking_gain)
+    peak = float(np.max(np.abs(mixed)))
+    if peak > 0.96:
+        mixed = (mixed / peak) * 0.95
+
+    sf.write(output_wav_path, mixed.astype(np.float32), sr, format="WAV", subtype="PCM_16")
+    return output_wav_path
+
+
+# ==============================================================================
+# 3. EFECTOS DE CÁMARA VIVA Y ATMÓSFERA VISUAL MIENTRAS PASA CADA IMAGEN
+# ==============================================================================
+
+def _build_vignette_overlay(width: int, height: int, strength: float = 0.36) -> Image.Image:
+    """Crea una máscara RGBA con viñeta óptica de cine y partículas sutiles de luz."""
+    x = np.linspace(-1.0, 1.0, width, dtype=np.float32)
+    y = np.linspace(-1.0, 1.0, height, dtype=np.float32)
+    xx, yy = np.meshgrid(x, y)
+    radius = np.sqrt(xx * xx + yy * yy)
+    vig = np.clip((radius - 0.58) / 0.82, 0.0, 1.0) ** 1.6
+    alpha = (vig * 255.0 * strength).astype(np.uint8)
+    rgba = np.zeros((height, width, 4), dtype=np.uint8)
+    rgba[:, :, 3] = alpha
+    return Image.fromarray(rgba, mode="RGBA")
+
+
+def _render_camera_motion_frame(
+    base_img: Image.Image,
+    progress: float,
+    motion_type: str,
+    width: int,
+    height: int,
+    vignette_overlay: Optional[Image.Image] = None,
+) -> Image.Image:
+    """Aplica movimiento continuo de cámara (Ken Burns Zoom-In, Zoom-Out, Pan Lateral)
+    usando recorte sub-píxel de alta velocidad + viñeta cinematográfica."""
+    # Curva suave (mezcla lineal + smoothstep para movimiento constante y orgánico)
+    p = float(np.clip(progress, 0.0, 1.0))
+    smooth_p = 0.35 * p + 0.65 * (p * p * (3.0 - 2.0 * p))
+
+    if motion_type == "zoom_in":
+        zoom = 1.0 + 0.13 * smooth_p
+        cx, cy = 0.5, 0.48
+    elif motion_type == "zoom_out":
+        zoom = 1.13 - 0.13 * smooth_p
+        cx, cy = 0.5, 0.48
+    elif motion_type == "pan_right":
+        zoom = 1.11
+        cx = 0.44 + 0.12 * smooth_p
+        cy = 0.49
+    elif motion_type == "pan_left":
+        zoom = 1.11
+        cx = 0.56 - 0.12 * smooth_p
+        cy = 0.49
+    else:
+        return base_img
+
+    crop_w = width / zoom
+    crop_h = height / zoom
+    left = max(0.0, min(width - crop_w, (width * cx) - (crop_w / 2.0)))
+    top = max(0.0, min(height - crop_h, (height * cy) - (crop_h / 2.0)))
+
+    framed = base_img.resize(
+        (width, height),
+        resample=Image.Resampling.BILINEAR,
+        box=(left, top, left + crop_w, top + crop_h),
+    )
+
+    if vignette_overlay is not None:
+        framed_rgba = framed.convert("RGBA")
+        framed = Image.alpha_composite(framed_rgba, vignette_overlay).convert("RGB")
+
+    return framed
 
 
 def render_project_video(
@@ -1365,6 +1886,11 @@ def render_project_video(
     burn_subtitles: bool = True,
     transition: str = "crossfade",
     transition_duration: float = 0.5,
+    subtitle_style: str = "hormozi_yellow",
+    camera_effect: str = "ken_burns_mix",
+    bg_music: str = "doc_mystery",
+    bg_music_volume: float = 0.14,
+    custom_music_path: Optional[Path] = None,
 ) -> Path:
     # Forzar salida en Full HD 1080p manteniendo la relación de aspecto (1920x1080 horizontal o 1080x1920 vertical)
     if width >= height and width < 1920:
@@ -1374,10 +1900,21 @@ def render_project_video(
 
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     frames_dir = project_dir / "render_frames"
+    if frames_dir.exists():
+        for old_f in frames_dir.glob("*.jpg"):
+            try:
+                old_f.unlink()
+            except Exception:
+                pass
     frames_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Cargar o preparar el fotograma base de cada escena en Full HD 1080p con realce de nitidez
-    scene_frames: list[tuple[Image.Image, Path, float]] = []
+    use_ass_subs = burn_subtitles and subtitle_style != "classic_box"
+    burn_static_box = burn_subtitles and subtitle_style == "classic_box"
+
+    # 1. Cargar fotogramas base de cada escena en Full HD 1080p
+    raw_scene_images: list[tuple[Image.Image, float, str]] = []
+    motion_cycle = ["zoom_in", "pan_right", "zoom_out", "pan_left"]
+
     for idx, sc in enumerate(scenes, start=1):
         img_file = project_dir / "images" / f"scene_{idx:03d}.png"
         if img_file.exists():
@@ -1385,15 +1922,25 @@ def render_project_video(
             if base_img.size != (width, height):
                 base_img = base_img.resize((width, height), Image.Resampling.LANCZOS)
                 base_img = base_img.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
-            frame_img = _draw_subtitle_on_image(base_img, sc["text"]) if burn_subtitles else base_img
+            if burn_static_box:
+                base_img = _draw_subtitle_on_image(base_img, sc["text"])
         else:
             ts_label = f"{format_mm_ss(sc['start_sec'])} - {format_mm_ss(sc['end_sec'])}"
-            frame_img = _create_placeholder_image(width, height, idx, sc["text"], ts_label)
+            base_img = _create_placeholder_image(width, height, idx, sc["text"], ts_label, draw_sub=burn_static_box)
 
-        frame_path = frames_dir / f"frame_{idx:03d}.jpg"
-        frame_img.save(frame_path, format="JPEG", quality=98, subsampling=0)
         duration = max(0.2, float(sc.get("duration_sec", 1.0)))
-        scene_frames.append((frame_img, frame_path, duration))
+        if camera_effect == "ken_burns_mix":
+            m_type = motion_cycle[(idx - 1) % len(motion_cycle)]
+        elif camera_effect == "zoom_in_dramatic":
+            m_type = "zoom_in"
+        elif camera_effect == "pan_cinema":
+            m_type = "pan_right" if idx % 2 == 1 else "pan_left"
+        else:
+            m_type = "none"
+
+        raw_scene_images.append((base_img, duration, m_type))
+
+    vignette_overlay = _build_vignette_overlay(width, height, strength=0.34) if camera_effect != "none" else None
 
     concat_lines: list[str] = []
     last_frame_path: Optional[Path] = None
@@ -1401,59 +1948,106 @@ def render_project_video(
     black_img = Image.new("RGB", (width, height), (0, 0, 0)) if transition == "fade_black" else None
     white_img = Image.new("RGB", (width, height), (255, 255, 255)) if transition == "fade_white" else None
 
-    # 2. Generar transiciones fluidas a 30 FPS respetando la duración exacta al milisegundo
-    num_scenes = len(scene_frames)
+    # 2. Generar movimiento de cámara en cada escena + transiciones suaves entre escenas
+    num_scenes = len(raw_scene_images)
+    motion_fps = 12  # 12 fotogramas clave por segundo para movimiento fluido y renderizado veloz
+
     for i in range(num_scenes):
-        curr_img, curr_path, dur = scene_frames[i]
-        safe_curr = str(curr_path.resolve()).replace("\\", "/")
-        last_frame_path = curr_path
+        curr_base, dur, curr_motion = raw_scene_images[i]
+        has_next = i < num_scenes - 1
+        t_dur = (
+            min(float(transition_duration), dur * 0.45, 1.2)
+            if (has_next and transition and transition != "none")
+            else 0.0
+        )
+        hold_dur = max(0.08, dur - t_dur) if t_dur >= 0.15 else dur
 
-        has_next = (i < num_scenes - 1)
-        # Limitar la transición a como máximo el 45% de la duración de la escena para no cortar escenas breves
-        t_dur = min(float(transition_duration), dur * 0.45, 1.2) if (has_next and transition and transition != "none") else 0.0
-
-        if t_dur >= 0.15:
-            static_dur = max(0.05, dur - t_dur)
+        if curr_motion == "none":
+            frame_path = frames_dir / f"scene_{i+1:03d}_static.jpg"
+            curr_base.save(frame_path, format="JPEG", quality=96, subsampling=0)
+            safe_curr = str(frame_path.resolve()).replace("\\", "/")
             concat_lines.append(f"file '{safe_curr}'")
-            concat_lines.append(f"duration {static_dur:.3f}")
+            concat_lines.append(f"duration {hold_dur:.3f}")
+            last_frame_path = frame_path
+            end_curr_img = curr_base
+        else:
+            hold_steps = max(4, min(90, int(round(hold_dur * motion_fps))))
+            hold_step_dur = hold_dur / float(hold_steps)
+            end_ratio = hold_dur / max(0.2, dur)
 
-            next_img, _, _ = scene_frames[i + 1]
-            steps = max(8, min(36, int(round(t_dur * 30))))
+            for hs in range(hold_steps):
+                prog = (hs / float(max(1, hold_steps))) * end_ratio
+                m_frame = _render_camera_motion_frame(
+                    curr_base,
+                    prog,
+                    curr_motion,
+                    width,
+                    height,
+                    vignette_overlay=vignette_overlay,
+                )
+                m_path = frames_dir / f"scene_{i+1:03d}_m_{hs:03d}.jpg"
+                m_frame.save(m_path, format="JPEG", quality=94, subsampling=0)
+                safe_m = str(m_path.resolve()).replace("\\", "/")
+                concat_lines.append(f"file '{safe_m}'")
+                concat_lines.append(f"duration {hold_step_dur:.3f}")
+                last_frame_path = m_path
+
+            end_curr_img = _render_camera_motion_frame(
+                curr_base,
+                1.0,
+                curr_motion,
+                width,
+                height,
+                vignette_overlay=vignette_overlay,
+            )
+
+        if t_dur >= 0.15 and has_next:
+            next_base, next_dur, next_motion = raw_scene_images[i + 1]
+            start_next_img = (
+                _render_camera_motion_frame(
+                    next_base,
+                    0.0,
+                    next_motion,
+                    width,
+                    height,
+                    vignette_overlay=vignette_overlay,
+                )
+                if next_motion != "none"
+                else next_base
+            )
+
+            steps = max(6, min(24, int(round(t_dur * 20))))
             step_dur = t_dur / float(steps)
 
             for s in range(1, steps + 1):
                 raw_a = s / float(steps)
-                # Curva smoothstep para que el movimiento/fundido acelere y desacelere suavemente
                 alpha = raw_a * raw_a * (3.0 - 2.0 * raw_a)
                 if transition == "crossfade":
-                    blended = Image.blend(curr_img, next_img, alpha)
+                    blended = Image.blend(end_curr_img, start_next_img, alpha)
                 elif transition == "fade_black":
                     if alpha <= 0.5:
-                        blended = Image.blend(curr_img, black_img, alpha * 2.0)
+                        blended = Image.blend(end_curr_img, black_img, alpha * 2.0)
                     else:
-                        blended = Image.blend(black_img, next_img, (alpha - 0.5) * 2.0)
+                        blended = Image.blend(black_img, start_next_img, (alpha - 0.5) * 2.0)
                 elif transition == "fade_white":
                     if alpha <= 0.5:
-                        blended = Image.blend(curr_img, white_img, alpha * 2.0)
+                        blended = Image.blend(end_curr_img, white_img, alpha * 2.0)
                     else:
-                        blended = Image.blend(white_img, next_img, (alpha - 0.5) * 2.0)
+                        blended = Image.blend(white_img, start_next_img, (alpha - 0.5) * 2.0)
                 elif transition == "slide_left":
                     blended = Image.new("RGB", (width, height))
                     shift = int(round(width * alpha))
-                    blended.paste(curr_img, (-shift, 0))
-                    blended.paste(next_img, (width - shift, 0))
+                    blended.paste(end_curr_img, (-shift, 0))
+                    blended.paste(start_next_img, (width - shift, 0))
                 else:
-                    blended = Image.blend(curr_img, next_img, alpha)
+                    blended = Image.blend(end_curr_img, start_next_img, alpha)
 
                 trans_path = frames_dir / f"trans_{i+1:03d}_{s:02d}.jpg"
-                blended.save(trans_path, format="JPEG", quality=96, subsampling=0)
+                blended.save(trans_path, format="JPEG", quality=94, subsampling=0)
                 safe_trans = str(trans_path.resolve()).replace("\\", "/")
                 concat_lines.append(f"file '{safe_trans}'")
                 concat_lines.append(f"duration {step_dur:.3f}")
                 last_frame_path = trans_path
-        else:
-            concat_lines.append(f"file '{safe_curr}'")
-            concat_lines.append(f"duration {dur:.3f}")
 
     if last_frame_path is not None:
         safe_last = str(last_frame_path.resolve()).replace("\\", "/")
@@ -1462,7 +2056,29 @@ def render_project_video(
     concat_file = frames_dir / "concat_list.txt"
     concat_file.write_text("\n".join(concat_lines), encoding="utf-8")
 
-    audio_path = project_dir / "narracion_completa.wav"
+    # 3. Preparar pista de audio final (Narración + Música de Fondo Sin Copyright con Auto-Ducking)
+    narration_path = project_dir / "narracion_completa.wav"
+    mixed_audio_path = project_dir / "audio_mezclado_final.wav"
+    final_audio_path = mix_narration_with_bg_music(
+        narration_wav_path=narration_path,
+        output_wav_path=mixed_audio_path,
+        bg_music_style=bg_music,
+        bg_music_volume=bg_music_volume,
+        custom_music_path=custom_music_path,
+    )
+
+    # 4. Generar archivo de subtítulos dinámicos .ASS si está activado
+    ass_filename = "subtitulos_dinamicos.ass"
+    ass_path = project_dir / ass_filename
+    if use_ass_subs:
+        ass_content = generate_ass_subtitles(
+            scenes=scenes,
+            width=width,
+            height=height,
+            subtitle_style=subtitle_style,
+        )
+        ass_path.write_text(ass_content, encoding="utf-8")
+
     output_mp4 = project_dir / "video_youtube.mp4"
 
     cmd = [
@@ -1474,36 +2090,42 @@ def render_project_video(
         "-safe",
         "0",
         "-i",
-        str(concat_file),
+        str(concat_file.resolve()),
         "-i",
-        str(audio_path),
-        "-c:v",
-        "libx264",
-        "-profile:v",
-        "high",
-        "-level",
-        "4.2",
-        "-crf",
-        "16",
-        "-preset",
-        "fast",
-        "-tune",
-        "stillimage",
-        "-pix_fmt",
-        "yuv420p",
-        "-r",
-        "30",
-        "-movflags",
-        "+faststart",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "256k",
-        "-shortest",
-        str(output_mp4),
+        str(final_audio_path.resolve()),
     ]
+    if use_ass_subs and ass_path.exists():
+        # Usamos nombre relativo ejecutando FFmpeg con cwd=project_dir para evitar problemas con 'C:' en filtros de Windows
+        cmd.extend(["-vf", f"ass={ass_filename}"])
 
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    cmd.extend(
+        [
+            "-c:v",
+            "libx264",
+            "-profile:v",
+            "high",
+            "-level",
+            "4.2",
+            "-crf",
+            "17",
+            "-preset",
+            "fast",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            "30",
+            "-movflags",
+            "+faststart",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "256k",
+            "-shortest",
+            str(output_mp4.resolve()),
+        ]
+    )
+
+    proc = subprocess.run(cmd, cwd=str(project_dir.resolve()), capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"Error en FFmpeg: {proc.stderr[-400:]}")
 

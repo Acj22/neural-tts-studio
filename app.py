@@ -676,6 +676,11 @@ class YouTubeProjectRequest(BaseModel):
     aspect_ratio: str = Field("16:9", description="'16:9' (YouTube) o '9:16' (Shorts/TikTok)")
     transition: str = Field("crossfade", description="Tipo de transición: 'crossfade', 'fade_black', 'fade_white', 'slide_left', 'none'")
     transition_duration: float = Field(0.5, ge=0.1, le=1.5, description="Duración de transición en segundos")
+    subtitle_style: str = Field("hormozi_yellow", description="Estilo de subtítulos: 'hormozi_yellow', 'hormozi_cyan', 'hormozi_green', 'cinematic_pop', 'classic_box'")
+    camera_effect: str = Field("ken_burns_mix", description="Efecto de movimiento mientras pasa la imagen: 'ken_burns_mix', 'zoom_in_dramatic', 'pan_cinema', 'none'")
+    bg_music: str = Field("doc_mystery", description="Música de fondo sin copyright: 'doc_mystery', 'warm_story', 'lofi_chill', 'dark_suspense', 'inspiring_science', 'custom', 'none'")
+    bg_music_volume: float = Field(0.14, ge=0.0, le=0.55, description="Volumen de música de fondo (con auto-ducking bajo la voz)")
+    custom_music_b64: Optional[str] = Field(None, description="Archivo de música personalizado opcional en base64")
 
 
 class YouTubeVoicePreviewRequest(BaseModel):
@@ -734,6 +739,11 @@ class RenderVideoRequest(BaseModel):
     burn_subtitles: bool = Field(True, description="Incrustar subtítulos en el video MP4")
     transition: str = Field("crossfade", description="Tipo de transición: 'crossfade', 'fade_black', 'fade_white', 'slide_left', 'none'")
     transition_duration: float = Field(0.5, ge=0.1, le=1.5, description="Duración de la transición en segundos")
+    subtitle_style: str = Field("hormozi_yellow", description="Estilo de subtítulos dinámicos")
+    camera_effect: str = Field("ken_burns_mix", description="Efecto de cámara en cada escena")
+    bg_music: str = Field("doc_mystery", description="Música de fondo sin copyright")
+    bg_music_volume: float = Field(0.14, ge=0.0, le=0.55, description="Volumen de música de fondo")
+    custom_music_b64: Optional[str] = Field(None, description="Música personalizada opcional en base64")
 
 
 def _decode_b64_image(b64_str: str) -> bytes:
@@ -993,6 +1003,19 @@ def preview_youtube_voice_endpoint(req: YouTubeVoicePreviewRequest):
         raise HTTPException(status_code=500, detail=f"Error en vista previa de voz: {exc}") from exc
 
 
+@app.get("/api/youtube/music-preview")
+def preview_youtube_music_endpoint(style: str = "doc_mystery"):
+    """Permite escuchar una muestra de 16 segundos de cualquiera de las pistas de música sin copyright integradas."""
+    try:
+        sr = 24000
+        samples = video_pipeline.generate_royalty_free_music(style=style, duration_sec=16.0, sr=sr)
+        buf = io.BytesIO()
+        sf.write(buf, samples, sr, format="WAV", subtype="PCM_16")
+        return Response(content=buf.getvalue(), media_type="audio/wav")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error generando vista previa de música: {exc}") from exc
+
+
 @app.post("/api/project/{project_id}/update-voice")
 def update_project_voice_endpoint(project_id: str, req: UpdateProjectVoiceRequest):
     """Regenera únicamente la narración y los timestamps de un proyecto de YouTube existente
@@ -1152,6 +1175,13 @@ def create_youtube_project(req: YouTubeProjectRequest):
         ref_style_descriptor=ref_style_descriptor,
     )
 
+    if req.custom_music_b64:
+        try:
+            music_bytes = _decode_b64_image(req.custom_music_b64)
+            (proj_dir / "custom_bg_music.bin").write_bytes(music_bytes)
+        except Exception as exc:
+            print(f"Aviso al guardar música personalizada: {exc}")
+
     project_data = {
         "project_id": project_id,
         "engine": req.engine,
@@ -1167,6 +1197,10 @@ def create_youtube_project(req: YouTubeProjectRequest):
         "color_match_strength": req.color_match_strength,
         "transition": req.transition,
         "transition_duration": req.transition_duration,
+        "subtitle_style": req.subtitle_style,
+        "camera_effect": req.camera_effect,
+        "bg_music": req.bg_music,
+        "bg_music_volume": req.bg_music_volume,
         "total_duration_sec": round(current_time_sec, 2),
         "master_audio_url": f"/projects/{project_id}/narracion_completa.wav",
         "srt_url": f"/projects/{project_id}/subtitulos_timestamps.srt",
@@ -1523,6 +1557,18 @@ def render_video_endpoint(project_id: str, req: RenderVideoRequest):
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     meta["transition"] = req.transition
     meta["transition_duration"] = req.transition_duration
+    meta["subtitle_style"] = req.subtitle_style
+    meta["camera_effect"] = req.camera_effect
+    meta["bg_music"] = req.bg_music
+    meta["bg_music_volume"] = req.bg_music_volume
+
+    custom_music_file = proj_dir / "custom_bg_music.bin"
+    if req.custom_music_b64:
+        try:
+            custom_music_file.write_bytes(_decode_b64_image(req.custom_music_b64))
+        except Exception as exc:
+            print(f"Aviso al guardar música personalizada en render: {exc}")
+
     try:
         render_project_video(
             project_dir=proj_dir,
@@ -1532,6 +1578,11 @@ def render_video_endpoint(project_id: str, req: RenderVideoRequest):
             burn_subtitles=req.burn_subtitles,
             transition=req.transition,
             transition_duration=req.transition_duration,
+            subtitle_style=req.subtitle_style,
+            camera_effect=req.camera_effect,
+            bg_music=req.bg_music,
+            bg_music_volume=req.bg_music_volume,
+            custom_music_path=custom_music_file if custom_music_file.exists() else None,
         )
         create_project_zip(proj_dir, meta)
     except Exception as exc:

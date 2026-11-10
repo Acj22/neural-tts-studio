@@ -459,6 +459,114 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             </div>
           </div>
 
+          <!-- 🔥 NUEVO: Retención Visual y Audio (Subtítulos Dinámicos + Efecto de Cámara + Música Sin Copyright) -->
+          <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/35 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                  🔥 Retención Visual y Música Sin Copyright (Subtítulos Dinámicos · Cámara Viva · Fondo Musical)
+                </h3>
+                <p class="text-[11px] text-slate-400">
+                  Subtítulos palabra por palabra con efecto Pop, movimiento de cámara mientras pasa cada imagen y música 100% libre de derechos con reducción automática bajo tu voz (Auto-Ducking).
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  id="btnPreviewYTMusic"
+                  type="button"
+                  onclick="previewYouTubeMusic()"
+                  class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-semibold transition"
+                >
+                  🎵 Escuchar Música de Fondo
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end">
+              <!-- Estilo de Subtítulos Dinámicos -->
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-200 mb-1">
+                  💬 Estilo de Subtítulos Dinámicos
+                </label>
+                <select
+                  id="ytSubtitleStyle"
+                  onchange="if(document.getElementById('ytRenderSubtitleStyle')) document.getElementById('ytRenderSubtitleStyle').value = this.value;"
+                  class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                >
+                  <option value="hormozi_yellow" selected>🔥 Karaoke Viral Amarillo + Pop (Hormozi ★)</option>
+                  <option value="hormozi_cyan">💎 Karaoke Documental Cyan Neón + Pop</option>
+                  <option value="hormozi_green">⚡ Karaoke Verde Esmeralda + Pop</option>
+                  <option value="cinematic_pop">🎬 Frases Cortas con Efecto Pop (Blanco Puro)</option>
+                  <option value="classic_box">📺 Caja Clásica Oscura Tradicional</option>
+                </select>
+              </div>
+
+              <!-- Efecto de Movimiento mientras pasa la imagen -->
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-200 mb-1">
+                  🎥 Efecto mientras pasa la Imagen
+                </label>
+                <select
+                  id="ytCameraEffect"
+                  onchange="if(document.getElementById('ytRenderCameraEffect')) document.getElementById('ytRenderCameraEffect').value = this.value;"
+                  class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                >
+                  <option value="ken_burns_mix" selected>✨ Cámara Viva Automática (Zoom + Paneo + Viñeta ★)</option>
+                  <option value="zoom_in_dramatic">🔍 Zoom-In Dramático Continuo + Viñeta</option>
+                  <option value="pan_cinema">🎞️ Paneo Cinematográfico Lateral + Viñeta</option>
+                  <option value="none">⏹️ Imagen Estática (Sin movimiento)</option>
+                </select>
+              </div>
+
+              <!-- Música de Fondo Sin Copyright -->
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-200 mb-1">
+                  🎵 Música de Fondo (100% Sin Copyright)
+                </label>
+                <select
+                  id="ytBgMusic"
+                  onchange="if(document.getElementById('ytRenderBgMusic')) document.getElementById('ytRenderBgMusic').value = this.value;"
+                  class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                >
+                  <option value="doc_mystery" selected>🕵️ Misterio / Investigación Documental ★</option>
+                  <option value="warm_story">🌅 Storytelling Cálido / Reflexivo ★</option>
+                  <option value="lofi_chill">☕ Lo-Fi Chill / Estudio Suave</option>
+                  <option value="dark_suspense">🌑 Suspenso Oscuro / Intriga</option>
+                  <option value="inspiring_science">🚀 Ciencia, Futuro y Descubrimiento</option>
+                  <option value="custom">📁 Mi propio archivo MP3/WAV subido</option>
+                  <option value="none">🔇 Sin Música de Fondo (Solo voz)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+                  <span class="text-slate-300">🔉 Volumen Música:</span>
+                  <input
+                    id="ytBgMusicVol"
+                    type="range"
+                    min="0.04"
+                    max="0.40"
+                    step="0.02"
+                    value="0.14"
+                    oninput="document.getElementById('ytBgMusicVolLabel').textContent = Math.round(parseFloat(this.value)*100) + '%'; if(document.getElementById('ytRenderBgMusicVol')) document.getElementById('ytRenderBgMusicVol').value = this.value;"
+                    class="w-24 accent-amber-400"
+                  />
+                  <span id="ytBgMusicVolLabel" class="mono text-amber-300 font-semibold">14%</span>
+                </div>
+
+                <label class="cursor-pointer px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-200 font-medium transition">
+                  📁 Subir mi propio MP3/WAV (Opcional)
+                  <input id="ytCustomMusicInput" type="file" accept="audio/*" onchange="onYTCustomMusicSelected(this)" class="hidden" />
+                </label>
+                <span id="ytCustomMusicStatus" class="text-[11px] text-slate-400">Usando música libre de derechos integrada</span>
+              </div>
+
+              <audio id="ytMusicPreviewPlayer" controls class="hidden h-8 w-64"></audio>
+            </div>
+          </div>
+
           <!-- Panel de Consistencia Visual: Imagen de Referencia + Prompt Maestro de Estilo -->
           <div class="p-4 rounded-xl bg-indigo-950/25 border border-indigo-500/25 space-y-3.5">
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -746,42 +854,81 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             <audio id="ytMasterAudioPlayer" controls class="w-full h-10"></audio>
 
             <!-- Acciones de Imágenes en Lote y Renderizado de Video MP4 -->
-            <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
-              <div class="flex flex-wrap items-center gap-3">
-                <button
-                  onclick="generateAllMissingImages()"
-                  class="px-4 py-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition"
-                >
-                  🎨 Generar Todas las Imágenes IA Faltantes
-                </button>
-                <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
-                  <input id="ytBurnSubs" type="checkbox" checked class="rounded accent-indigo-500" />
-                  Incrustar subtítulos (.MP4)
-                </label>
-                <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-                  <span class="text-indigo-300 font-semibold">✨ Transición:</span>
-                  <select id="ytRenderTransition" onchange="if(document.getElementById('ytTransition')) document.getElementById('ytTransition').value = this.value;" class="bg-transparent text-xs text-slate-200 focus:outline-none">
-                    <option value="crossfade" selected>🔀 Disolución suave (Crossfade)</option>
-                    <option value="fade_black">🌑 Fundido a negro (Cine)</option>
-                    <option value="fade_white">⚪ Flash blanco (Storyboard)</option>
-                    <option value="slide_left">⬅️ Desplazamiento (Slide)</option>
-                    <option value="none">✂️ Corte directo</option>
+            <div class="space-y-3 pt-2 border-t border-slate-800">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-slate-950/75 p-3 rounded-xl border border-amber-500/30 text-xs">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-amber-300 mb-1">💬 Subtítulos Dinámicos</label>
+                  <select id="ytRenderSubtitleStyle" onchange="if(document.getElementById('ytSubtitleStyle')) document.getElementById('ytSubtitleStyle').value = this.value;" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-white">
+                    <option value="hormozi_yellow" selected>🔥 Karaoke Amarillo + Pop ★</option>
+                    <option value="hormozi_cyan">💎 Karaoke Cyan Neón + Pop</option>
+                    <option value="hormozi_green">⚡ Karaoke Verde + Pop</option>
+                    <option value="cinematic_pop">🎬 Frases Cortas con Pop</option>
+                    <option value="classic_box">📺 Caja Clásica Oscura</option>
                   </select>
-                  <select id="ytRenderDuration" class="bg-transparent text-xs text-slate-400 focus:outline-none border-l border-slate-800 pl-2">
-                    <option value="0.3">0.3s (Rápida)</option>
-                    <option value="0.5" selected>0.5s (Estándar)</option>
-                    <option value="0.8">0.8s (Cinemática)</option>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-amber-300 mb-1">🎥 Movimiento de Imagen</label>
+                  <select id="ytRenderCameraEffect" onchange="if(document.getElementById('ytCameraEffect')) document.getElementById('ytCameraEffect').value = this.value;" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-white">
+                    <option value="ken_burns_mix" selected>✨ Cámara Viva (Zoom + Paneo ★)</option>
+                    <option value="zoom_in_dramatic">🔍 Zoom-In Dramático</option>
+                    <option value="pan_cinema">🎞️ Paneo Lateral Cine</option>
+                    <option value="none">⏹️ Imagen Fija</option>
                   </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-amber-300 mb-1">🎵 Música Sin Copyright</label>
+                  <select id="ytRenderBgMusic" onchange="if(document.getElementById('ytBgMusic')) document.getElementById('ytBgMusic').value = this.value;" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-white">
+                    <option value="doc_mystery" selected>🕵️ Misterio Documental ★</option>
+                    <option value="warm_story">🌅 Storytelling Cálido ★</option>
+                    <option value="lofi_chill">☕ Lo-Fi Chill Suave</option>
+                    <option value="dark_suspense">🌑 Suspenso Oscuro</option>
+                    <option value="inspiring_science">🚀 Ciencia y Futuro</option>
+                    <option value="custom">📁 Mi propio MP3/WAV</option>
+                    <option value="none">🔇 Sin Música</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-indigo-300 mb-1">✨ Transición entre Escenas</label>
+                  <div class="flex items-center gap-1">
+                    <select id="ytRenderTransition" onchange="if(document.getElementById('ytTransition')) document.getElementById('ytTransition').value = this.value;" class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-2 py-1.5 text-xs text-white">
+                      <option value="crossfade" selected>🔀 Crossfade</option>
+                      <option value="fade_black">🌑 Fundido Negro</option>
+                      <option value="fade_white">⚪ Flash Blanco</option>
+                      <option value="slide_left">⬅️ Slide</option>
+                      <option value="none">✂️ Corte</option>
+                    </select>
+                    <select id="ytRenderDuration" class="rounded-lg bg-slate-900 border border-slate-700 px-1.5 py-1.5 text-xs text-slate-300">
+                      <option value="0.3">0.3s</option>
+                      <option value="0.5" selected>0.5s</option>
+                      <option value="0.8">0.8s</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <button
-                id="btnRenderMP4"
-                onclick="renderCurrentProjectVideo()"
-                class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition"
-              >
-                🎬 Renderizar / Actualizar Video (.MP4)
-              </button>
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-3">
+                  <button
+                    onclick="generateAllMissingImages()"
+                    class="px-4 py-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition"
+                  >
+                    🎨 Generar Todas las Imágenes IA Faltantes
+                  </button>
+                  <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <input id="ytBurnSubs" type="checkbox" checked class="rounded accent-indigo-500" />
+                    Activar subtítulos en el video (.MP4)
+                  </label>
+                  <input id="ytRenderBgMusicVol" type="hidden" value="0.14" />
+                </div>
+
+                <button
+                  id="btnRenderMP4"
+                  onclick="renderCurrentProjectVideo()"
+                  class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition"
+                >
+                  🎬 Renderizar / Actualizar Video (.MP4) con Efectos y Música
+                </button>
+              </div>
             </div>
 
             <!-- Reproductor de Video Final -->
@@ -1553,6 +1700,52 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       document.getElementById("ytProgressBar").style.width = `${Math.max(4, Math.min(100, pct))}%`;
     }
 
+    let currentYTCustomMusicB64 = null;
+
+    function onYTCustomMusicSelected(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        currentYTCustomMusicB64 = ev.target.result;
+        document.getElementById("ytCustomMusicStatus").textContent = `🎵 ${file.name} listo`;
+        if (document.getElementById("ytBgMusic")) document.getElementById("ytBgMusic").value = "custom";
+        if (document.getElementById("ytRenderBgMusic")) document.getElementById("ytRenderBgMusic").value = "custom";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function previewYouTubeMusic() {
+      const btn = document.getElementById("btnPreviewYTMusic");
+      const player = document.getElementById("ytMusicPreviewPlayer");
+      const style = document.getElementById("ytBgMusic") ? document.getElementById("ytBgMusic").value : "doc_mystery";
+      if (style === "none") {
+        alert("Selecciona primero un estilo de música de fondo para escuchar la muestra.");
+        return;
+      }
+      if (style === "custom" && currentYTCustomMusicB64) {
+        player.src = currentYTCustomMusicB64;
+        player.classList.remove("hidden");
+        player.play();
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "⏳ Generando pista...";
+      try {
+        const res = await fetch(`/api/youtube/music-preview?style=${encodeURIComponent(style)}`);
+        if (!res.ok) throw new Error("No se pudo generar la muestra musical");
+        const blob = await res.blob();
+        player.src = URL.createObjectURL(blob);
+        player.classList.remove("hidden");
+        player.play();
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🎵 Escuchar Música de Fondo";
+      }
+    }
+
     async function runYouTubePipeline(fullAuto = false) {
       const script = document.getElementById("ytScriptInput").value.trim();
       const errBox = document.getElementById("ytErrorAlert");
@@ -1589,7 +1782,12 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
           color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value),
           aspect_ratio: document.getElementById("ytAspectRatio").value,
           transition: document.getElementById("ytTransition").value,
-          transition_duration: 0.5
+          transition_duration: 0.5,
+          subtitle_style: document.getElementById("ytSubtitleStyle") ? document.getElementById("ytSubtitleStyle").value : "hormozi_yellow",
+          camera_effect: document.getElementById("ytCameraEffect") ? document.getElementById("ytCameraEffect").value : "ken_burns_mix",
+          bg_music: document.getElementById("ytBgMusic") ? document.getElementById("ytBgMusic").value : "doc_mystery",
+          bg_music_volume: document.getElementById("ytBgMusicVol") ? parseFloat(document.getElementById("ytBgMusicVol").value) : 0.14,
+          custom_music_b64: currentYTCustomMusicB64
         };
 
         const res = await fetch("/api/project/create", {
@@ -1669,6 +1867,15 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       }
       if (currentProject.transition_duration && document.getElementById("ytRenderDuration")) {
         document.getElementById("ytRenderDuration").value = String(currentProject.transition_duration);
+      }
+      if (currentProject.subtitle_style && document.getElementById("ytRenderSubtitleStyle")) {
+        document.getElementById("ytRenderSubtitleStyle").value = currentProject.subtitle_style;
+      }
+      if (currentProject.camera_effect && document.getElementById("ytRenderCameraEffect")) {
+        document.getElementById("ytRenderCameraEffect").value = currentProject.camera_effect;
+      }
+      if (currentProject.bg_music && document.getElementById("ytRenderBgMusic")) {
+        document.getElementById("ytRenderBgMusic").value = currentProject.bg_music;
       }
 
       if (currentProject.video_url) {
@@ -1834,22 +2041,36 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       errBox.classList.add("hidden");
 
       btn.disabled = true;
-      btn.textContent = "⏳ Renderizando Video .MP4 con FFmpeg...";
+      btn.textContent = "⏳ Renderizando Video .MP4 (Subtítulos Dinámicos + Cámara Viva + Música)...";
 
       try {
         const burnSubs = document.getElementById("ytBurnSubs").checked;
         const transEl = document.getElementById("ytRenderTransition");
         const durEl = document.getElementById("ytRenderDuration");
+        const subStyleEl = document.getElementById("ytRenderSubtitleStyle") || document.getElementById("ytSubtitleStyle");
+        const camEffectEl = document.getElementById("ytRenderCameraEffect") || document.getElementById("ytCameraEffect");
+        const bgMusicEl = document.getElementById("ytRenderBgMusic") || document.getElementById("ytBgMusic");
+        const bgVolEl = document.getElementById("ytBgMusicVol");
+
         const transition = transEl ? transEl.value : (currentProject.transition || "crossfade");
         const transition_duration = durEl ? parseFloat(durEl.value) : (currentProject.transition_duration || 0.5);
+        const subtitle_style = subStyleEl ? subStyleEl.value : (currentProject.subtitle_style || "hormozi_yellow");
+        const camera_effect = camEffectEl ? camEffectEl.value : (currentProject.camera_effect || "ken_burns_mix");
+        const bg_music = bgMusicEl ? bgMusicEl.value : (currentProject.bg_music || "doc_mystery");
+        const bg_music_volume = bgVolEl ? parseFloat(bgVolEl.value) : (currentProject.bg_music_volume || 0.14);
 
         const res = await fetch(`/api/project/${currentProject.project_id}/render`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             burn_subtitles: burnSubs,
-            transition: transition,
-            transition_duration: transition_duration
+            transition,
+            transition_duration,
+            subtitle_style,
+            camera_effect,
+            bg_music,
+            bg_music_volume,
+            custom_music_b64: currentYTCustomMusicB64
           })
         });
         if (!res.ok) {
@@ -1867,7 +2088,7 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         }
       } finally {
         btn.disabled = false;
-        btn.textContent = "🎬 Renderizar / Actualizar Video (.MP4)";
+        btn.textContent = "🎬 Renderizar / Actualizar Video (.MP4) con Efectos y Música";
       }
     }
 
