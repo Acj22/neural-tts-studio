@@ -399,9 +399,16 @@ def run_combustion_engine_prototype_benchmark(
     subprocess.run(concat_cmd, check=True, timeout=180)
 
     total_time = round(time.time() - total_start, 2)
+    # Ruta relativa para el reproductor web (video_url)
+    try:
+        rel_url = "/" + master_mp4.relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        rel_url = "/" + master_mp4.name
     return {
         "success": True,
         "master_video_path": str(master_mp4.resolve()),
+        "video_path": str(master_mp4.resolve()),      # alias para compatibilidad
+        "video_url": rel_url,                          # URL para el reproductor web
         "scenes_count": len(rendered_clips),
         "total_render_time_sec": total_time,
         "width": width,

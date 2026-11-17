@@ -92,76 +92,101 @@ def setup_camera_for_shot(
     bpy.context.scene.collection.objects.link(cam_obj)
     bpy.context.scene.camera = cam_obj
 
-    # Margen de encuadre en 9:16 vertical (dist_mult = 1.25 para abarcar la altura completa)
-    dist_mult = 1.25 if is_vertical else 1.0
+    # ── Coordenadas de referencia Fase 2.1 ──────────────────────────────────
+    # crank_center_z = 0.0  → cigüeñal en el origen del cárter
+    # crank_radius   = 1.0  → muñequilla oscila Z -1.0 … +1.0
+    # rod_length     = 3.6  → pms_z = 4.6
+    # piston_height  = 1.40 → tope pistón PMS ≈ 5.3
+    # head_z         ≈ 5.6  → culata y válvulas
+    # block_top      ≈ 5.7  → límite superior del bloque
+    # block_bottom   = -1.1
+    # block_center_z ≈ 2.3  ← CENTRO GEOMÉTRICO DEL MOTOR
+    # ────────────────────────────────────────────────────────────────────────
+
+    # Margen de encuadre en 9:16 vertical — ligeramente reducido para acercar más
+    dist_mult = 1.10 if is_vertical else 1.0
     total_frames = max(10, end_frame - start_frame)
 
     # =========================================================================
-    # CATÁLOGO DE TOMAS CINEMÁTICAS REUTILIZABLES (Punto 4)
+    # CATÁLOGO DE TOMAS CINEMÁTICAS — Fase 2.1 (coordenadas actualizadas)
     # =========================================================================
 
-    # 1. HERO VIEW (Vista General 3/4 de Estudio)
+    # 1. HERO VIEW (Vista General 3/4 de Estudio — centro del motor = 2.3)
     if shot_type in ("hero_view", "hero_intro"):
-        cam_data.lens = 38
-        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
-        start_loc = mathutils.Vector((2.8 * dist_mult, -11.2 * dist_mult, 4.0))
-        end_loc = mathutils.Vector((2.2 * dist_mult, -10.4 * dist_mult, 3.6))
-
-    # 2. ISOMETRIC VIEW (Perspectiva Isométrica Técnica Limpia a 45°)
-    elif shot_type == "isometric_view":
-        cam_data.lens = 52
-        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
-        start_loc = mathutils.Vector((6.5 * dist_mult, -10.5 * dist_mult, 6.2))
-        end_loc = mathutils.Vector((6.0 * dist_mult, -9.8 * dist_mult, 5.8))
-
-    # 3. CLOSE-UP VIEW (Primer Plano a Cámara de Combustión, Válvulas y Bujía)
-    elif shot_type in ("close_up_view", "cylinder_macro"):
-        cam_data.lens = 65
-        target_loc = mathutils.Vector((0.0, 0.0, 4.8))
-        start_loc = mathutils.Vector((1.4 * dist_mult, -6.0 * dist_mult, 5.0))
-        end_loc = mathutils.Vector((1.0 * dist_mult, -5.4 * dist_mult, 4.8))
-
-    # 4. SIDE VIEW (Vista Lateral Perfil del Mecanismo)
-    elif shot_type == "side_view":
-        cam_data.lens = 42
-        target_loc = mathutils.Vector((0.0, 0.0, 3.2))
-        start_loc = mathutils.Vector((11.5 * dist_mult, 0.0, 3.4))
-        end_loc = mathutils.Vector((10.8 * dist_mult, 0.0, 3.2))
-
-    # 5. TOP VIEW (Vista Superior de Culata, Balancines y Válvulas)
-    elif shot_type == "top_view":
-        cam_data.lens = 45
-        target_loc = mathutils.Vector((0.0, 0.0, 5.4))
-        start_loc = mathutils.Vector((0.1, -1.8, 12.5 * dist_mult))
-        end_loc = mathutils.Vector((0.1, -1.5, 11.8 * dist_mult))
-
-    # 6. CUTAWAY VIEW (Corte Transversal Técnico Frontal Directo)
-    elif shot_type == "cutaway_view":
         cam_data.lens = 40
-        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
-        start_loc = mathutils.Vector((0.3 * dist_mult, -10.2 * dist_mult, 3.5))
-        end_loc = mathutils.Vector((0.1 * dist_mult, -9.6 * dist_mult, 3.3))
+        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
+        start_loc = mathutils.Vector((2.5 * dist_mult, -10.0 * dist_mult, 3.6))
+        end_loc   = mathutils.Vector((2.0 * dist_mult,  -9.2 * dist_mult, 3.2))
 
-    # 7. EXPLODED VIEW (Despiece Axial Amplio sin Solapamientos)
+    # 2. ISOMETRIC VIEW (Perspectiva Isométrica Técnica a 45°)
+    elif shot_type == "isometric_view":
+        cam_data.lens = 50
+        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
+        start_loc = mathutils.Vector((5.5 * dist_mult, -9.5 * dist_mult, 5.5))
+        end_loc   = mathutils.Vector((5.0 * dist_mult, -8.8 * dist_mult, 5.0))
+
+    # 3. CLOSE-UP VIEW (Primer Plano — zona válvulas y cámara de combustión ≈ head_z=5.6)
+    elif shot_type in ("close_up_view", "cylinder_macro"):
+        cam_data.lens = 62
+        target_loc = mathutils.Vector((0.0, 0.0, 4.8))
+        start_loc = mathutils.Vector((1.2 * dist_mult, -5.5 * dist_mult, 5.0))
+        end_loc   = mathutils.Vector((0.9 * dist_mult, -5.0 * dist_mult, 4.7))
+
+    # 4. SIDE VIEW (Vista Lateral Perfil — centro 2.3)
+    elif shot_type == "side_view":
+        cam_data.lens = 44
+        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
+        start_loc = mathutils.Vector((10.0 * dist_mult, 0.0, 2.6))
+        end_loc   = mathutils.Vector(( 9.4 * dist_mult, 0.0, 2.3))
+
+    # 5. TOP VIEW (Vista Superior de Culata y Válvulas — apunta a head_z=5.5)
+    elif shot_type == "top_view":
+        cam_data.lens = 46
+        target_loc = mathutils.Vector((0.0, 0.0, 5.5))
+        start_loc = mathutils.Vector((0.1, -1.6, 11.0 * dist_mult))
+        end_loc   = mathutils.Vector((0.1, -1.3, 10.4 * dist_mult))
+
+    # 6. CUTAWAY VIEW (Corte Transversal Frontal — centro 2.3)
+    elif shot_type == "cutaway_view":
+        cam_data.lens = 42
+        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
+        start_loc = mathutils.Vector((0.2 * dist_mult, -9.4 * dist_mult, 2.8))
+        end_loc   = mathutils.Vector((0.1 * dist_mult, -8.8 * dist_mult, 2.4))
+
+    # 7. EXPLODED VIEW (Despiece Axial Amplio — rango vertical −1 … +10, centro ≈ 3.0)
     elif shot_type == "exploded_view":
-        cam_data.lens = 34
-        target_loc = mathutils.Vector((0.0, 0.0, 3.4))
-        start_loc = mathutils.Vector((3.8 * dist_mult, -14.2 * dist_mult, 4.4))
-        end_loc = mathutils.Vector((3.0 * dist_mult, -13.2 * dist_mult, 4.0))
+        cam_data.lens = 32
+        target_loc = mathutils.Vector((0.0, 0.0, 3.0))
+        start_loc = mathutils.Vector((3.5 * dist_mult, -13.0 * dist_mult, 4.2))
+        end_loc   = mathutils.Vector((2.8 * dist_mult, -12.0 * dist_mult, 3.8))
 
-    # 8. COMPONENT TRACK (Seguimiento Cinemático de Pistón y Muñequilla)
+    # 8. COMPONENT TRACK (Seguimiento Cigüeñal y Biela — zona baja ≈ Z=1.0)
     elif shot_type in ("component_track", "crank_track"):
-        cam_data.lens = 52
-        target_loc = mathutils.Vector((0.0, 0.0, 1.2))
-        start_loc = mathutils.Vector((2.2 * dist_mult, -7.2 * dist_mult, 1.6))
-        end_loc = mathutils.Vector((1.8 * dist_mult, -6.6 * dist_mult, 1.4))
+        cam_data.lens = 54
+        target_loc = mathutils.Vector((0.0, 0.0, 1.0))
+        start_loc = mathutils.Vector((2.0 * dist_mult, -6.8 * dist_mult, 1.4))
+        end_loc   = mathutils.Vector((1.6 * dist_mult, -6.2 * dist_mult, 1.1))
 
-    # 9. TURNTABLE ORBIT (Recorrido Orbital Suave 360° Alrededor del Motor)
+    # 9. VALVE TOP VIEW (Vista aérea directa sobre la culata — NUEVA Fase 2.1)
+    elif shot_type == "valve_top_view":
+        cam_data.lens = 48
+        target_loc = mathutils.Vector((0.0, 0.0, 5.6))
+        start_loc = mathutils.Vector((0.0,  0.5, 10.5 * dist_mult))
+        end_loc   = mathutils.Vector((0.0,  0.3,  9.8 * dist_mult))
+
+    # 10. SIDE CUTAWAY (Vista Lateral de Corte Biela-Cigüeñal — NUEVA Fase 2.1)
+    elif shot_type == "side_cutaway":
+        cam_data.lens = 50
+        target_loc = mathutils.Vector((0.0, 0.0, 1.5))
+        start_loc = mathutils.Vector((9.0 * dist_mult, 0.0, 1.8))
+        end_loc   = mathutils.Vector((8.4 * dist_mult, 0.0, 1.5))
+
+    # 11. TURNTABLE ORBIT (Recorrido Orbital Suave — centro 2.3)
     elif shot_type in ("turntable_orbit", "full_cycle"):
         cam_data.lens = 42
-        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
-        radius = 10.2 * dist_mult
-        z_height = 3.8
+        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
+        radius = 9.5 * dist_mult
+        z_height = 3.5
         for f in range(start_frame, end_frame + 1, max(1, total_frames // 24)):
             pct = (f - start_frame) / float(total_frames)
             ang = -math.pi / 2 + (pct * math.radians(70) - math.radians(35))
@@ -175,11 +200,11 @@ def setup_camera_for_shot(
             cam_obj.keyframe_insert(data_path="rotation_euler", frame=f)
         return cam_obj
 
-    else:  # default process_view
+    else:  # default process_view — centro 2.3
         cam_data.lens = 40
-        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
-        start_loc = mathutils.Vector((2.4 * dist_mult, -10.2 * dist_mult, 3.8))
-        end_loc = mathutils.Vector((1.8 * dist_mult, -9.4 * dist_mult, 3.4))
+        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
+        start_loc = mathutils.Vector((2.2 * dist_mult, -9.4 * dist_mult, 3.4))
+        end_loc   = mathutils.Vector((1.6 * dist_mult, -8.6 * dist_mult, 3.0))
 
     # Animar desplazamiento de cámara con orientación calculada matemáticamente en cada extremo
     cam_obj.location = start_loc

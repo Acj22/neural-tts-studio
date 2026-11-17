@@ -92,12 +92,13 @@ def run_blender_render(spec: dict) -> None:
     # 2. Iluminación de Estudio y Fondo
     setup_studio_lighting()
 
-    # 3. Construcción del Modelo 3D (Motor de 4 Tiempos)
+    # 3. Construcción del Modelo 3D (Motor de 4 Tiempos) — parámetros Fase 2.1
     engine_data = create_combustion_engine_3d(
         crank_radius=1.0,
-        rod_length=3.5,
-        cylinder_radius=1.35,
-        piston_height=1.25,
+        rod_length=3.6,        # era 3.5 → biela más larga, mejor proporción
+        cylinder_radius=1.30,  # era 1.35 → cilindro más esbelto
+        piston_height=1.40,    # era 1.25 → pistón más alto / realista
+        crank_center_z=0.0,    # era sin especificar (default 0.4) → cigüeñal en origen
     )
 
     # 4. Cinemática de Animación
