@@ -306,6 +306,123 @@ def run_blender_prototype_endpoint(is_vertical: bool = True, render_profile: str
     return result
 
 
+class BlenderSceneRenderRequest(BaseModel):
+    model_name: str = "combustion_engine"
+    composition: str = "hero_view"
+    is_vertical: bool = True
+    render_profile: str = "draft"
+    duration_sec: float = 4.0
+    narration: str = ""
+
+
+@router.post("/blender/render-scene")
+def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
+    """Renderiza una escena individual interactiva en Blender 5.3 con o sin narración."""
+    import asyncio
+    import io
+    import shutil
+    import subprocess
+    import edge_tts
+    import soundfile as sf
+    from studio.blender.service import _get_ffmpeg
+    from studio.subtitle_engine import build_clauses_srt
+
+    target_dir = PROJECTS_DIR / "_prototype_blender_3d"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    width = 1080 if req.is_vertical else 1920
+    height = 1920 if req.is_vertical else 1080
+    dur_sec = max(1.5, float(req.duration_sec))
+
+    audio_path = None
+    subtitles_path = None
+
+    if req.narration and req.narration.strip():
+        text = req.narration.strip()
+        voice = "es-MX-JorgeNeural"
+
+        async def _gen_audio():
+            comm = edge_tts.Communicate(text, voice)
+            buf = bytearray()
+            async for chunk in comm.stream():
+                if chunk.get("type") == "audio":
+                    buf.extend(chunk["data"])
+            return bytes(buf)
+
+        raw = asyncio.run(_gen_audio())
+        audio_path = target_dir / "custom_scene_audio.wav"
+        audio_path.write_bytes(raw)
+        data, sr = sf.read(io.BytesIO(raw))
+        dur_sec = max(2.0, len(data) / float(sr))
+
+        subtitles_path = target_dir / "custom_scene.srt"
+        srt_content = build_clauses_srt(text, dur_sec)
+        subtitles_path.write_text(srt_content, encoding="utf-8")
+
+    scene_spec = {
+        "scene_id": "custom",
+        "composition_type": req.composition,
+        "duration_sec": dur_sec,
+        "diagram_spec": {"composition_type": req.composition, "phase": "full_cycle"},
+    }
+
+    raw_mp4 = target_dir / "custom_scene_raw.mp4"
+    if raw_mp4.exists():
+        try:
+            raw_mp4.unlink()
+        except Exception:
+            pass
+
+    final_mp4 = target_dir / "custom_scene.mp4"
+    if final_mp4.exists():
+        try:
+            final_mp4.unlink()
+        except Exception:
+            pass
+
+    render_scene_3d_video(
+        scene=scene_spec,
+        output_mp4=raw_mp4,
+        width=width,
+        height=height,
+        render_profile=req.render_profile,
+    )
+
+    ffmpeg_exe = _get_ffmpeg()
+    if audio_path and audio_path.exists():
+        cmd = [
+            ffmpeg_exe, "-y",
+            "-i", str(raw_mp4.resolve()),
+            "-i", str(audio_path.resolve()),
+        ]
+        if subtitles_path and subtitles_path.exists():
+            cmd.extend([
+                "-vf", f"subtitles={subtitles_path.name}:force_style='FontSize=16,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2,Alignment=2,MarginV=60'",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "22",
+            ])
+        else:
+            cmd.extend(["-c:v", "copy"])
+        cmd.extend([
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-shortest",
+            str(final_mp4.resolve()),
+        ])
+        subprocess.run(cmd, cwd=str(target_dir.resolve()), check=True, capture_output=True)
+    else:
+        shutil.copyfile(raw_mp4, final_mp4)
+
+    return {
+        "success": True,
+        "video_url": f"/projects/_prototype_blender_3d/{final_mp4.name}",
+        "composition": req.composition,
+        "duration_sec": dur_sec,
+        "render_profile": req.render_profile,
+    }
+
+
 @router.post("/profiles")
 def update_platform_profiles_endpoint(profiles: dict[str, dict[str, Any]]):
     return {"platform_profiles": save_platform_profiles(profiles)}

@@ -914,9 +914,122 @@ async function expRunBlenderBenchmark() {
   }
 }
 
+function playBlenderScene(sceneKey) {
+  const vid = document.getElementById("blenderLiveVideoPlayer");
+  if (!vid) return;
+  if (sceneKey === "master") {
+    vid.src = `/projects/_prototype_blender_3d/prototipo_motor_4_tiempos_3d_9_16.mp4?t=${Date.now()}`;
+  } else {
+    vid.src = `/projects/_prototype_blender_3d/PROT_0${sceneKey}_final.mp4?t=${Date.now()}`;
+  }
+  vid.play().catch(() => {});
+}
+
+async function runCustomBlenderRender() {
+  const model = document.getElementById("blenderModelSelect").value;
+  const comp = document.getElementById("blenderCompositionSelect").value;
+  const fmt = document.getElementById("blenderFormatSelect").value;
+  const prof = document.getElementById("blenderProfileSelect").value;
+  const narr = (document.getElementById("blenderNarrationInput").value || "").trim();
+
+  const progBox = document.getElementById("blenderProgressBarContainer");
+  const progText = document.getElementById("blenderProgressText");
+  const progBar = document.getElementById("blenderProgressBar");
+  const progPct = document.getElementById("blenderProgressPct");
+  const errBox = document.getElementById("blenderErrorBox");
+
+  if (errBox) { errBox.classList.add("hidden"); errBox.textContent = ""; }
+  if (progBox) progBox.classList.remove("hidden");
+  if (progText) progText.textContent = `Iniciando renderizado 3D en Blender 5.3 (${comp})...`;
+  if (progBar) progBar.style.width = "25%";
+  if (progPct) progPct.textContent = "25%";
+
+  const btn = document.getElementById("btnBlenderRenderScene");
+  if (btn) btn.disabled = true;
+
+  try {
+    const payload = {
+      model_name: model,
+      composition: comp,
+      is_vertical: fmt === "9:16",
+      render_profile: prof,
+      duration_sec: 4.0,
+      narration: narr
+    };
+    if (progBar) progBar.style.width = "50%";
+    if (progPct) progPct.textContent = "50%";
+    if (progText) progText.textContent = "Procesando geometría 3D, animación cinemática y sombreado EEVEE Next...";
+
+    const res = await fetch("/api/explainer/blender/render-scene", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Error al renderizar escena en Blender.");
+    }
+    const data = await res.json();
+    if (progBar) progBar.style.width = "100%";
+    if (progPct) progPct.textContent = "100%";
+    if (progText) progText.textContent = "¡Renderizado completado con éxito!";
+
+    const vid = document.getElementById("blenderLiveVideoPlayer");
+    if (vid) {
+      vid.src = `${data.video_url}?t=${Date.now()}`;
+      vid.play().catch(() => {});
+    }
+    setTimeout(() => { if (progBox) progBox.classList.add("hidden"); }, 2500);
+  } catch (err) {
+    if (errBox) {
+      errBox.textContent = err.message;
+      errBox.classList.remove("hidden");
+    }
+    if (progBox) progBox.classList.add("hidden");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function rebuildBlenderBenchmark() {
+  const progBox = document.getElementById("blenderProgressBarContainer");
+  const progText = document.getElementById("blenderProgressText");
+  const progBar = document.getElementById("blenderProgressBar");
+  const progPct = document.getElementById("blenderProgressPct");
+  const errBox = document.getElementById("blenderErrorBox");
+
+  if (errBox) { errBox.classList.add("hidden"); errBox.textContent = ""; }
+  if (progBox) progBox.classList.remove("hidden");
+  if (progText) progText.textContent = "Re-ejecutando benchmark completo de 8 escenas en Blender 5.3...";
+  if (progBar) progBar.style.width = "20%";
+
+  try {
+    const res = await fetch("/api/explainer/blender/prototype", { method: "POST" });
+    if (!res.ok) throw new Error("Error en la ejecución del benchmark.");
+    const data = await res.json();
+    if (progBar) progBar.style.width = "100%";
+    if (progText) progText.textContent = "¡Benchmark completo renderizado y ensamblado!";
+    const vid = document.getElementById("blenderLiveVideoPlayer");
+    if (vid) {
+      vid.src = `/projects/_prototype_blender_3d/prototipo_motor_4_tiempos_3d_9_16.mp4?t=${Date.now()}`;
+      vid.play().catch(() => {});
+    }
+    setTimeout(() => { if (progBox) progBox.classList.add("hidden"); }, 2500);
+  } catch (err) {
+    if (errBox) {
+      errBox.textContent = err.message;
+      errBox.classList.remove("hidden");
+    }
+    if (progBox) progBox.classList.add("hidden");
+  }
+}
+
 window.expOpenBlender3DModal = expOpenBlender3DModal;
 window.expCloseBlender3DModal = expCloseBlender3DModal;
 window.expRunBlenderBenchmark = expRunBlenderBenchmark;
+window.playBlenderScene = playBlenderScene;
+window.runCustomBlenderRender = runCustomBlenderRender;
+window.rebuildBlenderBenchmark = rebuildBlenderBenchmark;
 
 window.addEventListener("DOMContentLoaded", () => {
   initExplainerStudio();

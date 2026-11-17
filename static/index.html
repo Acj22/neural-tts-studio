@@ -66,6 +66,14 @@
             🎓 Explainer AI (¿Cómo Funciona? ★)
           </button>
           <button
+            id="tabBtnBlender"
+            onclick="switchMode('blender')"
+            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-cyan-300 hover:text-white flex items-center gap-1.5"
+          >
+            <span>🧊</span>
+            <span>Motor 3D Blender (Maqueta ★)</span>
+          </button>
+          <button
             id="tabBtnYT"
             onclick="switchMode('youtube')"
             class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
@@ -488,6 +496,190 @@
               <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🛡️ Fase 16: Quality Control — 14 Verificaciones Antes de Exportar</h3>
               <div id="expQCList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
             </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ============================================================ -->
+      <!-- 🧊 MÓDULO 3D DEDICADO: BLENDER 5.3 + EEVEE NEXT              -->
+      <!-- ============================================================ -->
+      <main id="panelBlender" class="lg:col-span-8 space-y-5 hidden">
+        <div class="glass rounded-2xl p-5 space-y-5 border border-cyan-500/40 shadow-2xl">
+          <!-- Encabezado del Módulo -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">🧊</span>
+                <h2 class="text-lg font-bold text-white tracking-tight">MOTOR DE ANIMACIÓN 3D EDUCATIVA (BLENDER 5.3)</h2>
+                <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  EEVEE Next · $0 Costo
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">
+                Generador de animaciones tridimensionales de maqueta técnica, despiece de componentes (Exploded View), cortes 120° (Cutaway) y cinemática mecánica en tiempo real. 100% Local sin APIs externas ni servicios en la nube.
+              </p>
+            </div>
+            <div id="blenderStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 text-emerald-300 text-xs font-semibold whitespace-nowrap">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Blender 5.3 Conectado</span>
+            </div>
+          </div>
+
+          <!-- Reproductor Principal Integrado de Video 3D (En Vivo) -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                <span>🎬</span>
+                <span>Reproductor del Prototipo Oficial (Motor de 4 Tiempos · Punto 11)</span>
+              </div>
+              <span class="text-[11px] text-slate-400">Vertical 9:16 (1080×1920) · Full HD · Narración Neuronal + Subtítulos</span>
+            </div>
+
+            <!-- Contenedor del Video -->
+            <div class="relative rounded-2xl bg-slate-950 border border-cyan-500/30 overflow-hidden shadow-2xl flex flex-col md:flex-row items-center justify-center p-4 gap-6">
+              <div class="w-full max-w-[280px] sm:max-w-[320px] rounded-xl overflow-hidden bg-black border border-cyan-500/40 shadow-xl flex-shrink-0">
+                <video
+                  id="blenderLiveVideoPlayer"
+                  src="/projects/_prototype_blender_3d/prototipo_motor_4_tiempos_3d_9_16.mp4"
+                  controls
+                  autoplay
+                  loop
+                  playsinline
+                  class="w-full h-auto aspect-[9/16] object-contain bg-black"
+                ></video>
+              </div>
+
+              <!-- Lista de Escenas Interactiva -->
+              <div class="flex-1 space-y-2 w-full text-xs">
+                <div class="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">
+                  📍 Selecciona una Escena para Visualizar en el Reproductor:
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <button type="button" onclick="playBlenderScene('master')" class="p-2.5 rounded-xl bg-gradient-to-r from-cyan-600/30 to-indigo-600/30 hover:from-cyan-600/50 hover:to-indigo-600/50 border border-cyan-400/50 text-cyan-100 font-bold text-left transition col-span-1 sm:col-span-2 flex items-center justify-between">
+                    <span>🌟 Video Maestro Completo (8 Escenas · 46s)</span>
+                    <span class="text-[10px] text-cyan-300 font-normal">Full HD 9:16</span>
+                  </button>
+                  <button type="button" onclick="playBlenderScene(1)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">1. Hero View:</span> Presentación 3D del motor
+                  </button>
+                  <button type="button" onclick="playBlenderScene(2)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">2. Close-Up:</span> Acercamiento al cilindro
+                  </button>
+                  <button type="button" onclick="playBlenderScene(3)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">3. Exploded:</span> Despiece axial de piezas
+                  </button>
+                  <button type="button" onclick="playBlenderScene(4)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">4. Cutaway:</span> Carrera PMS a PMI
+                  </button>
+                  <button type="button" onclick="playBlenderScene(5)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">5. Válvulas:</span> Admisión y escape coordinadas
+                  </button>
+                  <button type="button" onclick="playBlenderScene(6)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">6. Crank Track:</span> Biela y cigüeñal (torque)
+                  </button>
+                  <button type="button" onclick="playBlenderScene(7)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">7. Proceso:</span> 4 Tiempos (Chispa + Fuego)
+                  </button>
+                  <button type="button" onclick="playBlenderScene(8)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
+                    <span class="font-semibold text-cyan-300">8. Continuo:</span> Vista general régimen final
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estudio de Renderizado Personalizado 3D -->
+          <div class="space-y-4 pt-4 border-t border-slate-800">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-200">🛠️ Estudio de Renderizado de Escenas 3D (Blender EEVEE)</h3>
+              <span class="text-[11px] text-emerald-400 font-semibold">$0.00 / Procesamiento Local</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Modelo 3D Procedural</label>
+                <select id="blenderModelSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                  <option value="combustion_engine" selected>🚗 Motor 4 Tiempos (Pistón, Biela, Cigüeñal, Válvulas, Bujía)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-1">Composición / Cámara ★</label>
+                <select id="blenderCompositionSelect" class="w-full rounded-xl bg-slate-950 border border-cyan-500/40 px-3 py-2 text-xs text-white">
+                  <option value="hero_view">🌟 Hero View (Vista General de Estudio)</option>
+                  <option value="close_up_view">🔍 Close-Up (Acercamiento Macro)</option>
+                  <option value="cutaway_view">✂️ Cutaway View (Corte Técnico 120°)</option>
+                  <option value="exploded_view">💥 Exploded View (Despiece Axial)</option>
+                  <option value="crank_track">🔄 Crank Track (Seguimiento Biela/Cigüeñal)</option>
+                  <option value="process_view">🔥 Process View (Ciclo 4 Tiempos)</option>
+                  <option value="turntable_orbit">🌐 Turntable Orbit (Giro 360°)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Formato de Pantalla</label>
+                <select id="blenderFormatSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                  <option value="9:16" selected>📱 Vertical 9:16 (1080×1920 Shorts/TikTok/Reels)</option>
+                  <option value="16:9">📺 Horizontal 16:9 (1920×1080 YouTube HD)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Perfil de Renderizado</label>
+                <select id="blenderProfileSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                  <option value="draft" selected>⚡ Draft (~0.3s/frame · 15fps · 8 muestras)</option>
+                  <option value="standard">⚖️ Estándar (~0.8s/frame · 24fps · 16 muestras)</option>
+                  <option value="high">💎 Alta Calidad (~1.5s/frame · 30fps · 32 muestras)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Narración Opcional -->
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Narración a Sincronizar (Voz Neuronal + Subtítulos Dinámicos)</label>
+              <input
+                id="blenderNarrationInput"
+                type="text"
+                placeholder="Ejemplo: Observa cómo el pistón desciende succionando la mezcla de aire y combustible..."
+                value="Observa el movimiento sincronizado del pistón, la biela y el cigüeñal transformando la energía en movimiento rotativo."
+                class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
+              />
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <button
+                id="btnBlenderRenderScene"
+                type="button"
+                onclick="runCustomBlenderRender()"
+                class="flex-1 w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg transition flex items-center justify-center gap-2"
+              >
+                <span>🎬</span>
+                <span>Renderizar Escena 3D Seleccionada</span>
+              </button>
+              <button
+                id="btnBlenderRebuildBenchmark"
+                type="button"
+                onclick="rebuildBlenderBenchmark()"
+                class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-2"
+              >
+                <span>🔄</span>
+                <span>Re-Renderizar Benchmark Completo (8 Escenas)</span>
+              </button>
+            </div>
+
+            <!-- Barra de Progreso y Mensajes -->
+            <div id="blenderProgressBarContainer" class="hidden p-3.5 rounded-xl bg-slate-950 border border-cyan-500/30 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span id="blenderProgressText" class="text-cyan-200 font-medium">Renderizando en Blender 5.3...</span>
+                <span id="blenderProgressPct" class="mono text-cyan-300">0%</span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div id="blenderProgressBar" class="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
+              </div>
+            </div>
+
+            <div id="blenderErrorBox" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
           </div>
         </div>
       </main>
@@ -1432,8 +1624,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     });
 
     function switchMode(mode) {
-      const panels = { explainer: "panelExplainer", tts: "panelTTS", youtube: "panelYouTube", fruti: "panelFruti" };
-      const tabs = { explainer: "tabBtnExplainer", tts: "tabBtnTTS", youtube: "tabBtnYT", fruti: "tabBtnFruti" };
+      const panels = { explainer: "panelExplainer", blender: "panelBlender", tts: "panelTTS", youtube: "panelYouTube", fruti: "panelFruti" };
+      const tabs = { explainer: "tabBtnExplainer", blender: "tabBtnBlender", tts: "tabBtnTTS", youtube: "tabBtnYT", fruti: "tabBtnFruti" };
       const active = "px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow";
       const inactive = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white";
       Object.keys(panels).forEach((k) => {
@@ -1442,6 +1634,10 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         if (pEl) pEl.classList.toggle("hidden", k !== mode);
         if (tEl) tEl.className = k === mode ? active : inactive;
       });
+      if (mode === "blender") {
+        const v = document.getElementById("blenderLiveVideoPlayer");
+        if (v && v.paused) v.play().catch(() => {});
+      }
     }
 
     async function loadVoices() {
@@ -2688,6 +2884,6 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
   </div>
 
   <script src="/static/fruti.js"></script>
-  <script src="/static/explainer.js?v=2.4.0"></script>
+  <script src="/static/explainer.js?v=2.5.0"></script>
 </body>
 </html>
