@@ -97,16 +97,18 @@ def create_combustion_engine_3d(
     block.data.materials.append(mats["engine_block"])
     add(block)
 
-    # Aletas de refrigeración (5 aletas)
+    # Aletas de refrigeración (5 aletas) — coordenadas relativas al bloque
+    fins = []
     fin_z_start = block_bottom + 0.6
     fin_z_end = block_top - 0.5
     for i in range(5):
         pct = i / 4.0
-        z_fin = fin_z_start + pct * (fin_z_end - fin_z_start)
+        z_fin_world = fin_z_start + pct * (fin_z_end - fin_z_start)
+        z_fin_local = z_fin_world - block_center_z
         bpy.ops.mesh.primitive_cylinder_add(
             radius=block_r + 0.30,
             depth=0.10,
-            location=(0.0, 0.0, z_fin),
+            location=(0.0, 0.0, z_fin_local),
             vertices=36,
         )
         fin = bpy.context.active_object
@@ -114,16 +116,40 @@ def create_combustion_engine_3d(
         fin.parent = block
         fin.data.materials.append(mats["engine_block"])
         add(fin)
+        fins.append(fin)
 
-    # Corte cutaway frontal (quita la mitad delantera del bloque para ver el interior)
+    # Unir las aletas al bloque antes del vaciado y corte
+    bpy.ops.object.select_all(action='DESELECT')
+    for fin_obj in fins:
+        fin_obj.select_set(True)
+    block.select_set(True)
+    bpy.context.view_layer.objects.active = block
+    bpy.ops.object.join()
+
+    # Vaciado interior del bloque (Bore hueco para que el pistón y biela se vean dentro)
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=cr,
+        depth=block_height + 0.4,
+        location=(0.0, 0.0, block_center_z),
+        vertices=36,
+    )
+    bore = bpy.context.active_object
+    mod_bore = block.modifiers.new(name="Bore_Block", type="BOOLEAN")
+    mod_bore.object = bore
+    mod_bore.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = block
+    bpy.ops.object.modifier_apply(modifier="Bore_Block")
+    bpy.data.objects.remove(bore, do_unlink=True)
+
+    # Corte cutaway frontal (quita la mitad delantera del bloque y aletas para ver el interior)
     # El corte es un cubo que abarca Y < 0 (mitad frontal del cilindro)
     bpy.ops.mesh.primitive_cube_add(
         size=1.0,
-        location=(0.0, -(block_r * 0.5 + 0.5), block_center_z),
+        location=(0.0, -(block_r * 0.6 + 0.5), block_center_z),
     )
     cutter = bpy.context.active_object
     cutter.name = "Cutaway_Cutter"
-    cutter.scale = (block_r * 2.4, block_r + 0.6, block_height * 0.70)
+    cutter.scale = (block_r * 2.8, block_r * 1.5, block_height * 1.1)
     mod_b = block.modifiers.new(name="Cutaway_Block", type="BOOLEAN")
     mod_b.object = cutter
     mod_b.operation = "DIFFERENCE"
@@ -132,29 +158,44 @@ def create_combustion_engine_3d(
     bpy.data.objects.remove(cutter, do_unlink=True)
 
     # =========================================================================
-    # 2. CAMISA INTERIOR DEL CILINDRO (Acero satinado)
+    # 2. CAMISA INTERIOR DEL CILINDRO (Acero satinado - semicilindro hueco)
     # =========================================================================
     liner_height = rod_length + crank_radius + piston_height + 0.2
     liner_center_z = crank_center_z + liner_height / 2.0 + 0.05
 
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=cr + 0.04,
+        radius=cr + 0.03,
         depth=liner_height,
         location=(0.0, 0.0, liner_center_z),
-        vertices=48,
+        vertices=36,
     )
     liner = bpy.context.active_object
     liner.name = "Cylinder_Liner"
     liner.data.materials.append(mats["cylinder_liner"])
     add(liner)
 
+    # Vaciado de la camisa para que sea un tubo hueco
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=cr - 0.01,
+        depth=liner_height + 0.2,
+        location=(0.0, 0.0, liner_center_z),
+        vertices=36,
+    )
+    bore_l = bpy.context.active_object
+    mod_bl = liner.modifiers.new(name="Bore_Liner", type="BOOLEAN")
+    mod_bl.object = bore_l
+    mod_bl.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = liner
+    bpy.ops.object.modifier_apply(modifier="Bore_Liner")
+    bpy.data.objects.remove(bore_l, do_unlink=True)
+
     # Corte de la mitad frontal de la camisa
     bpy.ops.mesh.primitive_cube_add(
         size=1.0,
-        location=(0.0, -(cr * 0.5 + 0.5), liner_center_z),
+        location=(0.0, -(cr * 0.6 + 0.5), liner_center_z),
     )
     cutter_l = bpy.context.active_object
-    cutter_l.scale = (cr * 2.4, cr + 0.6, liner_height * 0.75)
+    cutter_l.scale = (cr * 2.6, cr * 1.5, liner_height * 1.1)
     mod_l = liner.modifiers.new(name="Cutaway_Liner", type="BOOLEAN")
     mod_l.object = cutter_l
     mod_l.operation = "DIFFERENCE"
