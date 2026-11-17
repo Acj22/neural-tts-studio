@@ -1393,22 +1393,48 @@ def _escape_ass_text(text: str) -> str:
     )
 
 
-def _group_words_for_dynamic_subs(words: list[str], max_words: int = 4, max_chars: int = 26) -> list[list[str]]:
-    """Agrupa las palabras de una escena en bloques cortos de 3 a 5 palabras de alto impacto visual."""
+def _group_words_for_dynamic_subs(words: list[str], max_words: int = 5, max_chars: int = 32) -> list[list[str]]:
+    """Agrupa las palabras de una escena en cláusulas sintácticas completas (4 a 6 palabras)
+    con sentido gramatical natural para lectura cómoda en pantalla sin cortes bruscos."""
+    if not words:
+        return []
     groups: list[list[str]] = []
     current: list[str] = []
     curr_len = 0
-    for w in words:
+
+    BREAK_AFTER_PUNCT = (",", ";", ":", ".", "!", "?", "…")
+    INSEPARABLE_PREPOSITIONS = {"de", "del", "en", "con", "por", "a", "al", "sin", "sobre", "tras", "hacia", "desde", "un", "una", "unos", "unas", "el", "la", "los", "las", "su", "sus", "mi", "mis", "tu", "tus"}
+
+    for idx, item in enumerate(words):
+        w = item if isinstance(item, str) else (item.get("word") or "")
         w_len = len(w)
-        if current and (len(current) >= max_words or (curr_len + 1 + w_len > max_chars and len(current) >= 2)):
+        low_w = w.lower().strip(".,;:!?()\"'")
+        is_punct = any(w.endswith(p) for p in BREAK_AFTER_PUNCT)
+
+        current.append(w)
+        curr_len += (1 + w_len) if curr_len > 0 else w_len
+
+        should_split = False
+        if is_punct and len(current) >= 2:
+            should_split = True
+        elif len(current) >= max_words:
+            if low_w not in INSEPARABLE_PREPOSITIONS or len(current) >= max_words + 2:
+                should_split = True
+        elif curr_len >= max_chars and len(current) >= 3:
+            if low_w not in INSEPARABLE_PREPOSITIONS:
+                should_split = True
+
+        if should_split and idx < len(words) - 1:
             groups.append(current)
-            current = [w]
-            curr_len = w_len
-        else:
-            current.append(w)
-            curr_len += (1 + w_len) if curr_len > 0 else w_len
+            current = []
+            curr_len = 0
+
     if current:
-        groups.append(current)
+        if len(current) == 1 and groups and len(groups[-1]) <= max_words:
+            groups[-1].extend(current)
+        else:
+            groups.append(current)
+
     return groups
 
 
@@ -1455,8 +1481,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     events: list[str] = []
 
-    max_words_per_chunk = 3 if is_vertical else 4
-    max_chars_per_chunk = 20 if is_vertical else 27
+    max_words_per_chunk = 5 if is_vertical else 6
+    max_chars_per_chunk = 30 if is_vertical else 38
 
     for sc in scenes:
         raw_text = _escape_ass_text(sc.get("text", ""))

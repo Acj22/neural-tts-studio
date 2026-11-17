@@ -25,6 +25,7 @@ import video_pipeline
 from studio.diagram_engine import generate_scene_svg_diagram
 from studio.models import (
     CATEGORIES_CATALOG,
+    COMPOSITION_TYPES,
     PublishingPlatformAdapter,
     SCENE_RESOURCE_TYPES,
     VISUAL_CONSISTENCY_STYLES,
@@ -112,6 +113,7 @@ class SceneUpdateRequest(BaseModel):
     narration_text: Optional[str] = None
     concept_explained: Optional[str] = None
     resource_type: Optional[str] = None
+    composition_type: Optional[str] = None
     visual_mode: Optional[str] = None
     image_prompt: Optional[str] = None
     labels: Optional[list[str]] = None
@@ -272,6 +274,7 @@ def get_explainer_catalog():
         "categories": CATEGORIES_CATALOG,
         "visual_styles": list(VISUAL_CONSISTENCY_STYLES.values()),
         "scene_resource_types": list(SCENE_RESOURCE_TYPES.values()),
+        "composition_types": list(COMPOSITION_TYPES.values()),
         "platform_profiles": load_platform_profiles(),
         "video_providers": list_video_providers_status(),
         "publishing_integrations": PublishingPlatformAdapter.get_integration_status(),
@@ -553,6 +556,12 @@ def update_storyboard_scene_endpoint(project_id: str, version: str, scene_id: st
         if req.resource_type is not None and req.resource_type in SCENE_RESOURCE_TYPES:
             sc["resource_type"] = req.resource_type
             sc["resource_type_label"] = SCENE_RESOURCE_TYPES[req.resource_type]["name"]
+        if req.composition_type is not None:
+            sc["composition_type"] = req.composition_type
+            sc["composition_type_label"] = COMPOSITION_TYPES.get(req.composition_type, {}).get("name", req.composition_type)
+            if "diagram_spec" not in sc:
+                sc["diagram_spec"] = {}
+            sc["diagram_spec"]["composition_type"] = req.composition_type
         if req.visual_mode is not None:
             sc["visual_mode"] = req.visual_mode
         if req.image_prompt is not None:

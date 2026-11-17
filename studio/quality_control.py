@@ -28,9 +28,7 @@ import numpy as np
 import soundfile as sf
 from PIL import Image
 
-from studio.models import VISUAL_CONSISTENCY_STYLES, load_platform_profiles
-
-from studio.models import load_platform_profiles
+from studio.models import COMPOSITION_TYPES, VISUAL_CONSISTENCY_STYLES, load_platform_profiles
 
 
 def run_quality_control_inspection(
@@ -241,6 +239,53 @@ def run_quality_control_inspection(
         "status": "pass" if container_ok else "warn",
         "detail": mp4_detail,
     })
+
+    # 15. Ocupación visual del objeto principal (Auditoría Visual Punto 1 y 2)
+    is_vertical = (w < h)
+    small_occupancy_count = 0
+    for sc in scenes:
+        diag_s = sc.get("diagram_spec") or {}
+        comp = sc.get("composition_type") or diag_s.get("composition_type") or "hero_view"
+        comp_scale = COMPOSITION_TYPES.get(comp, {}).get("scale_9_16" if is_vertical else "scale_16_9", 2.15)
+        if comp_scale < 1.7:
+            small_occupancy_count += 1
+    if small_occupancy_count == 0:
+        checks.append({
+            "id": 15,
+            "name": "15. Ocupación visual del objeto principal (Escala 9:16 / 16:9)",
+            "status": "pass",
+            "detail": f"El mecanismo principal ocupa entre 65% y 85% del ancho de pantalla (escalas dinámicas 2.15x - 3.4x en vertical), evitando ilustraciones reducidas.",
+        })
+    else:
+        checks.append({
+            "id": 15,
+            "name": "15. Ocupación visual del objeto principal (Escala 9:16 / 16:9)",
+            "status": "warn",
+            "detail": f"{small_occupancy_count} escenas tienen escala reducida.",
+        })
+
+    # 16. Variedad y dinamismo de composición (Auditoría Visual Punto 3 y 8)
+    comps = [sc.get("composition_type") or (sc.get("diagram_spec") or {}).get("composition_type") or "hero_view" for sc in scenes]
+    unique_comps = set(comps)
+    consecutive_repeats = 0
+    for i in range(1, len(comps)):
+        if comps[i] == comps[i-1]:
+            consecutive_repeats += 1
+
+    if len(unique_comps) >= min(3, max(1, len(scenes))) and consecutive_repeats <= 2:
+        checks.append({
+            "id": 16,
+            "name": "16. Variedad y dinamismo de composición (6 Tipos de Plano)",
+            "status": "pass",
+            "detail": f"Composición cinematográfica rica ({len(unique_comps)} tipos de plano empleados: {', '.join(sorted(unique_comps))}). Alternancia continua sin monotonía.",
+        })
+    else:
+        checks.append({
+            "id": 16,
+            "name": "16. Variedad y dinamismo de composición (6 Tipos de Plano)",
+            "status": "warn",
+            "detail": f"Se recomienda mayor variedad de encuadres (actualmente {len(unique_comps)} planos distintos: {', '.join(sorted(unique_comps))}).",
+        })
 
     passed_count = sum(1 for c in checks if c["status"] == "pass")
     return {

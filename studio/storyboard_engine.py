@@ -11,7 +11,7 @@ import re
 from typing import Any, Optional
 
 import video_pipeline
-from studio.models import SCENE_RESOURCE_TYPES, VISUAL_CONSISTENCY_STYLES
+from studio.models import COMPOSITION_TYPES, SCENE_RESOURCE_TYPES, VISUAL_CONSISTENCY_STYLES
 
 
 CAMERA_MOTIONS_CYCLE = [
@@ -23,6 +23,57 @@ CAMERA_MOTIONS_CYCLE = [
     "parallax",
     "selective_focus",
 ]
+
+
+def _select_composition_type(
+    narration_text: str,
+    resource_type: str,
+    section_key: str,
+    scene_idx: int,
+    step_phase: str = "",
+    previous_comp: str = "",
+) -> str:
+    """Selecciona uno de los 6 tipos de encuadre cinemático (Auditoría Visual Punto 3):
+    1. hero_view (Vista general)
+    2. close_up_view (Acercamiento de alta resolución)
+    3. cutaway_view (Corte transversal interior)
+    4. process_view (Flujo de proceso dinámico)
+    5. comparison_view (Comparación o contraste)
+    6. infographic_view (Datos, telemetría e indicadores)
+    Garantiza variedad evitando vistas generales repetitivas.
+    """
+    low = (narration_text + " " + step_phase).lower()
+
+    # 1. Comparación
+    if resource_type == "comparison" or any(w in low for w in ("vs", "diferencia", "frente a", "comparado con", "mitos", "mito")):
+        return "comparison_view"
+
+    # 2. Infografía / Telemetría
+    if resource_type in ("data_chart", "map_view") or any(w in low for w in ("%", "por ciento", "presión", "temperatura", "bar", "°c", "cifras", "indicadores", "telemetría")):
+        return "infographic_view"
+
+    # 3. Flujos de proceso (los 4 tiempos o pasos mecánicos secuenciales)
+    if any(w in low for w in ("tiempo:", "admisión", "compresión", "combustión", "expansión", "escape", "flujo", "carrera", "chispa", "arco eléctrico")) or step_phase in ("intake", "compression", "combustion", "expansion", "crankshaft_exhaust"):
+        return "process_view"
+
+    # 4. Acercamiento a componentes específicos
+    if any(w in low for w in ("pistón", "bujía", "válvula", "anillo", "biela", "electrodo", "sensor", "acercamiento", "detalle")) or step_phase in ("piston_id", "cylinder_zoom"):
+        return "close_up_view"
+
+    # 5. Corte transversal
+    if resource_type == "cutaway_view" or any(w in low for w in ("corte", "interior", "dentro de", "bloque", "cámara hermética", "camisa")):
+        return "cutaway_view"
+
+    # 6. Hero View
+    if scene_idx == 1 or section_key in ("gancho", "pregunta", "introduccion", "conclusion"):
+        return "hero_view"
+
+    # Evitar repetición monótona
+    cycle = ["cutaway_view", "process_view", "close_up_view", "infographic_view", "hero_view"]
+    cand = cycle[(scene_idx - 1) % len(cycle)]
+    if cand == previous_comp:
+        cand = cycle[scene_idx % len(cycle)]
+    return cand
 
 
 def _detect_topic_mechanism_family(topic: str, question: str = "") -> str:
@@ -366,6 +417,7 @@ def generate_storyboard_from_script(
     scene_counter = 0
     diagram_step_cursor = 0
     current_time_sec = 0.0
+    last_comp_type = ""
 
     for sec in sections:
         sec_key = sec.get("key", "seccion")
@@ -403,6 +455,18 @@ def generate_storyboard_from_script(
                 research=research,
             )
 
+            # Selección inteligente de composición cinemática (Auditoría Visual Punto 3)
+            comp_type = _select_composition_type(
+                narration_text=beat,
+                resource_type=resource_type,
+                section_key=sec_key,
+                scene_idx=scene_counter,
+                step_phase=diagram_spec.get("phase", ""),
+                previous_comp=last_comp_type,
+            )
+            last_comp_type = comp_type
+            diagram_spec["composition_type"] = comp_type
+
             words = len(beat.split())
             est_dur = round(max(3.2, (words / 2.38) / max(0.65, speed) + 0.3), 2)
             start_sec = round(current_time_sec, 2)
@@ -435,9 +499,11 @@ def generate_storyboard_from_script(
                     "duration_sec": est_dur,
                     "timestamp_label": f"{video_pipeline.format_mm_ss(start_sec)} → {video_pipeline.format_mm_ss(end_sec)}",
                     "concept_explained": concept_explained,
-                    "visual_description": f"[{res_meta['name']}] {concept_explained} — Elementos: {', '.join(labels)}",
+                    "visual_description": f"[{res_meta['name']} | {comp_type.replace('_', ' ').upper()}] {concept_explained} — Elementos: {', '.join(labels)}",
                     "resource_type": resource_type,
                     "resource_type_label": res_meta["name"],
+                    "composition_type": comp_type,
+                    "composition_type_label": COMPOSITION_TYPES.get(comp_type, {}).get("name", comp_type),
                     "visual_mode": visual_mode,
                     "image_prompt": image_prompt,
                     "animation_prompt": animation_prompt,

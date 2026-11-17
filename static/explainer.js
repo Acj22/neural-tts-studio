@@ -502,10 +502,20 @@ function renderExplainerStoryboardTab() {
 
   listEl.innerHTML = "";
   const resTypes = (expCatalog && expCatalog.scene_resource_types) || [];
+  const compTypes = (expCatalog && expCatalog.composition_types) || [
+    { id: "hero_view", name: "HERO VIEW (Vista General)" },
+    { id: "close_up_view", name: "CLOSE-UP (Detalle Macro)" },
+    { id: "cutaway_view", name: "CUTAWAY (Corte Interior)" },
+    { id: "process_view", name: "PROCESS VIEW (Flujo Cinemático)" },
+    { id: "comparison_view", name: "COMPARISON (Comparativa)" },
+    { id: "infographic_view", name: "INFOGRAPHIC (Datos y HUD)" }
+  ];
 
   scenes.forEach((sc) => {
     const sid = sc.scene_id;
     const resOptions = resTypes.map((rt) => `<option value="${rt.id}" ${rt.id === sc.resource_type ? "selected" : ""}>${rt.name}</option>`).join("");
+    const currentComp = sc.composition_type || (sc.diagram_spec && sc.diagram_spec.composition_type) || "hero_view";
+    const compOptions = compTypes.map((ct) => `<option value="${ct.id}" ${ct.id === currentComp ? "selected" : ""}>${ct.name}</option>`).join("");
     const visualPreviewHtml = (sc.visual_mode === "mode_a_image" && sc.image_url)
       ? `<img src="${sc.image_url}" class="w-full h-48 object-cover rounded-lg border border-slate-700" />`
       : (sc.diagram_svg_url
@@ -532,17 +542,21 @@ function renderExplainerStoryboardTab() {
 
         <textarea id="expScText_${sid}" rows="2" class="w-full rounded-lg bg-slate-900 border border-slate-800 p-2 text-xs text-slate-100">${sc.narration_text}</textarea>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <div>
-            <label class="block text-[10px] uppercase text-slate-400 mb-0.5">Tipo de Escena (10 Tipos)</label>
+            <label class="block text-[10px] uppercase text-slate-400 mb-0.5">Tipo de Escena</label>
             <select id="expScResType_${sid}" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2 py-1.5 text-xs text-white">${resOptions}</select>
           </div>
           <div>
-            <label class="block text-[10px] uppercase text-slate-400 mb-0.5">Modalidad Visual Híbrida</label>
+            <label class="block text-[10px] uppercase text-amber-300 font-bold mb-0.5">Composición (6 Planos)</label>
+            <select id="expScCompType_${sid}" class="w-full rounded-lg bg-slate-900 border border-amber-500/50 px-2 py-1.5 text-xs text-amber-200">${compOptions}</select>
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase text-slate-400 mb-0.5">Modalidad Visual</label>
             <select id="expScMode_${sid}" class="w-full rounded-lg bg-slate-900 border border-indigo-500/40 px-2 py-1.5 text-xs text-white">
-              <option value="mode_b_diagram" ${sc.visual_mode === "mode_b_diagram" ? "selected" : ""}>📐 Modo B: Diagrama SVG + Animación ($0)</option>
-              <option value="mode_a_image" ${sc.visual_mode === "mode_a_image" ? "selected" : ""}>🖼️ Modo A: Imagen IA + Cámara Viva</option>
-              <option value="mode_c_video" ${sc.visual_mode === "mode_c_video" ? "selected" : ""}>🎬 Modo C: Video IA (Adaptador Externo)</option>
+              <option value="mode_b_diagram" ${sc.visual_mode === "mode_b_diagram" ? "selected" : ""}>📐 Modo B: Diagrama SVG ($0)</option>
+              <option value="mode_a_image" ${sc.visual_mode === "mode_a_image" ? "selected" : ""}>🖼️ Modo A: Imagen IA</option>
+              <option value="mode_c_video" ${sc.visual_mode === "mode_c_video" ? "selected" : ""}>🎬 Modo C: Video IA</option>
             </select>
           </div>
           <div>
@@ -585,6 +599,8 @@ async function expSaveSceneEdits(sceneId) {
   if (!expCurrentProject) return;
   const narration_text = document.getElementById(`expScText_${sceneId}`).value.trim();
   const resource_type = document.getElementById(`expScResType_${sceneId}`).value;
+  const compEl = document.getElementById(`expScCompType_${sceneId}`);
+  const composition_type = compEl ? compEl.value : "hero_view";
   const visual_mode = document.getElementById(`expScMode_${sceneId}`).value;
   const camera_motion = document.getElementById(`expScCam_${sceneId}`).value;
   const rawLabels = document.getElementById(`expScLabels_${sceneId}`).value;
@@ -598,6 +614,7 @@ async function expSaveSceneEdits(sceneId) {
         action: "update",
         narration_text,
         resource_type,
+        composition_type,
         visual_mode,
         camera_motion,
         labels

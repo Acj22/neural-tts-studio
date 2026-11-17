@@ -146,67 +146,122 @@ VISUAL_CONSISTENCY_STYLES: dict[str, dict[str, Any]] = {
 }
 
 # ==============================================================================
-# 3. TIPOS DE ESCENA DEL STORYBOARD SEMÁNTICO (FASE 6)
+# 3. COMPOSICIONES CINEMÁTICAS (6 PLANOS) Y TIPOS DE RECURSO (FASE 6 Y FASE 7)
 # ==============================================================================
+
+COMPOSITION_TYPES: dict[str, dict[str, Any]] = {
+    "hero_view": {
+        "id": "hero_view",
+        "name": "HERO VIEW (Vista General de Impacto)",
+        "desc": "Vista imponente completa del mecanismo ocupando el 75-80% del ancho con halo tecnológico.",
+        "scale_9_16": 2.15,
+        "scale_16_9": 1.45,
+    },
+    "close_up_view": {
+        "id": "close_up_view",
+        "name": "CLOSE-UP VIEW (Acercamiento Macro Detallado)",
+        "desc": "Zoom macro 3.5x en el componente clave (bujía, anillos de pistón, cigüeñal) con foco focal.",
+        "scale_9_16": 3.40,
+        "scale_16_9": 2.25,
+    },
+    "cutaway_view": {
+        "id": "cutaway_view",
+        "name": "CUTAWAY VIEW (Vista de Corte Transversal)",
+        "desc": "Corte transparente donde se aprecia el interior mecánico iluminado e interactuando en tiempo real.",
+        "scale_9_16": 2.50,
+        "scale_16_9": 1.65,
+    },
+    "process_view": {
+        "id": "process_view",
+        "name": "PROCESS VIEW (Flujo Cinemático de Proceso)",
+        "desc": "Representación dinámica del ciclo (admisión de mezcla, compresión, combustión y barrido de escape).",
+        "scale_9_16": 2.45,
+        "scale_16_9": 1.60,
+    },
+    "comparison_view": {
+        "id": "comparison_view",
+        "name": "COMPARISON VIEW (Comparación Técnica Directa)",
+        "desc": "División de pantalla o contraste de estados/sistemas con indicadores técnicos comparativos.",
+        "scale_9_16": 1.70,
+        "scale_16_9": 1.25,
+    },
+    "infographic_view": {
+        "id": "infographic_view",
+        "name": "INFOGRAPHIC VIEW (Datos, Magnitudes e Indicadores)",
+        "desc": "Tarjetas flotantes de alto contraste con indicadores de presión, relación de compresión y temperatura.",
+        "scale_9_16": 1.95,
+        "scale_16_9": 1.35,
+    },
+}
 
 SCENE_RESOURCE_TYPES: dict[str, dict[str, str]] = {
     "illustrative_image": {
         "id": "illustrative_image",
-        "name": "🖼️ 1. Imagen Ilustrativa con Movimiento",
+        "icon": "🖼️",
+        "name": "1. Imagen Ilustrativa con Movimiento",
         "default_mode": "mode_a_image",
         "desc": "Escena contextual o física con cámara viva (Zoom/Pan/Parallax/Enfoque).",
     },
     "technical_diagram": {
         "id": "technical_diagram",
-        "name": "📐 2. Diagrama Técnico Etiquetado",
+        "icon": "📐",
+        "name": "2. Diagrama Técnico Etiquetado",
         "default_mode": "mode_b_diagram",
         "desc": "Esquema SVG animado con flechas, numeración y componentes identificados.",
     },
     "comparison": {
         "id": "comparison",
-        "name": "⚖️ 3. Comparación Lado a Lado",
+        "icon": "⚖️",
+        "name": "3. Comparación Lado a Lado",
         "default_mode": "mode_b_diagram",
         "desc": "Contraste visual directo entre dos estados, tecnologías o magnitudes.",
     },
     "step_by_step": {
         "id": "step_by_step",
-        "name": "🔢 4. Proceso Paso a Paso",
+        "icon": "🔢",
+        "name": "4. Proceso Paso a Paso",
         "default_mode": "mode_b_diagram",
         "desc": "Secuencia numerada progresiva con flujo direccional animado.",
     },
     "cutaway_view": {
         "id": "cutaway_view",
-        "name": "🔍 5. Vista de Corte (Sección Interna)",
+        "icon": "🔍",
+        "name": "5. Vista de Corte (Sección Interna)",
         "default_mode": "mode_b_diagram",
         "desc": "Interior del mecanismo mostrando cómo interactúan sus piezas internas.",
     },
     "microscopic_view": {
         "id": "microscopic_view",
-        "name": "🧬 6. Vista Microscópica / Atómica",
+        "icon": "🧬",
+        "name": "6. Vista Microscópica / Atómica",
         "default_mode": "mode_b_diagram",
         "desc": "Acercamiento a electrones, sensores, células o capas sub-milimétricas.",
     },
     "map_view": {
         "id": "map_view",
-        "name": "🗺️ 7. Mapa / Red Geoespacial",
+        "icon": "🗺️",
+        "name": "7. Mapa / Red Geoespacial",
         "default_mode": "mode_b_diagram",
         "desc": "Nodos orbitales, triangulación por satélite, redes o rutas geográficas.",
     },
     "data_chart": {
         "id": "data_chart",
-        "name": "📈 8. Gráfico de Datos / Magnitudes",
+        "icon": "📈",
+        "name": "8. Gráfico de Datos / Magnitudes",
         "default_mode": "mode_b_diagram",
         "desc": "Visualización cuantitativa clara de velocidades, presiones, tiempos o porcentajes.",
     },
     "component_animation": {
         "id": "component_animation",
-        "name": "⚙️ 9. Animación Dinámica de Componentes",
+        "icon": "⚙️",
+        "name": "9. Animación Dinámica de Componentes",
         "default_mode": "mode_b_diagram",
         "desc": "Movimiento cíclico sincronizado de piezas (pistón, engranajes, válvulas, ondas).",
     },
     "ai_video": {
         "id": "ai_video",
-        "name": "🎬 10. Video Generado por IA (Opcional)",
+        "icon": "🎬",
+        "name": "10. Video Generado por IA (Opcional)",
         "default_mode": "mode_c_video",
         "desc": "Clip generativo mediante proveedor externo de video IA (con control de costo).",
     },
