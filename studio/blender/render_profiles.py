@@ -1,9 +1,11 @@
-"""Perfiles de renderizado para Blender 5.3 (Fase 10).
+"""Perfiles de renderizado optimizados para Blender 5.3 (Fase 2 - Perfeccionamiento).
 
-Permite adaptar la calidad según los recursos locales del usuario:
-- Borrador (Draft): Pruebas rápidas (15 FPS, 16 samples, ~3-5 seg por escena).
-- Estándar (Standard): Calidad educativa recomendada (30 FPS, 32 samples con EEVEE Next).
-- Alta Calidad (High): Producción final (30 FPS, 64 samples con sombras volumétricas).
+Específicamente diseñados para funcionar en equipos con 8 GB de RAM y gráficos integrados
+(Intel Core i5 11.ª gen / AMD Ryzen 7 / Intel Iris Xe / Radeon Graphics):
+
+- test (Prueba rápida): 720 × 1280 (9:16), 24 FPS, 8 muestras EEVEE Next (~0.25s/frame).
+- production (Producción final): 1080 × 1920 (9:16), 24 FPS, 16 muestras EEVEE Next (~0.5s/frame).
+- production_16_9: 1920 × 1080 (16:9), 24 FPS, 16 muestras.
 """
 
 from __future__ import annotations
@@ -11,41 +13,86 @@ from __future__ import annotations
 from typing import Any
 
 RENDER_PROFILES: dict[str, dict[str, Any]] = {
+    # Perfil Oficial de Prueba (Punto 7)
+    "test": {
+        "id": "test",
+        "name": "⚡ Prueba Rápida (720×1280, 24 FPS, 8 Samples)",
+        "width": 720,
+        "height": 1280,
+        "fps": 24,
+        "samples": 8,
+        "resolution_scale": 100,
+        "shadow_quality": "LOW",
+        "use_soft_shadows": True,
+        "desc": "Ultra optimizado para previsualización inmediata en Iris Xe (~0.25s/frame).",
+    },
+    # Perfil Oficial de Producción (Punto 7)
+    "production": {
+        "id": "production",
+        "name": "💎 Producción Final (1080×1920 Full HD, 24 FPS, 16 Samples)",
+        "width": 1080,
+        "height": 1920,
+        "fps": 24,
+        "samples": 16,
+        "resolution_scale": 100,
+        "shadow_quality": "MEDIUM",
+        "use_soft_shadows": True,
+        "desc": "Máxima nitidez estética de maqueta educativa para redes y streaming vertical.",
+    },
+    # Variante horizontal para YouTube estándar
+    "production_16_9": {
+        "id": "production_16_9",
+        "name": "📺 Producción Horizontal (1920×1080 Full HD, 24 FPS)",
+        "width": 1920,
+        "height": 1080,
+        "fps": 24,
+        "samples": 16,
+        "resolution_scale": 100,
+        "shadow_quality": "MEDIUM",
+        "use_soft_shadows": True,
+        "desc": "Formato horizontal 16:9 con encuadre panorámico.",
+    },
+    # Alias retrocompatibles
     "draft": {
         "id": "draft",
-        "name": "⚡ Borrador Rápido (15 FPS, 8 Samples - Ultrarrápido)",
-        "fps": 15,
+        "name": "⚡ Borrador Rápido (720×1280, 24 FPS)",
+        "width": 720,
+        "height": 1280,
+        "fps": 24,
         "samples": 8,
-        "eevee_shadows": False,
-        "motion_blur": False,
-        "dof": False,
-        "resolution_scale": 50,
-        "desc": "Optimizado para CPU/gráficos integrados (~0.3s/frame). Ideal para pruebas y prototipos instantáneos.",
+        "resolution_scale": 100,
+        "shadow_quality": "LOW",
+        "use_soft_shadows": True,
+        "desc": "Alias de test.",
     },
     "standard": {
         "id": "standard",
-        "name": "🎬 Estándar Educativo (24 FPS, 16 Samples - Recomendado)",
+        "name": "🎬 Estándar (1080×1920, 24 FPS)",
+        "width": 1080,
+        "height": 1920,
         "fps": 24,
         "samples": 16,
-        "eevee_shadows": True,
-        "motion_blur": False,
-        "dof": True,
-        "resolution_scale": 75,
-        "desc": "Equilibrio óptimo entre velocidad y belleza visual de maqueta 3D.",
+        "resolution_scale": 100,
+        "shadow_quality": "MEDIUM",
+        "use_soft_shadows": True,
+        "desc": "Alias de production.",
     },
     "high": {
         "id": "high",
-        "name": "💎 Alta Calidad (30 FPS, 32 Samples, 1080p Nativo)",
-        "fps": 30,
-        "samples": 32,
-        "eevee_shadows": True,
-        "motion_blur": True,
-        "dof": True,
+        "name": "💎 Alta Calidad (1080×1920, 24 FPS)",
+        "width": 1080,
+        "height": 1920,
+        "fps": 24,
+        "samples": 24,
         "resolution_scale": 100,
-        "desc": "Máxima fidelidad con sombras suaves y resolución nativa completa.",
+        "shadow_quality": "HIGH",
+        "use_soft_shadows": True,
+        "desc": "Perfil de alta fidelidad.",
     },
 }
 
 
-def get_render_profile(profile_key: str = "standard") -> dict[str, Any]:
-    return RENDER_PROFILES.get(profile_key) or RENDER_PROFILES["standard"]
+def get_render_profile(profile_key: str = "production") -> dict[str, Any]:
+    """Obtiene la configuración del perfil solicitado o retorna production por defecto."""
+    key = profile_key.lower().strip()
+    return RENDER_PROFILES.get(key, RENDER_PROFILES["production"])

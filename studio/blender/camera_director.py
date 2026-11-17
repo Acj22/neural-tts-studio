@@ -1,18 +1,11 @@
-"""Director de Cámaras e Iluminación de Estudio en Blender 5.3 (Fase 6).
+"""Director de Cámaras e Iluminación de Estudio en Blender 5.3 (Fase 2 - Perfeccionamiento).
 
-Crea tomas cinematográficas con encuadre inteligente en orientación vertical Z-up adaptado a:
-- Vertical 9:16 (1080 × 1920) para TikTok, Reels y Shorts.
-- Horizontal 16:9 (1920 × 1080) para YouTube y monitores.
-
-Soporta 8 tipos de tomas:
-- hero_view: Vista general 3/4 de impacto.
-- isometric_view: Perspectiva técnica isométrica limpia.
-- close_up_view: Acercamiento macro a culata, bujía y válvulas.
-- cutaway_view: Enfoque frontal directo a través del corte del cilindro.
-- exploded_view: Vista elevada para despiece axial sin solapamientos.
-- turntable_orbit: Recorrido orbital 360° suave alrededor del motor.
-- crank_track: Acercamiento al cigüeñal y biela.
-- process_view: Vista del ciclo de 4 tiempos.
+Estética de Maqueta Educativa Estilizada:
+- Iluminación de estudio de 3 puntos + luz de rebote ambiental en fondo claro.
+- Sombras suaves y separación nítida de siluetas.
+- 9 tomas reutilizables (Hero, Isométrica, Primer Plano, Lateral, Superior, Corte, Despiece, Seguimiento y Órbita).
+- Encuadre inteligente con márgenes de seguridad para formato vertical 9:16 y horizontal 16:9.
+- Orientación matemática estricta calculada por cuaterniones (to_track_quat) para renderizado headless.
 """
 
 from __future__ import annotations
@@ -29,49 +22,58 @@ except ImportError:
 
 
 def setup_studio_lighting() -> dict[str, Any]:
-    """Crea un esquema de iluminación de 3 puntos estilo maqueta suave."""
+    """Crea una iluminación de estudio profesional de 4 fuentes en entorno de maqueta clara."""
     if bpy is None:
         return {}
 
     lights_col = bpy.data.collections.new("Studio_Lighting")
     bpy.context.scene.collection.children.link(lights_col)
 
-    # 1. Key Light (Luz principal suave con radio amplio para sombras difusas desde el frente-derecha)
-    bpy.ops.object.light_add(type="AREA", radius=4.5, location=(6.0, -8.5, 7.5))
+    # 1. Key Light (Luz Principal Cálida Difusa - Frente Derecha con radio amplio para sombras de maqueta sedosas)
+    bpy.ops.object.light_add(type="AREA", radius=6.5, location=(5.5, -8.0, 7.5))
     key_light = bpy.context.active_object
-    key_light.name = "Light_Key"
+    key_light.name = "Light_Key_Studio"
     key_light.data.energy = 850.0
-    key_light.data.color = (1.0, 0.97, 0.94)  # Blanco cálido suave
+    key_light.data.color = (1.0, 0.98, 0.95)  # Blanco cálido suave
 
-    # 2. Fill Light (Luz de relleno suave azulada desde el frente-izquierda)
+    # 2. Fill Light (Luz de Relleno Suave - Frente Izquierda para aclarar sombras)
     bpy.ops.object.light_add(type="AREA", radius=5.5, location=(-6.5, -6.5, 5.5))
     fill_light = bpy.context.active_object
-    fill_light.name = "Light_Fill"
-    fill_light.data.energy = 420.0
-    fill_light.data.color = (0.75, 0.88, 1.0)  # Cian/celeste suave
+    fill_light.name = "Light_Fill_Studio"
+    fill_light.data.energy = 380.0
+    fill_light.data.color = (0.92, 0.95, 1.0)  # Cielo fresco suave
 
-    # 3. Rim / Backlight (Luz de contra trasera para recortar siluetas con filo nítido)
-    bpy.ops.object.light_add(type="AREA", radius=3.5, location=(0.0, 6.5, 5.5))
+    # 3. Rim Light (Luz de Contorno Trasera Elevada para recortar bordes con nitidez)
+    bpy.ops.object.light_add(type="AREA", radius=3.5, location=(0.0, 6.5, 6.0))
     rim_light = bpy.context.active_object
-    rim_light.name = "Light_Rim"
-    rim_light.data.energy = 550.0
-    rim_light.data.color = (0.55, 0.85, 1.0)  # Halo tecnológico
+    rim_light.name = "Light_Rim_Studio"
+    rim_light.data.energy = 480.0
+    rim_light.data.color = (1.0, 1.0, 1.0)
 
-    # 4. Color de Mundo Ambiental (Studio Void)
+    # 4. Bounce Light (Luz de Rebote Inferior para iluminar cárter y cigüeñal sin oscuridad profunda)
+    bpy.ops.object.light_add(type="AREA", radius=4.0, location=(0.0, -4.5, -1.8))
+    bounce_light = bpy.context.active_object
+    bounce_light.name = "Light_Bounce_Studio"
+    bounce_light.data.energy = 220.0
+    bounce_light.data.color = (0.95, 0.94, 0.92)  # Rebote cálido de mesa
+
+    # 5. Entorno Mundial Claro de Estudio (Fondo Beige/Gris Claro Neutro - Punto 2 y 3)
     world = bpy.context.scene.world
     if not world:
-        world = bpy.data.worlds.new("StudioWorld")
+        world = bpy.data.worlds.new("StudioWorld_Light")
         bpy.context.scene.world = world
     world.use_nodes = True
     bg_node = world.node_tree.nodes.get("Background")
     if bg_node:
-        bg_node.inputs["Color"].default_value = (0.043, 0.067, 0.125, 1.0)  # #0B1120
-        bg_node.inputs["Strength"].default_value = 0.85
+        # Fondo gris claro neutro suave (#E8ECEF / #F1F5F9)
+        bg_node.inputs["Color"].default_value = (0.88, 0.89, 0.91, 1.0)
+        bg_node.inputs["Strength"].default_value = 0.95
 
     return {
         "key": key_light,
         "fill": fill_light,
         "rim": rim_light,
+        "bounce": bounce_light,
     }
 
 
@@ -81,7 +83,7 @@ def setup_camera_for_shot(
     start_frame: int = 1,
     end_frame: int = 120,
 ) -> Any:
-    """Configura la cámara activa, su distancia focal y su movimiento cinemático."""
+    """Configura la cámara con encuadre de estudio, distancias de seguridad y tomas reutilizables."""
     if bpy is None:
         return None
 
@@ -90,51 +92,75 @@ def setup_camera_for_shot(
     bpy.context.scene.collection.objects.link(cam_obj)
     bpy.context.scene.camera = cam_obj
 
-    # En vertical 9:16 aumentamos la distancia y abrimos lente para que toda la altura (bujía a cigüeñal) entre completa
+    # Margen de encuadre en 9:16 vertical (dist_mult = 1.25 para abarcar la altura completa)
     dist_mult = 1.25 if is_vertical else 1.0
     total_frames = max(10, end_frame - start_frame)
 
+    # =========================================================================
+    # CATÁLOGO DE TOMAS CINEMÁTICAS REUTILIZABLES (Punto 4)
+    # =========================================================================
+
+    # 1. HERO VIEW (Vista General 3/4 de Estudio)
     if shot_type in ("hero_view", "hero_intro"):
         cam_data.lens = 38
         target_loc = mathutils.Vector((0.0, 0.0, 3.3))
         start_loc = mathutils.Vector((2.8 * dist_mult, -11.2 * dist_mult, 4.0))
         end_loc = mathutils.Vector((2.2 * dist_mult, -10.4 * dist_mult, 3.6))
 
+    # 2. ISOMETRIC VIEW (Perspectiva Isométrica Técnica Limpia a 45°)
     elif shot_type == "isometric_view":
-        cam_data.lens = 55
-        target_loc = mathutils.Vector((0.0, 0.0, 3.2))
-        start_loc = mathutils.Vector((5.5 * dist_mult, -8.5 * dist_mult, 6.0))
-        end_loc = mathutils.Vector((5.0 * dist_mult, -8.0 * dist_mult, 5.6))
+        cam_data.lens = 52
+        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
+        start_loc = mathutils.Vector((6.5 * dist_mult, -10.5 * dist_mult, 6.2))
+        end_loc = mathutils.Vector((6.0 * dist_mult, -9.8 * dist_mult, 5.8))
 
+    # 3. CLOSE-UP VIEW (Primer Plano a Cámara de Combustión, Válvulas y Bujía)
     elif shot_type in ("close_up_view", "cylinder_macro"):
         cam_data.lens = 65
-        target_loc = mathutils.Vector((0.0, 0.0, 4.8))  # Foco en cámara de combustión
-        start_loc = mathutils.Vector((1.6 * dist_mult, -5.8 * dist_mult, 5.0))
-        end_loc = mathutils.Vector((1.2 * dist_mult, -5.2 * dist_mult, 4.9))
+        target_loc = mathutils.Vector((0.0, 0.0, 4.8))
+        start_loc = mathutils.Vector((1.4 * dist_mult, -6.0 * dist_mult, 5.0))
+        end_loc = mathutils.Vector((1.0 * dist_mult, -5.4 * dist_mult, 4.8))
 
-    elif shot_type == "cutaway_view":
-        cam_data.lens = 48
-        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
-        start_loc = mathutils.Vector((0.4 * dist_mult, -8.8 * dist_mult, 3.4))
-        end_loc = mathutils.Vector((0.2 * dist_mult, -8.2 * dist_mult, 3.3))
+    # 4. SIDE VIEW (Vista Lateral Perfil del Mecanismo)
+    elif shot_type == "side_view":
+        cam_data.lens = 42
+        target_loc = mathutils.Vector((0.0, 0.0, 3.2))
+        start_loc = mathutils.Vector((11.5 * dist_mult, 0.0, 3.4))
+        end_loc = mathutils.Vector((10.8 * dist_mult, 0.0, 3.2))
 
-    elif shot_type == "exploded_view":
-        cam_data.lens = 38
-        target_loc = mathutils.Vector((0.0, 0.0, 3.6))
-        # Vista elevada y amplia para que el pistón elevado y cigüeñal descendido entren sin corte
-        start_loc = mathutils.Vector((3.8 * dist_mult, -13.5 * dist_mult, 4.6))
-        end_loc = mathutils.Vector((3.0 * dist_mult, -12.5 * dist_mult, 4.2))
-
-    elif shot_type == "crank_track":
-        cam_data.lens = 55
-        target_loc = mathutils.Vector((0.0, 0.0, 0.8))  # Foco en cigüeñal y biela
-        start_loc = mathutils.Vector((2.2 * dist_mult, -6.6 * dist_mult, 1.2))
-        end_loc = mathutils.Vector((1.8 * dist_mult, -6.0 * dist_mult, 1.0))
-
-    elif shot_type in ("turntable_orbit", "full_cycle"):
+    # 5. TOP VIEW (Vista Superior de Culata, Balancines y Válvulas)
+    elif shot_type == "top_view":
         cam_data.lens = 45
+        target_loc = mathutils.Vector((0.0, 0.0, 5.4))
+        start_loc = mathutils.Vector((0.1, -1.8, 12.5 * dist_mult))
+        end_loc = mathutils.Vector((0.1, -1.5, 11.8 * dist_mult))
+
+    # 6. CUTAWAY VIEW (Corte Transversal Técnico Frontal Directo)
+    elif shot_type == "cutaway_view":
+        cam_data.lens = 40
+        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
+        start_loc = mathutils.Vector((0.3 * dist_mult, -10.2 * dist_mult, 3.5))
+        end_loc = mathutils.Vector((0.1 * dist_mult, -9.6 * dist_mult, 3.3))
+
+    # 7. EXPLODED VIEW (Despiece Axial Amplio sin Solapamientos)
+    elif shot_type == "exploded_view":
+        cam_data.lens = 34
         target_loc = mathutils.Vector((0.0, 0.0, 3.4))
-        radius = 9.5 * dist_mult
+        start_loc = mathutils.Vector((3.8 * dist_mult, -14.2 * dist_mult, 4.4))
+        end_loc = mathutils.Vector((3.0 * dist_mult, -13.2 * dist_mult, 4.0))
+
+    # 8. COMPONENT TRACK (Seguimiento Cinemático de Pistón y Muñequilla)
+    elif shot_type in ("component_track", "crank_track"):
+        cam_data.lens = 52
+        target_loc = mathutils.Vector((0.0, 0.0, 1.2))
+        start_loc = mathutils.Vector((2.2 * dist_mult, -7.2 * dist_mult, 1.6))
+        end_loc = mathutils.Vector((1.8 * dist_mult, -6.6 * dist_mult, 1.4))
+
+    # 9. TURNTABLE ORBIT (Recorrido Orbital Suave 360° Alrededor del Motor)
+    elif shot_type in ("turntable_orbit", "full_cycle"):
+        cam_data.lens = 42
+        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
+        radius = 10.2 * dist_mult
         z_height = 3.8
         for f in range(start_frame, end_frame + 1, max(1, total_frames // 24)):
             pct = (f - start_frame) / float(total_frames)
@@ -150,12 +176,12 @@ def setup_camera_for_shot(
         return cam_obj
 
     else:  # default process_view
-        cam_data.lens = 45
-        target_loc = mathutils.Vector((0.0, 0.0, 3.4))
-        start_loc = mathutils.Vector((2.4 * dist_mult, -9.5 * dist_mult, 3.8))
-        end_loc = mathutils.Vector((1.8 * dist_mult, -8.6 * dist_mult, 3.4))
+        cam_data.lens = 40
+        target_loc = mathutils.Vector((0.0, 0.0, 3.3))
+        start_loc = mathutils.Vector((2.4 * dist_mult, -10.2 * dist_mult, 3.8))
+        end_loc = mathutils.Vector((1.8 * dist_mult, -9.4 * dist_mult, 3.4))
 
-    # Animar desplazamiento de cámara con orientación exacta calculada matemáticamente
+    # Animar desplazamiento de cámara con orientación calculada matemáticamente en cada extremo
     cam_obj.location = start_loc
     cam_obj.rotation_euler = (target_loc - start_loc).to_track_quat("-Z", "Y").to_euler()
     cam_obj.keyframe_insert(data_path="location", frame=start_frame)

@@ -56,17 +56,18 @@ def run_blender_render(spec: dict) -> None:
 
     clean_blender_scene()
 
-    width = int(spec.get("width", 1080))
-    height = int(spec.get("height", 1920))
-    fps = int(spec.get("fps", 30))
-    duration_sec = float(spec.get("duration_sec", 4.0))
-    composition_type = spec.get("composition_type", "hero_view")
-    cycle_phase = spec.get("cycle_phase", "full_cycle")
-    profile_key = spec.get("render_profile", "standard")
+    profile_key = spec.get("render_profile", "production")
     profile = get_render_profile(profile_key)
     output_dir = Path(spec["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     single_frame = bool(spec.get("single_frame_only", False))
+
+    width = int(spec.get("width") or profile.get("width", 1080))
+    height = int(spec.get("height") or profile.get("height", 1920))
+    fps = int(profile.get("fps") or spec.get("fps", 24))
+    duration_sec = float(spec.get("duration_sec", 4.0))
+    composition_type = spec.get("composition_type", "hero_view")
+    cycle_phase = spec.get("cycle_phase", "full_cycle")
 
     is_vertical = height > width
     total_frames = 1 if single_frame else max(10, int(round(duration_sec * fps)))
@@ -76,14 +77,17 @@ def run_blender_render(spec: dict) -> None:
     scene.render.engine = "BLENDER_EEVEE"
     scene.render.resolution_x = width
     scene.render.resolution_y = height
-    scene.render.resolution_percentage = int(profile["resolution_scale"])
+    scene.render.resolution_percentage = int(profile.get("resolution_scale", 100))
     scene.render.fps = fps
     scene.frame_start = 1
     scene.frame_end = total_frames
 
-    # EEVEE Next sampling
-    if hasattr(scene.eevee, "taa_render_samples"):
-        scene.eevee.taa_render_samples = int(profile["samples"])
+    # EEVEE Next sampling y sombras suaves (Punto 3 y 7)
+    if hasattr(scene, "eevee"):
+        if hasattr(scene.eevee, "taa_render_samples"):
+            scene.eevee.taa_render_samples = int(profile.get("samples", 16))
+        if hasattr(scene.eevee, "use_shadows"):
+            scene.eevee.use_shadows = True
 
     # 2. Iluminación de Estudio y Fondo
     setup_studio_lighting()

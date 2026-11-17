@@ -189,25 +189,30 @@ def render_scene_3d_still(
 def run_combustion_engine_prototype_benchmark(
     target_dir: Path,
     is_vertical: bool = True,
-    render_profile: str = "draft",
-    voice_key: str = "es-MX-DaliaNeural",
+    render_profile: str = "production",
+    voice_key: str = "es-MX-JorgeNeural",
 ) -> dict[str, Any]:
-    """Construye y renderiza el Prototipo Oficial de 8 Escenas (Punto 11):
-    1. Presentación tridimensional del motor.
-    2. Acercamiento al cilindro.
-    3. Despiece de componentes (Exploded View).
-    4. Movimiento del pistón y carrera.
-    5. Apertura y cierre de válvulas.
-    6. Movimiento del cigüeñal y biela transmitiendo torque.
-    7. Representación de los cuatro tiempos en secuencia completa.
-    8. Vista general final con el motor en marcha.
+    """Construye y renderiza el Prototipo Oficial de 8 Escenas (Fase 2 - Perfeccionamiento):
+    1. Presentación tridimensional del motor (hero_view).
+    2. Acercamiento al cilindro y cámara (close_up_view).
+    3. Despiece axial de componentes (exploded_view).
+    4. Movimiento del pistón y carrera PMS a PMI (cutaway_view).
+    5. Apertura y cierre sincronizado de válvulas (close_up_view).
+    6. Movimiento del cigüeñal y biela transmitiendo torque (component_track).
+    7. Representación completa de los cuatro tiempos (process_view).
+    8. Vista general final con órbita 360° en marcha (turntable_orbit).
     Sincronizado con narración neuronal de Edge-TTS y subtítulos automáticos.
     """
     target_dir.mkdir(parents=True, exist_ok=True)
-    width = 1080 if is_vertical else 1920
-    height = 1920 if is_vertical else 1080
     prof = get_render_profile(render_profile)
-    fps = int(prof.get("fps", 15 if render_profile == "draft" else 24))
+    width = int(prof.get("width") or (1080 if is_vertical else 1920))
+    height = int(prof.get("height") or (1920 if is_vertical else 1080))
+    fps = int(prof.get("fps", 24))
+
+    # Control de Calidad previo al renderizado (Punto 8)
+    from studio.blender.qc_checker import run_blender_scene_quality_control
+    qc_res = run_blender_scene_quality_control(shot_type="hero_view", is_vertical=is_vertical)
+    (target_dir / "qc_report.json").write_text(json.dumps(qc_res, indent=2, ensure_ascii=False), encoding="utf-8")
 
     scenes_spec = [
         {
@@ -249,7 +254,7 @@ def run_combustion_engine_prototype_benchmark(
             "id": "PROT_06",
             "title": "6. Biela y Cigüeñal",
             "text": "La biela transforma el empuje lineal del pistón en fuerza rotativa continua del cigüeñal.",
-            "composition": "crank_track",
+            "composition": "component_track",
             "phase": "full_cycle",
         },
         {
@@ -257,13 +262,13 @@ def run_combustion_engine_prototype_benchmark(
             "title": "7. Ciclo de Cuatro Tiempos",
             "text": "Admisión, compresión, combustión y escape: un ciclo termodinámico continuo y eficiente.",
             "composition": "process_view",
-            "phase": "full_cycle",
+            "phase": "combustion",
         },
         {
             "id": "PROT_08",
             "title": "8. Vista General Final",
             "text": "Así convierte la energía química del combustible en el movimiento que impulsa al mundo.",
-            "composition": "hero_view",
+            "composition": "turntable_orbit",
             "phase": "full_cycle",
         },
     ]
@@ -319,7 +324,7 @@ def run_combustion_engine_prototype_benchmark(
         # Integrar audio y subtítulo con FFmpeg
         font_size = 46 if is_vertical else 32
         sub_margin_v = int(height * (0.22 if is_vertical else 0.12))
-        sub_filter = f"subtitles={srt_path.name}:force_style='FontName=Arial,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,MarginV={sub_margin_v}'"
+        sub_filter = f"subtitles={srt_path.name}:force_style='FontName=Arial,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.5,Shadow=1,MarginV={sub_margin_v}'"
 
         ff_cmd = [
             _get_ffmpeg(),
