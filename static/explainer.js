@@ -165,6 +165,9 @@ async function expLoadProjectById(projectId) {
     expShowError(err.message);
   }
 }
+const expLoadProject = expLoadProjectById;
+window.expLoadProject = expLoadProjectById;
+window.expLoadProjectById = expLoadProjectById;
 
 async function expRunStandaloneResearch() {
   const topic = (document.getElementById("expTopic").value || "").trim();
@@ -711,7 +714,7 @@ async function expRunMultiPlatformExport(platformsOverride = null) {
       }
     }
 
-    await expLoadProject(expCurrentProject.project_id);
+    await expLoadProjectById(expCurrentProject.project_id);
     expSwitchWorkspaceTab("exports");
     expSetProgress(false);
   } catch (err) {
