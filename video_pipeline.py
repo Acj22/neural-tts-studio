@@ -304,7 +304,7 @@ IMAGE_SETTINGS: dict[str, Any] = {
     "runware_api_key": os.environ.get("RUNWARE_API_KEY", ""),
     "together_api_key": os.environ.get("TOGETHER_API_KEY", ""),
     "fal_api_key": os.environ.get("FAL_API_KEY", ""),
-    "allow_fallback": False,
+    "allow_fallback": True,
 }
 try:
     _sfile = Path(__file__).parent / "settings.json"
@@ -1209,19 +1209,19 @@ def generate_image_for_scene(
         chain = []
         if (IMAGE_SETTINGS.get("gemini_1psid") or "").strip():
             chain.append("gemini_pro")
-        chain.extend(["gemini", "hf_dev", "magic"])
+        chain.extend(["gemini", "hf_dev", "magic", "pollinations"])
     elif provider == "runware":
-        chain = ["runware", "hf_dev", "magic"]
+        chain = ["runware", "hf_dev", "magic", "pollinations"]
     elif provider == "together":
-        chain = ["together", "hf_dev", "magic"]
+        chain = ["together", "hf_dev", "magic", "pollinations"]
     elif provider == "fal":
-        chain = ["fal", "hf_dev", "magic"]
+        chain = ["fal", "hf_dev", "magic", "pollinations"]
     elif provider == "pollinations":
         chain = ["pollinations", "magic", "hf_dev"]
     elif provider == "hf_dev":
-        chain = ["hf_dev", "magic"]
+        chain = ["hf_dev", "magic", "pollinations"]
     elif provider == "hf_fast":
-        chain = ["hf_fast", "magic"]
+        chain = ["hf_fast", "magic", "pollinations"]
     else:
         chain = []
         if (IMAGE_SETTINGS.get("gemini_1psid") or "").strip():
@@ -1232,7 +1232,7 @@ def generate_image_for_scene(
             chain.append("fal")
         if (IMAGE_SETTINGS.get("together_api_key") or "").strip():
             chain.append("together")
-        chain.extend(["hf_dev", "magic"])
+        chain.extend(["hf_dev", "magic", "pollinations"])
 
     for eng in chain:
         if eng == "gemini_pro":

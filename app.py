@@ -1907,6 +1907,10 @@ def fruti_render_endpoint(project_id: str, req: FrutiRenderRequest):
     return meta
 
 
+from studio.api import init_studio_router
+
+app.include_router(init_studio_router(PROJECTS_DIR, _synthesize_segment_samples))
+
 app.mount("/projects", StaticFiles(directory=str(PROJECTS_DIR)), name="projects")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

@@ -37,25 +37,28 @@
           </svg>
         </div>
         <div>
-          <div class="flex items-center gap-2.5">
-            <h1 class="text-2xl font-bold tracking-tight text-white">Neural TTS &amp; YouTube Studio</h1>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <h1 class="text-2xl font-bold tracking-tight text-white">AI VIDEO STUDIO</h1>
+            <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              🎓 EXPLAINER AI — ¿CÓMO FUNCIONA?
+            </span>
             <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              100% Sin Tokens · CPU ONNX
+              Multiplataforma · 9:16 &amp; 16:9
             </span>
           </div>
-          <p class="text-sm text-slate-400">Voz neuronal local (<strong class="text-slate-200">Kokoro-82M</strong> &amp; <strong class="text-slate-200">Piper</strong>) + Automatización de Videos con Timestamps e Imágenes IA</p>
+          <p class="text-sm text-slate-400">Investigación verificable + Guiones educativos (Corto y Largo) + Diagramas técnicos animados + Exportación para YouTube, Shorts, TikTok, Instagram y Facebook</p>
         </div>
       </div>
 
       <!-- Pestañas de Modo -->
       <div class="flex flex-wrap items-center gap-2">
-        <div class="p-1 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-1">
+        <div class="p-1 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center gap-1">
           <button
-            id="tabBtnTTS"
-            onclick="switchMode('tts')"
+            id="tabBtnExplainer"
+            onclick="switchMode('explainer')"
             class="px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow"
           >
-            🎙️ Estudio de Voz (TTS Rápido)
+            🎓 Explainer AI (¿Cómo Funciona? ★)
           </button>
           <button
             id="tabBtnYT"
@@ -63,6 +66,13 @@
             class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
           >
             🎬 Automatizador YouTube (Guion → Video)
+          </button>
+          <button
+            id="tabBtnTTS"
+            onclick="switchMode('tts')"
+            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
+          >
+            🎙️ Estudio de Voz (TTS Rápido)
           </button>
           <button
             id="tabBtnFruti"
@@ -190,8 +200,292 @@
         </div>
       </aside>
 
+      <!-- ============================================================ -->
+      <!-- 🎓 MÓDULO PRINCIPAL: EXPLAINER AI — ¿CÓMO FUNCIONA?           -->
+      <!-- ============================================================ -->
+      <main id="panelExplainer" class="lg:col-span-8 space-y-5">
+        <div class="glass rounded-2xl p-5 space-y-4 border border-amber-500/35">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                🎓 EXPLAINER AI — ¿CÓMO FUNCIONA? (Estudio Educativo Multiplataforma)
+              </h2>
+              <p class="text-xs text-slate-400">
+                Introduce un tema una sola vez → Investiga fuentes reales → Genera Guion Corto (9:16) y Guion Largo (16:9) → Crea Storyboard y Diagramas Técnicos Animados SVG → Exporta paquetes para YouTube, Shorts, TikTok, Instagram Reels y Facebook.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                id="expSavedProjectsSelect"
+                onchange="if(this.value) expLoadProjectById(this.value)"
+                class="rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-1.5 text-xs text-amber-200 max-w-xs sm:max-w-md"
+              >
+                <option value="">📂 Cargar Proyecto Maestro Explainer AI...</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Casos de Prueba Oficiales (Fase 19) -->
+          <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+              ⚡ Cargar 1 de los 5 Casos de Ingeniería de Prueba (o escribe cualquier tema abajo):
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="expLoadPresetTopic('motor')" class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-semibold transition">
+                1️⃣ Motor de Combustión (8 Pasos)
+              </button>
+              <button type="button" onclick="expLoadPresetTopic('cajero')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+                2️⃣ Cajero Automático (ATM)
+              </button>
+              <button type="button" onclick="expLoadPresetTopic('gps')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+                3️⃣ Sistema GPS (Trilateración)
+              </button>
+              <button type="button" onclick="expLoadPresetTopic('pantalla')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+                4️⃣ Pantalla Táctil Capacitiva
+              </button>
+              <button type="button" onclick="expLoadPresetTopic('transmision')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+                5️⃣ Transmisión Automática
+              </button>
+            </div>
+          </div>
+
+          <!-- Formulario de Creación de Proyectos (Fase 3) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Nombre del Proyecto</label>
+              <input id="expProjectName" value="¿Cómo funciona un motor de combustión?" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1">Tema a Explicar ★</label>
+              <input id="expTopic" value="Cómo funciona un motor de combustión interna de 4 tiempos" class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white" />
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Pregunta Principal</label>
+              <input id="expQuestion" value="¿Cómo transforma un motor de combustión la gasolina en movimiento rotativo a través de sus 4 tiempos?" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+            </div>
+
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Categoría (12 Áreas)</label>
+              <select id="expCategory" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"></select>
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Público Objetivo</label>
+              <input id="expAudience" value="Público general curioso, estudiantes y entusiastas de la ciencia e ingeniería" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-emerald-300 mb-1">Estilo Visual Consistente (Fase 8)</label>
+              <select id="expVisualStyle" class="w-full rounded-xl bg-slate-950 border border-emerald-500/40 px-3 py-2 text-xs text-white"></select>
+            </div>
+
+            <div class="md:col-span-3">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Duraciones a Generar</label>
+              <select id="expDurationMode" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="both" selected>★ Ambas (Short 1-3m + Long 5-10m)</option>
+                <option value="short">Solo Short (1 a 3 minutos)</option>
+                <option value="long">Solo Long (5 a 10 minutos)</option>
+              </select>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Formato de Pantalla</label>
+              <select id="expScreenFormat" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="both" selected>★ Multi-Formato (9:16 + 16:9)</option>
+                <option value="9:16">📱 Vertical 9:16 (1080×1920)</option>
+                <option value="16:9">📺 Horizontal 16:9 (1920×1080)</option>
+              </select>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Voz del Narrador</label>
+              <select id="expVoiceSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="es-MX-JorgeNeural">🇲🇽 Jorge Neural HD (Documental ★)</option>
+              </select>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Música Sin Copyright</label>
+              <select id="expBgMusic" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                <option value="doc_mystery" selected>🕵️ Misterio / Investigación ★</option>
+                <option value="inspiring_science">🚀 Ciencia y Descubrimiento</option>
+                <option value="warm_story">🌅 Storytelling Cálido</option>
+                <option value="lofi_chill">☕ Lo-Fi Estudio</option>
+                <option value="none">🔇 Sin Música</option>
+              </select>
+            </div>
+          </div>
+
+          <input id="expSpeed" type="hidden" value="1.0" />
+
+          <details class="rounded-xl bg-slate-950/60 border border-slate-800 p-3">
+            <summary class="cursor-pointer text-xs font-semibold text-slate-300">📚 Notas o fuentes adicionales aportadas por el usuario (opcional)</summary>
+            <textarea id="expUserNotes" rows="2" placeholder="Puedes pegar aquí datos específicos, enlaces o apuntes técnicos adicionales que quieras incluir como fuente..." class="mt-2 w-full rounded-lg bg-slate-950 border border-slate-800 p-2 text-xs text-slate-200"></textarea>
+          </details>
+
+          <!-- Botones Principales de Acción -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+            <button
+              type="button"
+              onclick="expRunStandaloneResearch()"
+              class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-semibold text-xs transition"
+            >
+              🔍 1. Investigar Tema Primero (Revisar Fuentes)
+            </button>
+            <button
+              id="btnExpCreate"
+              type="button"
+              onclick="expCreateMasterProject(false)"
+              class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow transition"
+            >
+              📐 2. Crear Proyecto Maestro (Investigación + Guiones Corto/Largo + Storyboard + Diagramas SVG)
+            </button>
+            <button
+              id="btnExpCreateFull"
+              type="button"
+              onclick="expCreateMasterProject(true)"
+              class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-emerald-500 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg transition"
+            >
+              🚀 3. Producir Todo en 1 Clic (Guiones + Voz + Videos Multiplataforma + Portadas)
+            </button>
+          </div>
+
+          <div id="expProgressBox" class="hidden p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/30 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span id="expProgressText" class="text-emerald-200 font-medium">Procesando...</span>
+              <span id="expProgressPct" class="mono text-emerald-300">20%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div id="expProgressBar" class="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-300" style="width: 20%"></div>
+            </div>
+          </div>
+
+          <div id="expErrorBox" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
+        </div>
+
+        <!-- WORKSPACE DEL PROYECTO MAESTRO (Sub-pestañas Fases 4 a 18) -->
+        <div id="expWorkspaceBox" class="hidden space-y-4">
+          <div class="glass rounded-2xl p-4 space-y-3 border border-indigo-500/30">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <h3 id="expActiveProjectTitle" class="text-sm font-bold text-white">Proyecto Maestro</h3>
+                <span id="expActiveProjectBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-xs mono"></span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="p-1 rounded-lg bg-slate-950 border border-slate-800 flex items-center gap-1">
+                  <button id="btnExpVerShort" onclick="expSwitchVersion('short')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500 text-white">📱 Versión Short (9:16 · 1-3m)</button>
+                  <button id="btnExpVerLong" onclick="expSwitchVersion('long')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300">📺 Versión Long (16:9 · 5-10m)</button>
+                </div>
+                <button onclick="expDuplicateCurrentProject()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-semibold">📑 Duplicar Proyecto</button>
+                <a id="expMasterZipLink" href="#" class="px-3.5 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs">📦 Descargar Todo (.ZIP)</a>
+              </div>
+            </div>
+
+            <!-- Barra de Sub-pestañas de Ingeniería -->
+            <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800">
+              <button id="expSubBtn_research" onclick="expSwitchSubTab('research')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 shadow transition">🔍 1. Investigación y Fuentes</button>
+              <button id="expSubBtn_scripts" onclick="expSwitchSubTab('scripts')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">📝 2. Guiones (Corto / Largo / Redes)</button>
+              <button id="expSubBtn_storyboard" onclick="expSwitchSubTab('storyboard')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">🎬 3. Storyboard + Diagramas SVG</button>
+              <button id="expSubBtn_export" onclick="expSwitchSubTab('export')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">🚀 4. Exportación Multiplataforma &amp; Social Pack</button>
+              <button id="expSubBtn_qc" onclick="expSwitchSubTab('qc')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">🛡️ 5. Control de Calidad (14 pts) y Costos</button>
+            </div>
+          </div>
+
+          <!-- SUB-PANEL 1: RESEARCH ENGINE -->
+          <div id="expSubPanel_research" class="glass rounded-2xl p-5 space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🔍 Fase 4: Research Engine — Conceptos, Hechos Verificados, Estimaciones y Fuentes</h3>
+            <div id="expResearchContent" class="space-y-4"></div>
+          </div>
+
+          <!-- SUB-PANEL 2: SCRIPT ENGINE -->
+          <div id="expSubPanel_scripts" class="hidden glass rounded-2xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300">📝 Fase 5: Script Engine — Secciones Editables y Comprobación de Audio Real</h3>
+                <span id="expScriptStatsBadge" class="text-xs text-slate-400 mono"></span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="expSynthesizeVersionAudio(expActiveVersion)" class="px-3.5 py-2 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-500/40 text-emerald-200 text-xs font-semibold">
+                  🎙️ Sintetizar Voz Real de esta Versión
+                </button>
+                <button onclick="expSynthesizeVersionAudio('both')" class="px-3.5 py-2 rounded-xl bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-500/40 text-indigo-200 text-xs font-semibold">
+                  🎙️ Sintetizar Ambas Versiones (Short + Long)
+                </button>
+              </div>
+            </div>
+            <audio id="expVersionAudioPlayer" controls class="hidden w-full h-10"></audio>
+            <div id="expScriptSectionsList" class="space-y-3"></div>
+            <div class="pt-3 border-t border-slate-800 space-y-2">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">📱 Variaciones de Guion Adaptadas por Plataforma</h4>
+              <div id="expPlatformAdaptationsBox" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
+            </div>
+          </div>
+
+          <!-- SUB-PANEL 3: STORYBOARD & DIAGRAMAS SVG -->
+          <div id="expSubPanel_storyboard" class="hidden glass rounded-2xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">🎬 Fases 6, 7 y 13: Storyboard Semántico, Diagramas Técnicos SVG y Timeline Editor</h3>
+                <p class="text-[11px] text-slate-400">Puedes editar etiquetas, reordenar escenas, cambiar entre Diagrama SVG animado (Modo B) o Imagen IA con movimiento (Modo A), y renderizar 1 escena de prueba.</p>
+              </div>
+              <span id="expStoryboardCountBadge" class="text-xs text-indigo-300 mono"></span>
+            </div>
+            <div id="expStoryboardScenesList" class="space-y-3"></div>
+          </div>
+
+          <!-- SUB-PANEL 4: MULTI-PLATFORM EXPORT & SOCIAL PACKAGER -->
+          <div id="expSubPanel_export" class="hidden glass rounded-2xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🚀 Fases 11 y 12: Multi-Platform Export (Reencuadre Inteligente) &amp; Social Media Packager</h3>
+                <p class="text-[11px] text-slate-400">Genera versiones verticales (9:16) y horizontales (16:9) respetando zonas seguras, con portadas y descripciones únicas por red social.</p>
+              </div>
+              <button onclick="expRunMultiPlatformExport()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg">
+                🚀 Exportar Plataformas Seleccionadas (.MP4 + Portadas + Copy)
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
+              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" value="youtube_shorts" checked class="expPlatChk accent-emerald-500" />
+                <span>📱 YouTube Shorts (9:16)</span>
+              </label>
+              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" value="youtube_video" checked class="expPlatChk accent-emerald-500" />
+                <span>📺 YouTube Video (16:9)</span>
+              </label>
+              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" value="tiktok" checked class="expPlatChk accent-emerald-500" />
+                <span>🎵 TikTok (9:16)</span>
+              </label>
+              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" value="instagram_reels" checked class="expPlatChk accent-emerald-500" />
+                <span>📸 Instagram Reels (9:16)</span>
+              </label>
+              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" value="facebook_reels" checked class="expPlatChk accent-emerald-500" />
+                <span>📘 Facebook Reels (9:16)</span>
+              </label>
+              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" value="facebook_video" class="expPlatChk accent-emerald-500" />
+                <span>📘 Facebook Video (16:9)</span>
+              </label>
+            </div>
+
+            <div id="expSocialPackagesGrid" class="space-y-4 pt-2"></div>
+          </div>
+
+          <!-- SUB-PANEL 5: QUALITY CONTROL (14 PUNTOS) & CONTROL DE COSTOS -->
+          <div id="expSubPanel_qc" class="hidden glass rounded-2xl p-5 space-y-5">
+            <div class="space-y-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">💰 Fase 15: Panel de Consumo y Control de Costos</h3>
+              <div id="expCostSummaryBox"></div>
+            </div>
+            <div class="space-y-2 pt-3 border-t border-slate-800">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🛡️ Fase 16: Quality Control — 14 Verificaciones Antes de Exportar</h3>
+              <div id="expQCList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
       <!-- MODO 1: Estudio de Voz Rápido -->
-      <main id="panelTTS" class="lg:col-span-8 space-y-5">
+      <main id="panelTTS" class="lg:col-span-8 space-y-5 hidden">
         <div class="glass rounded-2xl p-5 space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <label for="textInput" class="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -1130,13 +1424,15 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     });
 
     function switchMode(mode) {
-      const panels = { tts: "panelTTS", youtube: "panelYouTube", fruti: "panelFruti" };
-      const tabs = { tts: "tabBtnTTS", youtube: "tabBtnYT", fruti: "tabBtnFruti" };
+      const panels = { explainer: "panelExplainer", tts: "panelTTS", youtube: "panelYouTube", fruti: "panelFruti" };
+      const tabs = { explainer: "tabBtnExplainer", tts: "tabBtnTTS", youtube: "tabBtnYT", fruti: "tabBtnFruti" };
       const active = "px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow";
       const inactive = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white";
       Object.keys(panels).forEach((k) => {
-        document.getElementById(panels[k]).classList.toggle("hidden", k !== mode);
-        document.getElementById(tabs[k]).className = k === mode ? active : inactive;
+        const pEl = document.getElementById(panels[k]);
+        const tEl = document.getElementById(tabs[k]);
+        if (pEl) pEl.classList.toggle("hidden", k !== mode);
+        if (tEl) tEl.className = k === mode ? active : inactive;
       });
     }
 
@@ -2345,5 +2641,6 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     loadLatestProjectIfExists();
   </script>
   <script src="/static/fruti.js"></script>
+  <script src="/static/explainer.js"></script>
 </body>
 </html>

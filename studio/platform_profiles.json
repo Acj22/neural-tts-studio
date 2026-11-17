@@ -1,0 +1,194 @@
+{
+  "youtube_video": {
+    "id": "youtube_video",
+    "name": "📺 YouTube Video (Horizontal Largo)",
+    "platform": "YouTube",
+    "version_source": "long",
+    "aspect_ratio": "16:9",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "recommended_min_sec": 300,
+    "recommended_max_sec": 600,
+    "platform_max_sec_configurable": 43200,
+    "safe_zone": {
+      "top_pct": 0.06,
+      "bottom_pct": 0.12,
+      "left_pct": 0.05,
+      "right_pct": 0.05,
+      "diagram_box": [
+        0.06,
+        0.07,
+        0.94,
+        0.78
+      ],
+      "subtitle_margin_v_pct": 0.085
+    },
+    "thumbnail_size": [
+      1280,
+      720
+    ],
+    "script_tone": "Explicación profunda, estructurada paso a paso, con ejemplos comparativos y curiosidades técnicas.",
+    "spec_notes": "Resolución Full HD 1920x1080 (16:9), H.264 High Profile, AAC 256kbps, miniatura 1280x720."
+  },
+  "youtube_shorts": {
+    "id": "youtube_shorts",
+    "name": "📱 YouTube Shorts (Vertical 9:16)",
+    "platform": "YouTube Shorts",
+    "version_source": "short",
+    "aspect_ratio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "recommended_min_sec": 45,
+    "recommended_max_sec": 175,
+    "platform_max_sec_configurable": 180,
+    "safe_zone": {
+      "top_pct": 0.12,
+      "bottom_pct": 0.24,
+      "left_pct": 0.06,
+      "right_pct": 0.14,
+      "diagram_box": [
+        0.06,
+        0.13,
+        0.88,
+        0.64
+      ],
+      "subtitle_margin_v_pct": 0.23
+    },
+    "thumbnail_size": [
+      1080,
+      1920
+    ],
+    "script_tone": "Gancho inmediato en los primeros 3 segundos, explicación condensada y visualmente directa.",
+    "spec_notes": "YouTube Shorts permite hasta 3 minutos (180s) en formato vertical 9:16 (1080x1920). Zona inferior y lateral derecha reservadas para botones de la interfaz."
+  },
+  "tiktok": {
+    "id": "tiktok",
+    "name": "🎵 TikTok (Vertical Dinámico 9:16)",
+    "platform": "TikTok",
+    "version_source": "short",
+    "aspect_ratio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "recommended_min_sec": 60,
+    "recommended_max_sec": 180,
+    "platform_max_sec_configurable": 600,
+    "safe_zone": {
+      "top_pct": 0.13,
+      "bottom_pct": 0.26,
+      "left_pct": 0.06,
+      "right_pct": 0.16,
+      "diagram_box": [
+        0.06,
+        0.14,
+        0.86,
+        0.62
+      ],
+      "subtitle_margin_v_pct": 0.25
+    },
+    "thumbnail_size": [
+      1080,
+      1920
+    ],
+    "script_tone": "Introducción ultra directa sin saludos, ritmo ágil, pregunta detonadora al final.",
+    "spec_notes": "TikTok 1080x1920 (9:16). Margen derecho (16%) e inferior (26%) protegidos para iconos de perfil, likes y descripción."
+  },
+  "instagram_reels": {
+    "id": "instagram_reels",
+    "name": "📸 Instagram Reels (Vertical 9:16)",
+    "platform": "Instagram",
+    "version_source": "short",
+    "aspect_ratio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "recommended_min_sec": 45,
+    "recommended_max_sec": 175,
+    "platform_max_sec_configurable": 180,
+    "safe_zone": {
+      "top_pct": 0.12,
+      "bottom_pct": 0.25,
+      "left_pct": 0.06,
+      "right_pct": 0.14,
+      "diagram_box": [
+        0.06,
+        0.13,
+        0.88,
+        0.63
+      ],
+      "subtitle_margin_v_pct": 0.24
+    },
+    "thumbnail_size": [
+      1080,
+      1920
+    ],
+    "script_tone": "Explicación visual, estética limpia y concisa ideal para guardar y compartir.",
+    "spec_notes": "Instagram Reels 1080x1920 (9:16), zona central compatible con recorte 4:5 del feed de perfil."
+  },
+  "facebook_reels": {
+    "id": "facebook_reels",
+    "name": "📘 Facebook Reels (Vertical Móvil 9:16)",
+    "platform": "Facebook Reels",
+    "version_source": "short",
+    "aspect_ratio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "recommended_min_sec": 45,
+    "recommended_max_sec": 175,
+    "platform_max_sec_configurable": 180,
+    "safe_zone": {
+      "top_pct": 0.11,
+      "bottom_pct": 0.24,
+      "left_pct": 0.06,
+      "right_pct": 0.14,
+      "diagram_box": [
+        0.06,
+        0.12,
+        0.88,
+        0.64
+      ],
+      "subtitle_margin_v_pct": 0.23
+    },
+    "thumbnail_size": [
+      1080,
+      1920
+    ],
+    "script_tone": "Claridad cotidiana con ejemplo práctico inmediato.",
+    "spec_notes": "Facebook Reels 1080x1920 (9:16) con textos y diagramas dentro del área segura móvil."
+  },
+  "facebook_video": {
+    "id": "facebook_video",
+    "name": "📘 Facebook Video (Horizontal 16:9 Educativo)",
+    "platform": "Facebook Video",
+    "version_source": "long",
+    "aspect_ratio": "16:9",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "recommended_min_sec": 180,
+    "recommended_max_sec": 600,
+    "platform_max_sec_configurable": 14400,
+    "safe_zone": {
+      "top_pct": 0.06,
+      "bottom_pct": 0.12,
+      "left_pct": 0.05,
+      "right_pct": 0.05,
+      "diagram_box": [
+        0.06,
+        0.07,
+        0.94,
+        0.78
+      ],
+      "subtitle_margin_v_pct": 0.09
+    },
+    "thumbnail_size": [
+      1280,
+      720
+    ],
+    "script_tone": "Narrativa desarrollada con contexto social/cotidiano y subtítulos permanentes para reproducción en feed.",
+    "spec_notes": "Facebook Video 1920x1080 (o configurable a 9:16) optimizado para retención y comentarios."
+  }
+}
