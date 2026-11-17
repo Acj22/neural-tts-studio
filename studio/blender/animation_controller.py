@@ -35,7 +35,18 @@ def calculate_piston_kinematics(
     l: float = 3.6,
     crank_center_z: float = 0.0,
 ) -> tuple[float, float, float, float]:
-    """Calcula la cinemática exacta del mecanismo biela-manivela.
+    """Calcula la cinemática exacta del mecanismo biela-manivela en Blender.
+
+    Coordenadas en Blender (rotación del cigüeñal alrededor de Y con Euler (0, -theta, 0)):
+      - La muñequilla parte en (0, 0, r) relativo al centro del cigüeñal.
+      - Al rotar (0, -theta, 0):
+          pin_x = -r * sin(theta)
+          pin_z = crank_center_z + r * cos(theta)
+      - El bulón del pistón desliza estrictamente en la vertical X = 0:
+          z_piston = pin_z + sqrt(l^2 - pin_x^2)
+      - La biela nace con su cabeza en (pin_x, 0, pin_z) y crece en +Z local hacia el bulón.
+      - El ángulo de rotación de la biela alrededor de Y para coincidir exactamente con el bulón es:
+          phi_rod = asin(-pin_x / l)
 
     Returns:
         z_piston: Altura vertical del centro del bulón del pistón.
@@ -46,16 +57,17 @@ def calculate_piston_kinematics(
     sin_t = math.sin(theta_rad)
     cos_t = math.cos(theta_rad)
 
-    x_pin = r * sin_t
+    # Posición exacta de la muñequilla en el espacio 3D de Blender
+    x_pin = -r * sin_t
     z_pin = crank_center_z + (r * cos_t)
 
-    # Inclinación de la biela
-    sin_phi = (r / l) * sin_t
+    # Inclinación exacta de la biela: el pie (0, z_piston) coincide con el bulón con DIFF=0
+    sin_phi = -x_pin / l
     sin_phi = max(-1.0, min(1.0, sin_phi))
     phi_rod = math.asin(sin_phi)
 
     # Altura del centro del bulón del pistón
-    z_piston = z_pin + math.sqrt(max(1e-6, l * l - r * r * sin_t * sin_t))
+    z_piston = z_pin + math.sqrt(max(1e-6, l * l - x_pin * x_pin))
 
     return z_piston, phi_rod, x_pin, z_pin
 
@@ -88,6 +100,7 @@ def apply_engine_pose_at_frame(
     flame_scale: float = 0.0,
     intake_flow: float = 0.0,
     exhaust_flow: float = 0.0,
+    compression_gas: float = 0.0,
     exploded_factor: float = 0.0,
 ) -> None:
     """Inserta keyframes cinemáticos exactos en el fotograma indicado."""
@@ -118,11 +131,11 @@ def apply_engine_pose_at_frame(
     # -------------------------------------------------------------------
     # 2. BIELA — Cabeza en la muñequilla, pie en el bulón
     # La biela nace con su origen en la muñequilla (x_pin, 0, z_pin).
-    # El cuerpo crece en +Z local → apunta al pistón.
+    # El cuerpo crece en +Z local hacia el pistón con ángulo phi_rod.
     # -------------------------------------------------------------------
     rod = engine_data["rod_root"]
     rod.location = (x_pin, 0.0, z_pin - 1.4 * exploded_factor)
-    rod.rotation_euler = (0.0, -phi_rod, 0.0)
+    rod.rotation_euler = (0.0, phi_rod, 0.0)
     rod.keyframe_insert(data_path="location", frame=frame)
     rod.keyframe_insert(data_path="rotation_euler", frame=frame)
 
@@ -201,6 +214,13 @@ def apply_engine_pose_at_frame(
         fx_ex.scale = (ex_sc, ex_sc, ex_sc)
         fx_ex.keyframe_insert(data_path="scale", frame=frame)
 
+    # Volumen de compresión de la mezcla
+    if "fx_compression" in engine_data:
+        fx_cmp = engine_data["fx_compression"]
+        cmp_sc = max(0.001, compression_gas)
+        fx_cmp.scale = (cmp_sc, cmp_sc, cmp_sc)
+        fx_cmp.keyframe_insert(data_path="scale", frame=frame)
+
 
 def build_4_stroke_cycle_keyframes(
     engine_data: dict[str, Any],
@@ -255,6 +275,7 @@ def build_4_stroke_cycle_keyframes(
         flame_scale = 0.0
         intake_flow = 0.0
         exhaust_flow = 0.0
+        compression_gas = 0.0
 
         # =================================================================
         # T1 — ADMISIÓN (0° → 180°): válvula admisión abierta, pistón baja
@@ -266,8 +287,11 @@ def build_4_stroke_cycle_keyframes(
 
         # =================================================================
         # T2 — COMPRESIÓN (180° → 360°): todo cerrado, pistón sube
-        # (no hay efectos visuales adicionales)
+        # La mezcla se comprime visualmente aumentando en intensidad
         # =================================================================
+        if 180.0 <= cycle_angle_deg <= 360.0:
+            c_prog = (cycle_angle_deg - 180.0) / 180.0
+            compression_gas = 0.4 + 0.6 * c_prog
 
         # =================================================================
         # IGNICIÓN (346° → 368°): chispa justo antes del PMS
@@ -303,5 +327,6 @@ def build_4_stroke_cycle_keyframes(
             flame_scale=flame_scale,
             intake_flow=intake_flow,
             exhaust_flow=exhaust_flow,
+            compression_gas=compression_gas,
             exploded_factor=exploded_factor,
         )

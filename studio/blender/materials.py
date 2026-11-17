@@ -154,15 +154,15 @@ def setup_engine_materials() -> dict[str, Any]:
         # 4. Biela Forjada y Cojinetes
         "connecting_rod": get_or_create_material(
             "Mat_ConnectingRod",
-            base_color=hex_to_rgba("#334155"),  # Forja técnica mate
-            roughness=0.58,
-            metallic=0.18,
+            base_color=hex_to_rgba("#475569"),  # Acero forjado satinado mate
+            roughness=0.45,
+            metallic=0.40,
         ),
         "rod_bearings": get_or_create_material(
             "Mat_RodBearings",
-            base_color=hex_to_rgba("#B45309"),  # Bronce de fricción
-            roughness=0.35,
-            metallic=0.60,
+            base_color=hex_to_rgba("#D97706"),  # Bronce de fricción dorado pulido
+            roughness=0.28,
+            metallic=0.75,
         ),
         "rod_bolts": get_or_create_material(
             "Mat_RodBolts",
@@ -171,24 +171,24 @@ def setup_engine_materials() -> dict[str, Any]:
             metallic=0.80,
         ),
 
-        # 5. Cigüeñal y Volante
+        # 5. Cigüeñal y Volante (Acero técnico mecanizado, no plástico)
         "crankshaft": get_or_create_material(
             "Mat_Crankshaft",
-            base_color=hex_to_rgba("#0EA5E9"),  # Azul cian técnico suave
-            roughness=0.45,
-            metallic=0.28,
+            base_color=hex_to_rgba("#64748B"),  # Acero templado mecanizado
+            roughness=0.35,
+            metallic=0.60,
         ),
         "counterweights": get_or_create_material(
             "Mat_Counterweights",
-            base_color=hex_to_rgba("#0369A1"),  # Azul más profundo para contrapesos
-            roughness=0.52,
-            metallic=0.30,
+            base_color=hex_to_rgba("#334155"),  # Forja oscura contrastada para contrapesos
+            roughness=0.50,
+            metallic=0.45,
         ),
         "flywheel": get_or_create_material(
             "Mat_Flywheel",
             base_color=hex_to_rgba("#475569"),  # Volante de inercia
-            roughness=0.50,
-            metallic=0.35,
+            roughness=0.45,
+            metallic=0.40,
         ),
 
         # 6. Distribución (Válvulas y Resortes)
@@ -266,5 +266,14 @@ def setup_engine_materials() -> dict[str, Any]:
             alpha=0.55,
             emission_color=(1.0, 0.5, 0.1, 1.0),
             emission_strength=3.0,
+        ),
+        "compression_gas": get_or_create_material(
+            "Mat_CompressionGas",
+            base_color=hex_to_rgba("#FEF08A", alpha=0.45),
+            roughness=0.3,
+            metallic=0.0,
+            alpha=0.45,
+            emission_color=(1.0, 0.9, 0.25, 1.0),
+            emission_strength=3.5,
         ),
     }

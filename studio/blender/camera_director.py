@@ -167,12 +167,12 @@ def setup_camera_for_shot(
         start_loc = mathutils.Vector((2.2 * dist_mult, -9.0 * dist_mult, 1.8))
         end_loc   = mathutils.Vector((1.8 * dist_mult, -8.2 * dist_mult, 1.5))
 
-    # 9. VALVE TOP VIEW (Vista aérea directa sobre la culata — NUEVA Fase 2.1)
-    elif shot_type == "valve_top_view":
-        cam_data.lens = 44
-        target_loc = mathutils.Vector((0.0, 0.0, 5.2))
-        start_loc = mathutils.Vector((0.0, -1.8, 11.5 * dist_mult))
-        end_loc   = mathutils.Vector((0.0, -1.4, 10.8 * dist_mult))
+    # 9. VALVE TOP VIEW (Vista 3/4 Elevada a 45° de Culata y Válvulas con profundidad tridimensional)
+    elif shot_type in ("valve_top_view", "valves_view"):
+        cam_data.lens = 45
+        target_loc = mathutils.Vector((0.0, 0.0, 5.0))
+        start_loc = mathutils.Vector((2.2 * dist_mult, -7.5 * dist_mult, 7.8))
+        end_loc   = mathutils.Vector((1.8 * dist_mult, -6.8 * dist_mult, 7.2))
 
     # 10. SIDE CUTAWAY (Vista Lateral de Corte Biela-Cigüeñal — NUEVA Fase 2.1)
     elif shot_type == "side_cutaway":
@@ -200,11 +200,11 @@ def setup_camera_for_shot(
             cam_obj.keyframe_insert(data_path="rotation_euler", frame=f)
         return cam_obj
 
-    else:  # default process_view — centro 2.3
-        cam_data.lens = 40
+    else:  # default process_view — vista general de proceso completa y equilibrada
+        cam_data.lens = 38
         target_loc = mathutils.Vector((0.0, 0.0, 2.3))
-        start_loc = mathutils.Vector((2.2 * dist_mult, -9.4 * dist_mult, 3.4))
-        end_loc   = mathutils.Vector((1.6 * dist_mult, -8.6 * dist_mult, 3.0))
+        start_loc = mathutils.Vector((2.5 * dist_mult, -13.5 * dist_mult, 3.6))
+        end_loc   = mathutils.Vector((2.0 * dist_mult, -12.5 * dist_mult, 3.2))
 
     # Animar desplazamiento de cámara con orientación calculada matemáticamente en cada extremo
     cam_obj.location = start_loc

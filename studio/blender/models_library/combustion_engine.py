@@ -238,6 +238,20 @@ def create_combustion_engine_3d(
     head_mesh.data.materials.append(mats["engine_block"])
     add(head_mesh)
 
+    # Corte cutaway frontal de la culata (para ver conductos, guías y válvulas)
+    bpy.ops.mesh.primitive_cube_add(
+        size=1.0,
+        location=(0.0, -(block_r * 0.6 + 0.5), 0.55),
+    )
+    cutter_h = bpy.context.active_object
+    cutter_h.scale = (block_r * 2.8, block_r * 1.5, 1.4)
+    mod_h = head_mesh.modifiers.new(name="Cutaway_Head", type="BOOLEAN")
+    mod_h.object = cutter_h
+    mod_h.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = head_mesh
+    bpy.ops.object.modifier_apply(modifier="Cutaway_Head")
+    bpy.data.objects.remove(cutter_h, do_unlink=True)
+
     # Conducto de admisión izquierdo, 40° hacia arriba-izquierda
     bpy.ops.mesh.primitive_cylinder_add(
         radius=0.30,
@@ -429,8 +443,8 @@ def create_combustion_engine_3d(
 
     # Muñequilla excéntrica (a crank_radius en +Z relativo)
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.26,
-        depth=0.52,
+        radius=0.22,
+        depth=0.48,
         location=(0.0, 0.0, crank_radius),
         vertices=32,
     )
@@ -442,29 +456,44 @@ def create_combustion_engine_3d(
     add(crank_pin_obj)
 
     # Brazos del cigüeñal (frontal y trasero)
-    for y_arm in [-0.22, 0.22]:
+    for y_arm in [-0.28, 0.28]:
         bpy.ops.mesh.primitive_cube_add(
             size=1.0,
             location=(0.0, y_arm, crank_radius * 0.5),
         )
         arm = bpy.context.active_object
         arm.name = f"Crank_Arm_{'Front' if y_arm < 0 else 'Back'}"
-        arm.scale = (0.22, 0.14, crank_radius * 0.9)
+        arm.scale = (0.24, 0.12, crank_radius * 0.95)
         arm.parent = crank_root
         arm.data.materials.append(mats["crankshaft"])
         add(arm)
 
-    # Contrapesos (opuestos a la muñequilla)
-    for y_cw in [-0.25, 0.25]:
+    # Contrapesos semicirculares / en forma de cuña (estrictamente en Z <= 0, opuestos a la muñequilla)
+    for y_cw in [-0.28, 0.28]:
         bpy.ops.mesh.primitive_cylinder_add(
-            radius=1.30,
-            depth=0.26,
-            location=(0.0, y_cw, -crank_radius * 0.55),
-            vertices=36,
+            radius=1.05,
+            depth=0.18,
+            location=(0.0, y_cw, 0.0),
+            vertices=32,
         )
         cw = bpy.context.active_object
         cw.name = f"Counterweight_{'F' if y_cw < 0 else 'B'}"
         cw.rotation_euler = (math.pi / 2, 0, 0)
+
+        # Cortar la mitad superior (Z > 0) para que sea un verdadero contrapeso de media luna
+        bpy.ops.mesh.primitive_cube_add(
+            size=1.0,
+            location=(0.0, y_cw, 0.65),
+        )
+        cw_cutter = bpy.context.active_object
+        cw_cutter.scale = (2.5, 0.5, 1.3)
+        mod_cw = cw.modifiers.new(name="Cut_CW", type="BOOLEAN")
+        mod_cw.object = cw_cutter
+        mod_cw.operation = "DIFFERENCE"
+        bpy.context.view_layer.objects.active = cw
+        bpy.ops.object.modifier_apply(modifier="Cut_CW")
+        bpy.data.objects.remove(cw_cutter, do_unlink=True)
+
         cw.parent = crank_root
         cw.data.materials.append(mats["counterweights"])
         add(cw)
@@ -654,6 +683,19 @@ def create_combustion_engine_3d(
     fx_exhaust.scale = (0.001, 0.001, 0.001)
     add(fx_exhaust)
 
+    # Volumen de mezcla en compresión (cilindro semi-transparente que muestra la mezcla comprimiéndose)
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=cr * 0.90,
+        depth=0.70,
+        location=(0.0, 0.0, combustion_z - 0.25),
+        vertices=24,
+    )
+    fx_compression = bpy.context.active_object
+    fx_compression.name = "FX_Compression_Gas"
+    fx_compression.data.materials.append(mats["compression_gas"])
+    fx_compression.scale = (0.001, 0.001, 0.001)
+    add(fx_compression)
+
     # =========================================================================
     # 11. SUELO DE ESTUDIO
     # =========================================================================
@@ -678,6 +720,7 @@ def create_combustion_engine_3d(
         "fx_flame": combustion_flame,
         "fx_intake": fx_intake,
         "fx_exhaust": fx_exhaust,
+        "fx_compression": fx_compression,
         "block": block,
         "crank_radius": crank_radius,
         "rod_length": rod_length,
