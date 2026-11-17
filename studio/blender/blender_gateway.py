@@ -98,7 +98,7 @@ def get_blender_status() -> dict[str, Any]:
 def execute_blender_script(
     script_path: Path,
     args: Optional[list[str]] = None,
-    timeout_sec: int = 180,
+    timeout_sec: int = 900,
     cwd: Optional[Path] = None,
 ) -> tuple[int, str, str]:
     """Ejecuta un script de Python dentro del intérprete de Blender de forma headless (-b)."""

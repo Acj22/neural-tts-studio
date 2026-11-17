@@ -78,7 +78,7 @@ def render_scene_3d_video(
     ret, out, err = execute_blender_script(
         script_path=worker_script,
         args=[str(spec_file.resolve())],
-        timeout_sec=300,
+        timeout_sec=900,
     )
 
     if ret != 0:
@@ -189,8 +189,9 @@ def render_scene_3d_still(
 def run_combustion_engine_prototype_benchmark(
     target_dir: Path,
     is_vertical: bool = True,
-    render_profile: str = "production",
+    render_profile: str = "test",
     voice_key: str = "es-MX-JorgeNeural",
+    force_rerender: bool = False,
 ) -> dict[str, Any]:
     """Construye y renderiza el Prototipo Oficial de 8 Escenas (Fase 2 - Perfeccionamiento):
     1. Presentación tridimensional del motor (hero_view).
@@ -278,6 +279,12 @@ def run_combustion_engine_prototype_benchmark(
 
     for idx, sc in enumerate(scenes_spec, start=1):
         sid = sc["id"]
+        scene_final_mp4 = target_dir / f"{sid}_final.mp4"
+        if not force_rerender and scene_final_mp4.exists() and scene_final_mp4.stat().st_size > 10000:
+            logger.info("Escena %d/8 (%s) ya renderizada previamente. Reutilizando clip.", idx, sid)
+            rendered_clips.append(scene_final_mp4)
+            continue
+
         logger.info("Renderizando escena %d/8: %s", idx, sc["title"])
 
         # A. Sintetizar voz neuronal Edge-TTS local
