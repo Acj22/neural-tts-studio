@@ -248,7 +248,7 @@ def run_combustion_engine_prototype_benchmark(
             "id": "PROT_05",
             "title": "5. Válvulas de Admisión y Escape",
             "text": "Las válvulas sincronizan con precisión milimétrica la entrada de aire y la salida de gases.",
-            "composition": "close_up_view",
+            "composition": "valve_top_view",
             "phase": "exhaust",
         },
         {
