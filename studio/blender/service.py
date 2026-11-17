@@ -328,10 +328,10 @@ def run_combustion_engine_prototype_benchmark(
             srt_lines.append(f"{c_idx}\n{s_str} --> {e_str}\n{' '.join(chunk)}\n")
         srt_path.write_text("\n".join(srt_lines), encoding="utf-8")
 
-        # Integrar audio y subtítulo con FFmpeg (inferior centrado Alignment=2, sin tapar ni cortar bordes)
-        font_size = 28 if is_vertical else 24
-        sub_margin_v = 75 if is_vertical else 40
-        sub_filter = f"subtitles={srt_path.name}:force_style='FontName=Arial,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.0,Shadow=1,Alignment=2,MarginV={sub_margin_v}'"
+        # Integrar audio y subtítulo con FFmpeg (inferior centrado Alignment=2 con resolución nativa PlayRes)
+        font_size = 36 if is_vertical else 28
+        sub_margin_v = 40 if is_vertical else 25
+        sub_filter = f"subtitles={srt_path.name}:force_style='PlayResY={height},PlayResX={width},FontName=Arial,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.0,Shadow=1,Alignment=2,MarginV={sub_margin_v}'"
 
         ff_cmd = [
             _get_ffmpeg(),
