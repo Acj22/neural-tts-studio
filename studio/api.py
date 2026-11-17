@@ -34,6 +34,12 @@ from studio.models import (
     record_cost_event,
     save_platform_profiles,
 )
+from studio.blender.blender_gateway import get_blender_status
+from studio.blender.service import (
+    render_scene_3d_still,
+    render_scene_3d_video,
+    run_combustion_engine_prototype_benchmark,
+)
 from studio.multiformat_engine import (
     render_explainer_version_video,
     render_single_scene_preview,
@@ -268,8 +274,8 @@ def _synthesize_version_audio(proj_dir: Path, meta: dict[str, Any], version: str
 
 @router.get("/catalog")
 def get_explainer_catalog():
-    """Devuelve categorías, estilos de consistencia visual, tipos de escena, perfiles de exportación
-    y estado de adaptadores de video y publicación."""
+    """Devuelve categorías, estilos de consistencia visual, tipos de escena, perfiles de exportación,
+    estado de adaptadores de video, publicación y estado del motor 3D Blender."""
     return {
         "categories": CATEGORIES_CATALOG,
         "visual_styles": list(VISUAL_CONSISTENCY_STYLES.values()),
@@ -278,7 +284,26 @@ def get_explainer_catalog():
         "platform_profiles": load_platform_profiles(),
         "video_providers": list_video_providers_status(),
         "publishing_integrations": PublishingPlatformAdapter.get_integration_status(),
+        "blender_status": get_blender_status(),
     }
+
+
+@router.get("/blender/status")
+def get_blender_status_endpoint():
+    """Devuelve el estado, ruta del binario y soporte de EEVEE Next de Blender 5.3."""
+    return get_blender_status()
+
+
+@router.post("/blender/prototype")
+def run_blender_prototype_endpoint(is_vertical: bool = True, render_profile: str = "draft"):
+    """Ejecuta la prueba obligatoria (Punto 11) del Motor de 4 Tiempos en Blender 3D."""
+    target_dir = PROJECTS_DIR / "_prototype_blender_3d"
+    result = run_combustion_engine_prototype_benchmark(
+        target_dir=target_dir,
+        is_vertical=is_vertical,
+        render_profile=render_profile,
+    )
+    return result
 
 
 @router.post("/profiles")

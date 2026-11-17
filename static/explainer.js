@@ -11,6 +11,14 @@ let expPreviewResearch = null;
 let expActiveSubTab = "research";
 let expActiveVersion = "short";
 
+// Inmediata exposición global de seguridad para evitar ReferenceError en eventos DOM
+window.expLoadProjectById = window.expLoadProjectById || (async function(id) {
+  if (typeof expLoadProjectById === "function" && expLoadProjectById !== window.expLoadProjectById) {
+    return await expLoadProjectById(id);
+  }
+});
+window.expLoadProject = window.expLoadProject || window.expLoadProjectById;
+
 const EXPLAINER_BENCHMARK_TOPICS = {
   motor: {
     project_name: "¿Cómo funciona un motor de combustión?",
@@ -554,6 +562,7 @@ function renderExplainerStoryboardTab() {
           <div>
             <label class="block text-[10px] uppercase text-slate-400 mb-0.5">Modalidad Visual</label>
             <select id="expScMode_${sid}" class="w-full rounded-lg bg-slate-900 border border-indigo-500/40 px-2 py-1.5 text-xs text-white">
+              <option value="mode_d_blender3d" ${sc.visual_mode === "mode_d_blender3d" ? "selected" : ""}>🎬 Modo D: Animación 3D Blender ($0)</option>
               <option value="mode_b_diagram" ${sc.visual_mode === "mode_b_diagram" ? "selected" : ""}>📐 Modo B: Diagrama SVG ($0)</option>
               <option value="mode_a_image" ${sc.visual_mode === "mode_a_image" ? "selected" : ""}>🖼️ Modo A: Imagen IA</option>
               <option value="mode_c_video" ${sc.visual_mode === "mode_c_video" ? "selected" : ""}>🎬 Modo C: Video IA</option>
@@ -873,6 +882,41 @@ function renderExplainerQCTab() {
     `;
   }
 }
+
+function expOpenBlender3DModal() {
+  const modal = document.getElementById("expBlender3DModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  const vid = document.getElementById("expBlenderModalVideo");
+  if (vid) {
+    vid.src = `/projects/_prototype_blender_3d/prototipo_motor_4_tiempos_3d_9_16.mp4?t=${Date.now()}`;
+    vid.play().catch(() => {});
+  }
+}
+
+function expCloseBlender3DModal() {
+  const modal = document.getElementById("expBlender3DModal");
+  if (modal) modal.classList.add("hidden");
+  const vid = document.getElementById("expBlenderModalVideo");
+  if (vid) vid.pause();
+}
+
+async function expRunBlenderBenchmark() {
+  expSetProgress(true, "Iniciando benchmark de las 8 escenas en Blender 5.3...", 30);
+  try {
+    const res = await fetch("/api/explainer/blender/prototype", { method: "POST" });
+    if (!res.ok) throw new Error("Error al ejecutar benchmark.");
+    expSetProgress(false);
+    expOpenBlender3DModal();
+  } catch (err) {
+    expSetProgress(false);
+    expShowError(err.message);
+  }
+}
+
+window.expOpenBlender3DModal = expOpenBlender3DModal;
+window.expCloseBlender3DModal = expCloseBlender3DModal;
+window.expRunBlenderBenchmark = expRunBlenderBenchmark;
 
 window.addEventListener("DOMContentLoaded", () => {
   initExplainerStudio();

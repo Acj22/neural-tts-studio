@@ -178,7 +178,48 @@ class RunwareVideoProviderAdapter(VideoProviderInterface):
         return dest_path
 
 
+class Blender3DVideoProviderAdapter(VideoProviderInterface):
+    provider_id = "blender_3d"
+    provider_name = "Blender 5.3 EEVEE Next (Motor 3D Local Gratuito)"
+
+    def is_configured(self) -> bool:
+        from studio.blender.blender_gateway import detect_blender_executable
+        return detect_blender_executable() is not None
+
+    def estimate_generation_cost(self, duration_sec: float = 5.0, resolution: str = "1080p") -> dict[str, Any]:
+        return {
+            "provider_id": self.provider_id,
+            "provider_name": self.provider_name,
+            "configured": self.is_configured(),
+            "duration_sec": duration_sec,
+            "resolution": resolution,
+            "reported_cost_usd": 0.0,
+            "cost_note": "100% Gratuito y de código abierto. Renderizado procedural local con Blender 5.3 + EEVEE Next ($0.00).",
+            "is_free": True,
+        }
+
+    def generate_video(
+        self,
+        prompt: str,
+        duration_sec: float = 5.0,
+        resolution: str = "1080p",
+        reference_image_path: Optional[Path] = None,
+    ) -> dict[str, Any]:
+        return {
+            "status": "ready",
+            "provider": self.provider_id,
+            "message": "Blender 3D listo para renderizar clips locales sin costo externo.",
+        }
+
+    def check_generation_status(self, job_id: str) -> dict[str, Any]:
+        return {"status": "completed", "job_id": job_id}
+
+    def download_generated_video(self, video_url: str, dest_path: Path) -> Path:
+        return dest_path
+
+
 VIDEO_PROVIDER_REGISTRY: dict[str, VideoProviderInterface] = {
+    "blender_3d": Blender3DVideoProviderAdapter(),
     "fal_video": FalVideoProviderAdapter(),
     "runware_video": RunwareVideoProviderAdapter(),
 }

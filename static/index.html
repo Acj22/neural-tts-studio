@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Neural TTS &amp; YouTube Auto-Video Studio</title>
+  <script>
+    // Safeguards inmediatos para evitar ReferenceErrors en dropdowns o eventos tempranos
+    window.expLoadProject = function(id) { if (window.expLoadProjectById && window.expLoadProjectById !== window.expLoadProject) return window.expLoadProjectById(id); };
+    window.expLoadProjectById = window.expLoadProject;
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -217,7 +222,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <select
                 id="expSavedProjectsSelect"
-                onchange="if(this.value) expLoadProjectById(this.value)"
+                onchange="if(this.value) { if(typeof window.expLoadProjectById === 'function') window.expLoadProjectById(this.value); else if(typeof window.expLoadProject === 'function') window.expLoadProject(this.value); }"
                 class="rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-1.5 text-xs text-amber-200 max-w-xs sm:max-w-md"
               >
                 <option value="">📂 Cargar Proyecto Maestro Explainer AI...</option>
@@ -245,6 +250,9 @@
               </button>
               <button type="button" onclick="expLoadPresetTopic('transmision')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
                 5️⃣ Transmisión Automática
+              </button>
+              <button type="button" onclick="expOpenBlender3DModal()" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600/40 to-indigo-600/40 hover:from-cyan-600/60 hover:to-indigo-600/60 border border-cyan-400/50 text-cyan-200 text-xs font-bold transition flex items-center gap-1 shadow-lg shadow-cyan-500/10">
+                🎬 Prototipo 3D Blender (Motor 4 Tiempos ★)
               </button>
             </div>
           </div>
@@ -2640,7 +2648,46 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     loadVoices();
     loadLatestProjectIfExists();
   </script>
+  <!-- Modal de Demostración del Prototipo 3D Blender (Punto 11) -->
+  <div id="expBlender3DModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-cyan-500/40 rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🎬</span>
+          <h3 class="text-sm font-bold text-cyan-200 uppercase tracking-wider">Prototipo 3D Blender: Motor de 4 Tiempos ($0 Local)</h3>
+        </div>
+        <button onclick="expCloseBlender3DModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div class="space-y-2 text-xs text-slate-300">
+        <p>Demostración oficial del <strong>Motor 3D Educativo en Blender 5.3 + EEVEE Next</strong> ejecutado de forma 100% local, sin costos de API ni servidores en la nube.</p>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+          <div class="text-[11px] font-bold text-amber-300 uppercase">8 Escenas Cinemáticas Incluidas:</div>
+          <ol class="list-decimal list-inside space-y-0.5 text-slate-300 text-[11px]">
+            <li>Presentación 3D del motor de combustión con halo tecnológico.</li>
+            <li>Acercamiento macro al cilindro y cámara hermética sellada.</li>
+            <li>Despiece axial completo de piezas (Exploded View).</li>
+            <li>Carrera del pistón de Punto Muerto Superior a Inferior.</li>
+            <li>Apertura y cierre sincronizado de válvulas con muelles.</li>
+            <li>Biela forjada y cigüeñal transmitiendo torque rotativo.</li>
+            <li>Secuencia de 4 Tiempos: Admisión, Compresión, Chispa/Fuego y Escape.</li>
+            <li>Vista general final en funcionamiento continuo.</li>
+          </ol>
+        </div>
+      </div>
+      <div id="expBlenderVideoContainer" class="space-y-2">
+        <video id="expBlenderModalVideo" controls class="w-full max-h-[460px] rounded-xl bg-black border border-cyan-500/30 object-contain"></video>
+      </div>
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+        <span id="expBlenderStatusBadge" class="text-xs text-emerald-400 font-medium">✓ Blender 5.3 EEVEE Next Detectado</span>
+        <div class="flex items-center gap-2">
+          <button onclick="expRunBlenderBenchmark()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">🔄 Re-Renderizar Prototipo</button>
+          <button onclick="expCloseBlender3DModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/fruti.js"></script>
-  <script src="/static/explainer.js?v=2.2.0"></script>
+  <script src="/static/explainer.js?v=2.4.0"></script>
 </body>
 </html>
