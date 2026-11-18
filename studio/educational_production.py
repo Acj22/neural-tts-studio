@@ -29,11 +29,18 @@ from studio.blender.service import (
     _get_ffmpeg,
     _synthesize_audio_local,
     align_text_to_waveform_locally,
+    render_scene_3d_still,
     render_scene_3d_video,
     synthesize_audio_with_word_timestamps,
 )
 from studio.blender.render_profiles import get_render_profile
 from studio.specialized_visual_director import SpecializedVisualDirector, VisualDirector
+from studio.visual_reference_director import (
+    AutonomousVisualDirector,
+    VisualReferenceDirector,
+    VISUAL_PROFILES_LIBRARY,
+    REFERENCE_MODES,
+)
 
 logger = logging.getLogger("studio.educational_production")
 
@@ -52,6 +59,95 @@ _WEAK_TRAILING_WORDS = {
 # ==============================================================================
 
 EDUCATIONAL_PILOT_SCRIPTS: dict[str, dict[str, Any]] = {
+    "motor_4_tiempos": {
+        "id": "pilot_00_motor_4_tiempos",
+        "title": "¿Cómo funciona un motor de combustión de cuatro tiempos?",
+        "topic": "Motor Monocilíndrico de Cuatro Tiempos Seccionado",
+        "model_type": "combustion_engine",
+        "voice_key": "es-US-AlonsoNeural",
+        "scenes": [
+            {
+                "id": "SCN_01_HOOK",
+                "title": "1. La Máquina que Transforma Fuego en Movimiento",
+                "text": "¿Cómo logra un motor monocilíndrico convertir miles de explosiones controladas por minuto en el giro suave que impulsa a un vehículo? Observa en este corte transversal cómo el pistón, la biela y el cigüeñal trabajan sincronizados dentro del bloque de aluminio.",
+                "shot_type": "cutaway",
+                "phase": "full_cycle",
+                "focus_group": "all",
+                "pedagogical_intent": "Presentar el motor monocilíndrico en corte transversal frontal replicando la composición, iluminación y materiales de la referencia.",
+                "keywords": ["motor monocilíndrico", "explosiones controladas", "corte transversal", "pistón", "biela", "cigüeñal"],
+            },
+            {
+                "id": "SCN_02_COMPONENTS",
+                "title": "2. Anatomía del Motor Seccionado",
+                "text": "Al separar sus componentes principales distinguimos la culata superior con sus colectores curvos y la bujía central, las válvulas de admisión y escape con resortes helicoidales, el cilindro rectificado, el pistón de cobre con tres aros, la biela forjada en viga I y el cigüeñal con contrapesos.",
+                "shot_type": "exploded_view",
+                "phase": "exploded_view",
+                "focus_group": "all",
+                "pedagogical_intent": "Identificar con etiquetas 3D sincronizadas cada componente mecánico del motor monocilíndrico.",
+                "keywords": ["culata superior", "bujía central", "válvulas", "resortes helicoidales", "pistón de cobre", "biela forjada", "cigüeñal"],
+            },
+            {
+                "id": "SCN_03_INTAKE",
+                "title": "3. Primer Tiempo: Admisión",
+                "text": "El ciclo comienza con el tiempo de admisión. La válvula de admisión izquierda se inclina y comprime su resorte helicoidal para abrir el conducto, mientras el pistón desciende desde el punto muerto superior aspirando la mezcla fresca de aire y combustible hacia el cilindro.",
+                "shot_type": "internal_tracking",
+                "phase": "intake",
+                "focus_group": ["head", "piston"],
+                "pedagogical_intent": "Mostrar la apertura de la válvula de admisión a 16°, la compresión de su resorte y el descenso del pistón.",
+                "keywords": ["tiempo de admisión", "válvula de admisión", "resorte helicoidal", "pistón desciende", "mezcla fresca", "cilindro"],
+            },
+            {
+                "id": "SCN_04_COMPRESSION",
+                "title": "4. Segundo Tiempo: Compresión",
+                "text": "Enseguida inicia la carrera de compresión. Ambas válvulas se cierran herméticamente sobre sus asientos cónicos y el cigüeñal empuja a la biela hacia arriba; el pistón asciende confinándolo todo en la cámara superior y elevando drásticamente la presión y la temperatura.",
+                "shot_type": "close_up",
+                "phase": "compression",
+                "focus_group": ["chamber", "piston"],
+                "pedagogical_intent": "Enfocar el ascenso del pistón con ambas válvulas cerradas comprimiendo el gas en la cámara superior.",
+                "keywords": ["compresión", "válvulas se cierran", "cigüeñal", "biela", "pistón asciende", "presión y la temperatura"],
+            },
+            {
+                "id": "SCN_05_COMBUSTION",
+                "title": "5. Tercer Tiempo: Combustión y Expansión",
+                "text": "Al alcanzar la cúspide ocurre el tiempo de fuerza: la bujía dispara una chispa eléctrica que detona la mezcla comprimida. La violenta expansión de los gases ardientes golpea la corona del pistón de cobre y lo lanza hacia abajo con enorme empuje mecánico.",
+                "shot_type": "extreme_close_up",
+                "phase": "combustion",
+                "focus_group": ["chamber", "piston"],
+                "pedagogical_intent": "Captar en primer plano macro el salto de chispa en la bujía, el estallido en la cámara y el empuje sobre la corona del pistón.",
+                "keywords": ["tiempo de fuerza", "bujía", "chispa eléctrica", "expansión", "corona del pistón", "empuje mecánico"],
+            },
+            {
+                "id": "SCN_06_ROD_CRANK_TORQUE",
+                "title": "6. Cinemática Biela-Manivela y Par Motor",
+                "text": "Observa cómo se transforma el movimiento lineal en rotación: el bulón tubular articula el pie de la biela, cuyo cuerpo en sección I transmite la fuerza descendente hasta la muñequilla excéntrica del cigüeñal, cuyos contrapesos mantienen la inercia de giro.",
+                "shot_type": "tracking",
+                "phase": "full_cycle",
+                "focus_group": ["rod", "crank"],
+                "pedagogical_intent": "Seguir la articulación entre el bulón del pistón, la biela en I y la muñequilla del cigüeñal convirtiendo fuerza lineal en par rotacional.",
+                "keywords": ["movimiento lineal", "bulón tubular", "biela", "muñequilla excéntrica", "cigüeñal", "contrapesos"],
+            },
+            {
+                "id": "SCN_07_EXHAUST",
+                "title": "7. Cuarto Tiempo: Escape de Gases",
+                "text": "Finalmente llega el tiempo de escape. La válvula de escape derecha se abre comprimiendo su muelle de acero y el pistón vuelve a subir limpiando la cámara, expulsando los gases quemados a través del colector curvo derecho para reiniciar el ciclo.",
+                "shot_type": "side_view",
+                "phase": "exhaust",
+                "focus_group": ["head", "piston"],
+                "pedagogical_intent": "Mostrar la apertura de la válvula de escape derecha y el ascenso del pistón evacuando los gases quemados.",
+                "keywords": ["tiempo de escape", "válvula de escape", "muelle de acero", "pistón vuelve a subir", "gases quemados", "colector curvo"],
+            },
+            {
+                "id": "SCN_08_CONCLUSION",
+                "title": "8. Sincronía Perfecta en Dos Giros de Cigüeñal",
+                "text": "Admisión, compresión, expansión y escape se completan en exactamente dos revoluciones del cigüeñal: una obra maestra de precisión termodinámica y mecánica donde cada pieza cumple su función en el instante exacto.",
+                "shot_type": "state_comparison",
+                "phase": "full_cycle",
+                "focus_group": "all",
+                "pedagogical_intent": "Integrar la vista completa del motor en marcha continua mostrando la coordinación de los cuatro tiempos.",
+                "keywords": ["Admisión", "compresión", "expansión", "escape", "dos revoluciones", "cigüeñal"],
+            },
+        ],
+    },
     "transmision_automatica": {
         "id": "pilot_01_transmision_automatica",
         "title": "¿Cómo funciona una transmisión automática?",
@@ -586,8 +682,223 @@ def validate_subtitles_quality(ass_content: str, total_audio_duration: float) ->
 
 
 # ==============================================================================
-# 3. PIPELINE DE PRODUCCIÓN DEL VIDEO PILOTO CON DIRECTOR VISUAL Y QC TÉCNICO
+# 3. PREVISUALIZACIÓN AUTOMÁTICA, COMPARACIÓN VISUAL Y AUTO-CALIBRACIÓN (FASE 3.3)
 # ==============================================================================
+
+def _save_side_by_side_comparison(
+    reference_path: Path,
+    rendered_path: Path,
+    output_path: Path,
+    match_score: float,
+) -> None:
+    """Crea una imagen comparativa lado a lado (Referencia vs Render Blender Auto-Calibrado)."""
+    try:
+        import cv2
+        ref_im = cv2.imdecode(np.fromfile(str(reference_path), dtype=np.uint8), cv2.IMREAD_COLOR)
+        ren_im = cv2.imdecode(np.fromfile(str(rendered_path), dtype=np.uint8), cv2.IMREAD_COLOR)
+        if ref_im is None or ren_im is None:
+            return
+        target_h = 720
+        ref_w = int(round(ref_im.shape[1] * (target_h / float(ref_im.shape[0]))))
+        ren_w = int(round(ren_im.shape[1] * (target_h / float(ren_im.shape[0]))))
+        ref_r = cv2.resize(ref_im, (ref_w, target_h), interpolation=cv2.INTER_AREA)
+        ren_r = cv2.resize(ren_im, (ren_w, target_h), interpolation=cv2.INTER_AREA)
+
+        # Banda superior con títulos
+        banner_h = 54
+        canvas = np.full((target_h + banner_h, ref_w + ren_w + 12, 3), (30, 42, 54), dtype=np.uint8)
+        canvas[banner_h:, :ref_w] = ref_r
+        canvas[banner_h:, ref_w + 12 :] = ren_r
+
+        cv2.putText(canvas, "REFERENCIA OBJETIVO (MODO A)", (18, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (240, 248, 255), 2, cv2.LINE_AA)
+        cv2.putText(
+            canvas,
+            f"BLENDER 3D ({match_score:.1f}% MATCH)",
+            (ref_w + 18, 36),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.62,
+            (21, 204, 250),
+            2,
+            cv2.LINE_AA,
+        )
+        _, png_buf = cv2.imencode(".png", canvas)
+        png_buf.tofile(str(output_path))
+    except Exception as exc:
+        logger.warning("No se pudo generar imagen comparativa lado a lado: %s", exc)
+
+
+def run_pre_render_visual_calibration(
+    output_dir: Path,
+    topic_or_title: str,
+    model_type: str,
+    first_scene: dict[str, Any],
+    reference_image_path: str | Path | None = None,
+    reference_mode: str = "full",
+    visual_profile_id: str | None = None,
+    max_iterations: int = 2,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Ejecuta la dirección visual (Modo A con imagen de referencia o Modo B autónomo sin referencia)
+    y realiza la previsualización automática con auto-corrección antes del render definitivo (Puntos 11, 21 y 22)."""
+    preview_dir = output_dir / "_previews_calibration"
+    preview_dir.mkdir(parents=True, exist_ok=True)
+
+    ref_path = Path(reference_image_path) if reference_image_path else None
+    has_ref = bool(ref_path and ref_path.is_file())
+
+    if has_ref and ref_path is not None:
+        print(f"\n[MODO A — CON IMAGEN DE REFERENCIA] Analizando referencia: {ref_path.name} (Modalidad: {reference_mode})...")
+        vrd = VisualReferenceDirector()
+        visual_direction = vrd.build_visual_direction_from_reference(
+            image_path=ref_path,
+            reference_mode=reference_mode,
+            topic_or_title=topic_or_title,
+            model_type=model_type,
+        )
+        (output_dir / "reference_analysis.json").write_text(
+            json.dumps(visual_direction["analysis"], indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    else:
+        print(f"\n[MODO B — AUTÓNOMO SIN REFERENCIA] Generando dirección artística propia para '{topic_or_title}'...")
+        avd = AutonomousVisualDirector()
+        visual_direction = avd.generate_autonomous_visual_direction(
+            topic_or_title=topic_or_title,
+            model_type=model_type,
+            preferred_profile_id=visual_profile_id,
+        )
+        print(f"  → Perfil Visual Seleccionado: {visual_direction['selected_profile_name']} ({visual_direction['selected_profile_id']})")
+        print(f"  → Justificación: {visual_direction['selection_reasoning']}")
+
+    # Iteraciones de previsualización rápida (360x640, 1 fotograma) y auto-ajuste
+    best_direction = json.loads(json.dumps(visual_direction))
+    best_score = -1.0
+    best_preview_png: Path | None = None
+    iterations_history: list[dict[str, Any]] = []
+    n_iters = max(1, min(3, max_iterations))
+
+    for it in range(1, n_iters + 1):
+        preview_png = preview_dir / f"preview_iter_{it}.png"
+        cam_plan = json.loads(json.dumps(first_scene.get("camera_plan") or {}))
+        cam_defs = visual_direction.get("camera_defaults", {})
+        if not cam_plan.get("keys"):
+            cam_plan = {
+                "lens": float(cam_defs.get("lens", 56.0)),
+                "margin": float(cam_defs.get("margin", 0.055)),
+                "keys": [
+                    {
+                        "frac": 0.0,
+                        "target": "all",
+                        "az": float(cam_defs.get("az_deg", 3.0)),
+                        "el": float(cam_defs.get("el_deg", 6.0)),
+                        "pad": float(cam_defs.get("pad", 0.025)),
+                        "offset": cam_defs.get("target_offset", [0.0, 0.0, 0.0]),
+                    }
+                ],
+            }
+        elif cam_defs:
+            cam_plan["lens"] = float(cam_defs.get("lens", cam_plan.get("lens", 56.0)))
+            cam_plan["margin"] = float(cam_defs.get("margin", cam_plan.get("margin", 0.055)))
+            pad_val = float(cam_defs.get("pad", 0.025))
+            off_val = cam_defs.get("target_offset", [0.0, 0.0, 0.0])
+            for k in cam_plan.get("keys", []):
+                k["pad"] = pad_val
+                k["offset"] = off_val
+
+        still_spec = {
+            "scene_id": f"preview_iter_{it}",
+            "composition_type": first_scene.get("composition_type", "cutaway_view"),
+            "model_type": model_type,
+            "camera_plan": cam_plan,
+            "visual_direction": visual_direction,
+            "diagram_spec": {
+                "composition_type": first_scene.get("composition_type", "cutaway_view"),
+                "phase": first_scene.get("phase", "overview"),
+            },
+        }
+        render_scene_3d_still(
+            scene=still_spec,
+            output_png=preview_png,
+            width=360,
+            height=640,
+            render_profile="test",
+        )
+
+        if has_ref and ref_path is not None:
+            comp = vrd.compare_render_with_reference(preview_png, ref_path)
+            score = float(comp["overall_match_score"])
+            print(f"  [PREVISUALIZACIÓN {it}/{n_iters}] Similitud con Referencia: {score:.2f}% (SSIM={comp['metrics']['ssim_structural']:.3f}, Color={comp['metrics']['color_and_backdrop_similarity']:.3f}, Escala={comp['metrics']['scale_alignment']:.3f})")
+            iterations_history.append({"iteration": it, "preview_path": str(preview_png.resolve()), "comparison": comp})
+            if score > best_score:
+                best_score = score
+                best_direction = json.loads(json.dumps(visual_direction))
+                best_preview_png = preview_png
+
+            adjs = comp.get("correctable_adjustments", {})
+            if not adjs or it == n_iters:
+                break
+            # Aplicar correcciones detectadas para la siguiente iteración
+            if "pad_delta" in adjs:
+                cur_pad = float(visual_direction["camera_defaults"].get("pad", 0.02))
+                visual_direction["camera_defaults"]["pad"] = round(max(0.0, min(0.18, cur_pad + float(adjs["pad_delta"]))), 4)
+            if "target_offset_z_delta" in adjs:
+                off = list(visual_direction["camera_defaults"].get("target_offset", [0.0, 0.0, 0.0]))
+                off[2] = round(off[2] + float(adjs["target_offset_z_delta"]), 3)
+                visual_direction["camera_defaults"]["target_offset"] = off
+            if "key_energy_multiplier" in adjs:
+                cur_ke = float(visual_direction["lighting"].get("key_energy", 650.0))
+                visual_direction["lighting"]["key_energy"] = round(cur_ke * float(adjs["key_energy_multiplier"]), 1)
+        else:
+            ev = avd.evaluate_preview_without_reference(preview_png, visual_direction)
+            score = float(ev["preview_quality_score"])
+            print(f"  [PREVISUALIZACIÓN AUTÓNOMA {it}/{n_iters}] Puntaje de Calidad: {score:.2f}% (Fill Y={ev['measured_fill_y']:.2f}, Contraste={ev['measured_rms_contrast']:.3f})")
+            iterations_history.append({"iteration": it, "preview_path": str(preview_png.resolve()), "evaluation": ev})
+            if score > best_score:
+                best_score = score
+                best_direction = json.loads(json.dumps(visual_direction))
+                best_preview_png = preview_png
+
+            adjs = ev.get("correctable_adjustments", {})
+            if ev["passed"] or not adjs or it == n_iters:
+                break
+            if "pad_delta" in adjs:
+                cur_pad = float(visual_direction["camera_defaults"].get("pad", 0.03))
+                visual_direction["camera_defaults"]["pad"] = round(max(0.0, min(0.18, cur_pad + float(adjs["pad_delta"]))), 4)
+            if "key_energy_multiplier" in adjs:
+                cur_ke = float(visual_direction["lighting"].get("key_energy", 660.0))
+                visual_direction["lighting"]["key_energy"] = round(cur_ke * float(adjs["key_energy_multiplier"]), 1)
+
+    # Guardar configuración final e informe de comparación/previsualización
+    (output_dir / "visual_direction_config.json").write_text(
+        json.dumps(best_direction, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    calibration_report: dict[str, Any] = {
+        "mode": best_direction["mode"],
+        "reference_mode": best_direction.get("reference_mode"),
+        "selected_profile_id": best_direction.get("selected_profile_id"),
+        "best_score": round(best_score, 2),
+        "iterations_executed": len(iterations_history),
+        "best_preview_path": str(best_preview_png.resolve()) if best_preview_png else None,
+        "iterations": iterations_history,
+    }
+
+    if has_ref and ref_path is not None and best_preview_png is not None:
+        comp_img_path = output_dir / "reference_vs_render_comparison.png"
+        _save_side_by_side_comparison(ref_path, best_preview_png, comp_img_path, best_score)
+        calibration_report["side_by_side_comparison_image"] = str(comp_img_path.resolve())
+        (output_dir / "reference_comparison_report.json").write_text(
+            json.dumps(calibration_report, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    else:
+        (output_dir / "autonomous_preview_qc.json").write_text(
+            json.dumps(calibration_report, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    return best_direction, calibration_report
+
 
 def produce_educational_pilot_video(
     pilot_key: str,
@@ -596,18 +907,22 @@ def produce_educational_pilot_video(
     height: int = 1280,
     render_profile: str = "test",
     force_rerender: bool = False,
+    reference_image_path: str | Path | None = None,
+    reference_mode: str = "full",
+    visual_profile_id: str | None = None,
+    max_preview_iterations: int = 2,
 ) -> dict[str, Any]:
-    """Ejecuta el pipeline completo de Fase 3.1:
-    1. Clasificación temática y planificación con `SpecializedVisualDirector`.
-    2. Síntesis de voz neuronal masterizada + cálculo de duraciones exactas.
-    3. Subtítulos dinámicos .ASS sin palabras huérfanas y auditoría de sincronización.
-    4. Renderizado 3D en Blender 5.3 con QC de componentes, conexiones y encuadre de cámara.
-    5. Ensamblaje final con FFmpeg y emisión de `technical_qc_report.json` + `pilot_metadata.json`.
+    """Ejecuta el pipeline unificado de Fase 3.1, 3.2 y 3.3:
+    - MODO A (si se proporciona `reference_image_path`): Analiza la imagen con `VisualReferenceDirector` (OpenCV),
+      adapta estilo/composición/materiales/iluminación y ejecuta comparación iterativa SSIM antes del render.
+    - MODO B (si `reference_image_path` es None): Activa `AutonomousVisualDirector`, selecciona entre los
+      8 Perfiles Visuales Reutilizables según el significado del tema y evalúa la previsualización automática.
+    - Sincroniza palabra por palabra (`WordBoundary` + alineador acústico local) las unidades narrativas
+      (`AudiovisualBeat`), cámaras multi-beat 9:16, etiquetas 3D, resaltados y subtítulos `.ASS`.
     """
     if pilot_key not in EDUCATIONAL_PILOT_SCRIPTS:
         raise ValueError(f"Piloto desconocido: '{pilot_key}'. Disponibles: {list(EDUCATIONAL_PILOT_SCRIPTS.keys())}")
 
-    # Copia profunda de escenas para no mutar el diccionario global en ejecuciones repetidas
     pilot = json.loads(json.dumps(EDUCATIONAL_PILOT_SCRIPTS[pilot_key]))
     output_dir.mkdir(parents=True, exist_ok=True)
     audio_dir = output_dir / "audio"
@@ -621,7 +936,7 @@ def produce_educational_pilot_video(
     voice_key = pilot.get("voice_key", "es-US-AlonsoNeural")
     model_type = pilot.get("model_type", "combustion_engine")
 
-    # PASO 0: Clasificador de contenido y Director Visual Especializado (Puntos 2 y 4)
+    # PASO 0: Clasificador de contenido y Director Visual Especializado
     director = SpecializedVisualDirector()
     direction_plan = director.direct_script_scenes(
         topic_or_title=f"{pilot['title']} {pilot['topic']}",
@@ -629,8 +944,21 @@ def produce_educational_pilot_video(
         scenes=scenes,
     )
 
+    # PASO 0.5: Dirección Visual Fase 3.3 (Modo A con imagen de referencia o Modo B autónomo sin referencia)
+    visual_direction, calibration_report = run_pre_render_visual_calibration(
+        output_dir=output_dir,
+        topic_or_title=f"{pilot['title']} {pilot['topic']}",
+        model_type=model_type,
+        first_scene=scenes[0],
+        reference_image_path=reference_image_path,
+        reference_mode=reference_mode,
+        visual_profile_id=visual_profile_id,
+        max_iterations=max_preview_iterations,
+    )
+
     print(f"\n=======================================================")
-    print(f"🎬 INICIANDO PRODUCCIÓN FASE 3.1: {pilot['title']}")
+    print(f"🎬 INICIANDO PRODUCCIÓN FASE 3.3: {pilot['title']}")
+    print(f"Modo Director Visual: {visual_direction['mode']} | Perfil: {visual_direction.get('selected_profile_id')} | Score Previo: {calibration_report['best_score']:.1f}%")
     print(f"Categoría: {direction_plan['category']['name']} ({direction_plan['category']['category_id']})")
     print(f"Modelo 3D: {model_type} | Tomas únicas: {direction_plan['unique_shot_types_count']} | Repeticiones consecutivas: {direction_plan['consecutive_duplicates']}")
     print(f"Formato: {width}x{height} (9:16) | Perfil: {render_profile}")
@@ -759,6 +1087,7 @@ def produce_educational_pilot_video(
             "duration_sec": sc["duration_sec"],
             "camera_plan": sc.get("camera_plan"),
             "audiovisual_beats": sc.get("audiovisual_beats"),
+            "visual_direction": visual_direction,
             "diagram_spec": {
                 "composition_type": sc["composition_type"],
                 "phase": sc["phase"],
@@ -985,6 +1314,9 @@ def produce_educational_pilot_video(
         "scenes": scenes,
         "technical_qc_passed": technical_qc["overall_passed"],
         "technical_qc_path": str(qc_file.resolve()),
+        "visual_direction_mode": visual_direction["mode"],
+        "visual_profile_id": visual_direction.get("selected_profile_id"),
+        "visual_calibration_report": calibration_report,
         "audiovisual_timeline_path": str(timeline_file.resolve()),
         "audiovisual_sync_report_path": str(sync_report_file.resolve()),
         "master_video_path": str(final_output_mp4.resolve()),

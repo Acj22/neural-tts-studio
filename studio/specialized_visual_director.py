@@ -217,6 +217,71 @@ FALLBACK_ROTATION_ORDER: list[str] = [
 # ==============================================================================
 
 MODEL_SEMANTIC_KNOWLEDGE: dict[str, list[dict[str, Any]]] = {
+    "combustion_engine": [
+        {
+            "keywords": ["pistón", "corona", "aros de compresión", "bulón", "desciende", "asciende"],
+            "subject": "piston",
+            "highlight": "piston",
+            "action": "piston_reciprocating_stroke",
+            "default_camera": "close_up",
+            "label_key": "piston",
+            "label_display": "PISTÓN",
+        },
+        {
+            "keywords": ["biela", "viga en i", "transmite", "pie de biela", "cabeza de biela"],
+            "subject": "rod",
+            "highlight": "rod",
+            "action": "connecting_rod_oscillation",
+            "default_camera": "tracking",
+            "label_key": "rod",
+            "label_display": "BIELA",
+        },
+        {
+            "keywords": ["cigüeñal", "muñequilla", "contrapesos", "rotación", "par motor"],
+            "subject": "crank",
+            "highlight": "crank",
+            "action": "crankshaft_rotation",
+            "default_camera": "close_up",
+            "label_key": "crank",
+            "label_display": "CIGÜEÑAL",
+        },
+        {
+            "keywords": ["válvula de admisión", "admisión", "mezcla fresca", "colector de admisión"],
+            "subject": "head",
+            "highlight": "valves",
+            "action": "intake_valve_open",
+            "default_camera": "internal_tracking",
+            "label_key": "intake",
+            "label_display": "VÁLVULA ADMISIÓN",
+        },
+        {
+            "keywords": ["válvula de escape", "escape", "gases quemados", "colector de escape"],
+            "subject": "head",
+            "highlight": "valves",
+            "action": "exhaust_valve_open",
+            "default_camera": "side_view",
+            "label_key": "exhaust",
+            "label_display": "VÁLVULA ESCAPE",
+        },
+        {
+            "keywords": ["bujía", "chispa", "ignición", "combustión", "explosión", "expansión"],
+            "subject": "chamber",
+            "highlight": "spark",
+            "action": "spark_ignition_power_stroke",
+            "default_camera": "extreme_close_up",
+            "label_key": "spark",
+            "label_display": "BUJÍA",
+        },
+        {
+            "keywords": ["cilindro", "camisa", "cámara", "compresión", "bloque"],
+            "subject": "block",
+            "highlight": "block",
+            "action": "cylinder_chamber_compression",
+            "default_camera": "cutaway",
+            "label_key": "cylinder",
+            "label_display": "CILINDRO",
+        },
+    ],
     "refrigerator_cycle": [
         {
             "keywords": ["compresor", "aspira", "succión", "motor eléctrico", "bobinado", "rotor", "pistón", "comprime"],

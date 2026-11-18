@@ -72,6 +72,7 @@ def render_scene_3d_video(
         "render_profile": render_profile,
         "camera_plan": scene.get("camera_plan"),
         "audiovisual_beats": scene.get("audiovisual_beats"),
+        "visual_direction": scene.get("visual_direction"),
         "output_dir": str(temp_frames_dir.resolve()),
         "single_frame_only": False,
     }
@@ -412,6 +413,7 @@ def render_scene_3d_still(
         "model_type": scene.get("model_type", "combustion_engine"),
         "render_profile": render_profile,
         "camera_plan": scene.get("camera_plan"),
+        "visual_direction": scene.get("visual_direction"),
         "output_dir": str(temp_dir.resolve()),
         "single_frame_only": True,
     }

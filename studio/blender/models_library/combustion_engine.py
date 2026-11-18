@@ -172,16 +172,16 @@ def create_combustion_engine_3d(
     mesh_cyc = bpy.data.meshes.new("Studio_Cyclorama_Mesh")
     obj_cyc = bpy.data.objects.new("Studio_Cyclorama", mesh_cyc)
     verts_cyc = [
-        (-16.0, -14.0, block_bottom),
-        ( 16.0, -14.0, block_bottom),
-        (-16.0,   3.0, block_bottom),
-        ( 16.0,   3.0, block_bottom),
-        (-16.0,   5.0, block_bottom + 1.0),
-        ( 16.0,   5.0, block_bottom + 1.0),
-        (-16.0,   7.5, block_bottom + 3.5),
-        ( 16.0,   7.5, block_bottom + 3.5),
-        (-16.0,   8.5, block_bottom + 14.0),
-        ( 16.0,   8.5, block_bottom + 14.0),
+        (-24.0, -14.0, block_bottom),
+        ( 24.0, -14.0, block_bottom),
+        (-24.0,   8.0, block_bottom),
+        ( 24.0,   8.0, block_bottom),
+        (-24.0,  10.0, block_bottom + 1.2),
+        ( 24.0,  10.0, block_bottom + 1.2),
+        (-24.0,  11.5, block_bottom + 4.0),
+        ( 24.0,  11.5, block_bottom + 4.0),
+        (-24.0,  11.8, block_bottom + 18.0),
+        ( 24.0,  11.8, block_bottom + 18.0),
     ]
     faces_cyc = [
         (0, 1, 3, 2),
@@ -236,6 +236,7 @@ def create_combustion_engine_3d(
         foot.scale = (0.50, 2.2, 0.38)
         foot.data.materials.append(mats["engine_block"])
         foot.parent = base_pan
+        foot.matrix_parent_inverse = base_pan.matrix_world.inverted()
         add(foot)
         _apply_bevel(foot, width=0.02, segments=2)
 
@@ -311,8 +312,8 @@ def create_combustion_engine_3d(
         add(rib)
         _apply_bevel(rib, width=0.03, segments=2)
 
-    # Camisa interior del cilindro (Cylinder Liner)
-    liner_len = rod_length + crank_radius + piston_height * 0.5
+    # Camisa interior del cilindro (Cylinder Liner sellada contra la culata)
+    liner_len = rod_length + crank_radius + piston_height * 0.5 + 0.65
     bpy.ops.mesh.primitive_cylinder_add(
         radius=cr + 0.12,
         depth=liner_len,
@@ -448,18 +449,17 @@ def create_combustion_engine_3d(
     obj_in_pipe.data.materials.append(mats["manifold_pipes"])
     add(obj_in_pipe)
 
-    # Brida esférica terminal de admisión
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.38,
-        depth=0.20,
-        location=(-2.45, -0.05, head_z + 1.48),
-        vertices=24,
+    # Cámara esférica del filtro de admisión superior izquierda (idéntica a la silueta CAD de referencia)
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=0.58,
+        location=(-2.45, 0.05, head_z + 1.62),
+        segments=32,
+        ring_count=20,
     )
     flange_in = bpy.context.active_object
     flange_in.name = "Intake_Manifold_Flange"
     flange_in.data.materials.append(mats["manifold_pipes"])
     add(flange_in)
-    _apply_bevel(flange_in, width=0.02, segments=2)
 
     # Conducto curvo de escape negro (hacia la derecha, +X)
     curve_ex = bpy.data.curves.new("Exhaust_Manifold_Curve", type="CURVE")
@@ -606,7 +606,7 @@ def create_combustion_engine_3d(
     )
     rod_shank = bpy.context.active_object
     rod_shank.name = "Rod_Shank"
-    rod_shank.scale = (0.34, 0.22, rod_length * 0.72)
+    rod_shank.scale = (0.34, 0.22, rod_length * 0.82)
     rod_shank.data.materials.append(mats["connecting_rod"])
     add(rod_shank)
     _apply_bevel(rod_shank, width=0.018, segments=2)
@@ -1039,6 +1039,50 @@ def create_combustion_engine_3d(
     fx_comp.scale = (0.001, 0.001, 0.001)
     add(fx_comp)
 
+    # Etiquetas 3D explicativas (ocultas por defecto; el Director Audiovisual Fase 3.3 las activa en el milisegundo en que se pronuncian)
+    from studio.blender.models_library import _common as C
+    white_txt = C.emissive_material("Mat_LabelWhite_Engine", (1.0, 1.0, 1.0), 2.2)
+    labels: dict[str, tuple[Any, Any]] = {}
+
+    def _eng_label(key: str, txt: str, loc: tuple[float, float, float], target: tuple[float, float, float], size: float = 0.28) -> None:
+        t_obj = C.make_text("Label_Eng_" + key, txt, loc, size, white_txt)
+        p_path = C.rounded_polyline([(loc[0], loc[1], loc[2] - size * 0.65), target], 0.01)
+        ln_obj = C.tube_from_path("Leader_Eng_" + key, p_path, 0.012, white_txt)
+        for o in (t_obj, ln_obj):
+            o["role"] = "label"
+            o.hide_render = True
+            o.hide_viewport = True
+        labels[key] = (t_obj, ln_obj)
+
+    _eng_label("piston", "PISTÓN", (-2.65, -0.9, pms_z + 0.15), (-1.15, -0.2, pms_z))
+    _eng_label("rod", "BIELA", (2.55, -0.9, crank_center_z + 2.55), (0.18, -0.1, crank_center_z + 2.4))
+    _eng_label("crank", "CIGÜEÑAL", (-2.55, -0.9, crank_center_z + 0.15), (-0.45, -0.2, crank_center_z))
+    _eng_label("intake", "VÁLVULA ADMISIÓN", (-2.75, -0.9, head_z + 2.15), (-0.85, -0.1, head_z + 1.0))
+    _eng_label("exhaust", "VÁLVULA ESCAPE", (2.75, -0.9, head_z + 2.15), (0.85, -0.1, head_z + 1.0))
+    _eng_label("spark", "BUJÍA", (0.0, -0.9, head_z + 2.65), (0.0, -0.1, head_z + 1.55))
+    _eng_label("cylinder", "CILINDRO", (2.65, -0.9, pms_z + 0.25), (1.35, -0.1, pms_z - 0.35))
+
+    groups = {
+        "piston": [piston_body, wrist_pin, *piston_rings],
+        "rod": [rod_shank, small_end, bushing_small, big_end, bushing_big],
+        "crank": [main_journal, crank_pin, crank_housing, saddle],
+        "valves": [*valves["intake"].children, *valves["exhaust"].children, springs["intake"], springs["exhaust"]],
+        "spark": list(spark_root.children),
+        "head": [head_base, obj_in_pipe, obj_ex_pipe, flange_in, *valves["intake"].children, *valves["exhaust"].children, *spark_root.children],
+        "block": [base_pan, barrel, crank_housing, liner],
+        "chamber": [piston_body, head_base, *valves["intake"].children, *valves["exhaust"].children, *spark_root.children],
+    }
+
+    connections = [
+        (piston_body, wrist_pin, 0.04, "pistón ↔ bulón"),
+        (small_end, wrist_pin, 0.05, "pie de biela ↔ bulón"),
+        (rod_shank, small_end, 0.05, "vástago de biela ↔ pie de biela"),
+        (rod_shank, big_end, 0.05, "vástago de biela ↔ cabeza de biela"),
+        (big_end, crank_pin, 0.05, "cabeza de biela ↔ muñequilla del cigüeñal"),
+        (piston_body, liner, 0.08, "pistón ↔ camisa del cilindro"),
+        (liner, head_base, 0.15, "camisa del cilindro ↔ culata"),
+    ]
+
     return {
         "engine_block": base_pan,
         "cylinder_liner": liner,
@@ -1062,4 +1106,7 @@ def create_combustion_engine_3d(
         "rod_length": rod_length,
         "crank_center_z": crank_center_z,
         "head_z": head_z,
+        "groups": groups,
+        "labels": labels,
+        "connections": connections,
     }

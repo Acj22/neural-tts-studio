@@ -948,13 +948,49 @@ async function runCustomBlenderRender() {
   if (btn) btn.disabled = true;
 
   try {
+    const refFileInput = document.getElementById("blenderReferenceFile");
+    const refModeEl = document.getElementById("blenderReferenceModeSelect");
+    const profEl = document.getElementById("blenderVisualProfileSelect");
+    const summaryEl = document.getElementById("blenderVisualDirectionSummary");
+    const hiddenPathEl = document.getElementById("blenderReferencePathHidden");
+
+    const refMode = refModeEl ? refModeEl.value : "full";
+    const visProfId = profEl && profEl.value ? profEl.value : null;
+    let savedRefPath = hiddenPathEl && hiddenPathEl.value ? hiddenPathEl.value : null;
+
+    if (refFileInput && refFileInput.files && refFileInput.files.length > 0 && refMode !== "autonomous") {
+      if (progText) progText.textContent = "Analizando imagen de referencia con OpenCV local (Modo A)...";
+      const fd = new FormData();
+      fd.append("file", refFileInput.files[0]);
+      fd.append("reference_mode", refMode);
+      fd.append("topic", narr || model);
+      fd.append("model_type", model);
+      const upRes = await fetch("/api/explainer/blender/upload-reference", { method: "POST", body: fd });
+      if (upRes.ok) {
+        const upData = await upRes.json();
+        savedRefPath = upData.saved_reference_path || null;
+        if (hiddenPathEl) hiddenPathEl.value = savedRefPath || "";
+        if (summaryEl && upData.visual_direction) {
+          const bd = upData.visual_direction.backdrop || {};
+          const mt = upData.visual_direction.materials || {};
+          summaryEl.textContent = `Modo A Activo (${refMode}): Fondo ${bd.bg_hex || ""} · Cuerpo ${mt.primary_body_hex || ""} · Acento ${mt.accent_moving_hex || ""}`;
+        }
+      }
+    } else if (summaryEl && refMode === "autonomous") {
+      savedRefPath = null;
+      summaryEl.textContent = `Modo B Autónomo activo: Perfil ${visProfId || "seleccionado por significado del contenido"}.`;
+    }
+
     const payload = {
       model_name: model,
       composition: comp,
       is_vertical: fmt === "9:16",
       render_profile: prof,
       duration_sec: 4.0,
-      narration: narr
+      narration: narr,
+      reference_image_path: savedRefPath,
+      reference_mode: refMode,
+      visual_profile_id: visProfId
     };
     if (progBar) progBar.style.width = "50%";
     if (progPct) progPct.textContent = "50%";

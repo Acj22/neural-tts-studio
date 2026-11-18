@@ -42,8 +42,108 @@ from studio.blender.models_library.printer_3d_fdm import (
 from studio.blender.animation_controller import build_4_stroke_cycle_keyframes
 from studio.blender.camera_director import setup_studio_lighting, setup_camera_for_shot
 from studio.blender.camera_plans import apply_camera_plan
+from studio.blender.materials import hex_to_rgba
 from studio.blender.model_qc import check_required, check_connections, check_animation_motion
 from studio.blender.render_profiles import get_render_profile
+
+
+def _srgb_hex_to_linear_rgba(hex_str: str, alpha: float = 1.0) -> tuple[float, float, float, float]:
+    """Convierte un color hexadecimal sRGB (extraído por OpenCV) a espacio Lineal de Blender."""
+    r, g, b, _ = hex_to_rgba(hex_str, alpha)
+    def _to_lin(c: float) -> float:
+        return (c / 12.92) if c <= 0.04045 else (((c + 0.055) / 1.055) ** 2.4)
+    return (_to_lin(r), _to_lin(g), _to_lin(b), alpha)
+
+
+def apply_visual_direction_to_blender_scene(
+    visual_direction: dict[str, Any] | None,
+    lights_dict: dict[str, Any],
+) -> dict[str, Any]:
+    """Aplica la configuración de estilo, materiales, fondo e iluminación generada por
+    `VisualReferenceDirector` (Modo A) o `AutonomousVisualDirector` (Modo B) en Blender (Punto 7)."""
+    if not visual_direction or bpy is None:
+        return {"applied": False}
+
+    ref_mode = str(visual_direction.get("reference_mode", "full")).lower()
+    apply_style = ref_mode in ("style", "full", "autonomous")
+
+    if apply_style:
+        # 1. Actualizar color de fondo y ciclorama con conversión exacta sRGB -> Lineal
+        bd = visual_direction.get("backdrop") or {}
+        bg_hex = bd.get("bg_hex", "#2A4053")
+        fl_hex = bd.get("floor_hex", "#1C2A36")
+        bg_rgba = _srgb_hex_to_linear_rgba(bg_hex)
+        fl_rgba = _srgb_hex_to_linear_rgba(fl_hex)
+
+        for mat_name, rgba in (("Mat_StudioBackdrop", bg_rgba), ("Mat_StudioFloor", fl_rgba)):
+            mat = bpy.data.materials.get(mat_name)
+            if mat and mat.use_nodes:
+                bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                if bsdf:
+                    if "Base Color" in bsdf.inputs:
+                        bsdf.inputs["Base Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+                    if "Roughness" in bsdf.inputs:
+                        bsdf.inputs["Roughness"].default_value = 1.0
+                    if "Specular IOR Level" in bsdf.inputs:
+                        bsdf.inputs["Specular IOR Level"].default_value = 0.0
+                    if "Emission Color" in bsdf.inputs:
+                        bsdf.inputs["Emission Color"].default_value = rgba
+                    if "Emission Strength" in bsdf.inputs:
+                        bsdf.inputs["Emission Strength"].default_value = 1.0
+
+        world = bpy.context.scene.world
+        if world and world.use_nodes:
+            bg_node = world.node_tree.nodes.get("Background")
+            if bg_node:
+                bg_node.inputs["Color"].default_value = bg_rgba
+                bg_node.inputs["Strength"].default_value = 1.0
+
+        # 2. Actualizar esquema de iluminación de estudio
+        lt = visual_direction.get("lighting") or {}
+        if "key" in lights_dict and lights_dict["key"]:
+            kl = lights_dict["key"]
+            if "key_energy" in lt:
+                kl.data.energy = float(lt["key_energy"])
+            if "key_color" in lt:
+                kl.data.color = tuple(lt["key_color"][:3])
+            if "key_location" in lt and len(lt["key_location"]) == 3:
+                kl.location = tuple(lt["key_location"])
+        if "fill" in lights_dict and lights_dict["fill"] and "fill_energy" in lt:
+            lights_dict["fill"].data.energy = float(lt["fill_energy"])
+        if "rim" in lights_dict and lights_dict["rim"] and "rim_energy" in lt:
+            lights_dict["rim"].data.energy = float(lt["rim_energy"])
+        if "top" in lights_dict and lights_dict["top"] and "top_energy" in lt:
+            lights_dict["top"].data.energy = float(lt["top_energy"])
+
+        # 3. Actualizar materiales PBR principales con conversión sRGB -> Lineal
+        mats_cfg = visual_direction.get("materials") or {}
+        mat_mappings = [
+            ("Mat_EngineBlock", "primary_body_hex", "primary_roughness", "primary_metallic"),
+            ("Mat_CutawayRim", "cutaway_face_hex", "cutaway_roughness", "cutaway_metallic"),
+            ("Mat_CylinderLiner", "primary_body_hex", "primary_roughness", "primary_metallic"),
+            ("Mat_ConnectingRod", "cutaway_face_hex", "cutaway_roughness", "cutaway_metallic"),
+            ("Mat_Crankshaft", "cutaway_face_hex", "cutaway_roughness", "cutaway_metallic"),
+            ("Mat_Piston", "accent_moving_hex", "accent_roughness", "accent_metallic"),
+            ("Mat_ManifoldPipes", "dark_manifold_hex", None, None),
+        ]
+        for b_mat_name, hex_key, rough_key, met_key in mat_mappings:
+            mat = bpy.data.materials.get(b_mat_name)
+            if mat and mat.use_nodes and hex_key in mats_cfg:
+                bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                if bsdf:
+                    if "Base Color" in bsdf.inputs:
+                        bsdf.inputs["Base Color"].default_value = _srgb_hex_to_linear_rgba(mats_cfg[hex_key])
+                    if rough_key and rough_key in mats_cfg and "Roughness" in bsdf.inputs:
+                        bsdf.inputs["Roughness"].default_value = float(mats_cfg[rough_key])
+                    if met_key and met_key in mats_cfg and "Metallic" in bsdf.inputs:
+                        bsdf.inputs["Metallic"].default_value = float(mats_cfg[met_key])
+
+    return {
+        "applied": True,
+        "mode": visual_direction.get("mode"),
+        "reference_mode": ref_mode,
+        "profile_id": visual_direction.get("selected_profile_id"),
+    }
 
 
 def clean_blender_scene() -> None:
@@ -204,10 +304,11 @@ def run_blender_render(spec: dict) -> None:
         if hasattr(scene.eevee, "use_fast_gi"):
             scene.eevee.use_fast_gi = True
 
-    setup_studio_lighting()
+    lights_dict = setup_studio_lighting()
 
     model_type = spec.get("model_type", "combustion_engine")
     highlight_comp = spec.get("highlight_component")
+    visual_direction = spec.get("visual_direction")
     data: dict[str, Any] = {}
     qc: dict[str, Any] = {"model_type": model_type, "phase": cycle_phase}
 
@@ -228,6 +329,9 @@ def run_blender_render(spec: dict) -> None:
                                            piston_height=1.45, crank_center_z=0.0)
         build_4_stroke_cycle_keyframes(engine_data=data, start_frame=1, end_frame=total_frames,
                                        cycle_phase=cycle_phase, highlight_component=highlight_comp)
+
+    # Aplicar Dirección Visual (Modo A con imagen de referencia o Modo B autónomo sin referencia)
+    qc["visual_direction"] = apply_visual_direction_to_blender_scene(visual_direction, lights_dict)
 
     # Sincronización de beats audiovisuales (etiquetas al segundo exacto de la voz y resaltados por beat)
     qc["audiovisual_sync"] = synchronize_audiovisual_beats_in_scene(data, audiovisual_beats, fps, total_frames)

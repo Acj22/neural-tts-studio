@@ -17,7 +17,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 import soundfile as sf
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -313,6 +313,79 @@ class BlenderSceneRenderRequest(BaseModel):
     render_profile: str = "draft"
     duration_sec: float = 4.0
     narration: str = ""
+    reference_image_path: Optional[str] = None
+    reference_mode: str = "full"
+    visual_profile_id: Optional[str] = None
+
+
+class VisualDirectionRequest(BaseModel):
+    topic: str = "Motor de Combustión de Cuatro Tiempos"
+    model_type: str = "combustion_engine"
+    reference_image_path: Optional[str] = None
+    reference_mode: str = "full"
+    visual_profile_id: Optional[str] = None
+
+
+@router.get("/blender/visual-profiles")
+def get_blender_visual_profiles_endpoint():
+    """Devuelve la biblioteca de 8 perfiles visuales reutilizables y las 4 modalidades de referencia (Fase 3.3)."""
+    from studio.visual_reference_director import VISUAL_PROFILES_LIBRARY, REFERENCE_MODES
+    return {
+        "visual_profiles": VISUAL_PROFILES_LIBRARY,
+        "reference_modes": REFERENCE_MODES,
+    }
+
+
+@router.post("/blender/visual-direction")
+def build_visual_direction_endpoint(req: VisualDirectionRequest):
+    """Analiza una imagen de referencia con OpenCV (Modo A) o genera dirección artística autónoma (Modo B)."""
+    from studio.visual_reference_director import VisualReferenceDirector, AutonomousVisualDirector
+
+    if req.reference_image_path and Path(req.reference_image_path).is_file():
+        vrd = VisualReferenceDirector()
+        return vrd.build_visual_direction_from_reference(
+            image_path=req.reference_image_path,
+            reference_mode=req.reference_mode,
+            topic_or_title=req.topic,
+            model_type=req.model_type,
+        )
+    avd = AutonomousVisualDirector()
+    return avd.generate_autonomous_visual_direction(
+        topic_or_title=req.topic,
+        model_type=req.model_type,
+        preferred_profile_id=req.visual_profile_id,
+    )
+
+
+@router.post("/blender/upload-reference")
+async def upload_visual_reference_endpoint(
+    file: UploadFile = File(...),
+    reference_mode: str = Form("full"),
+    topic: str = Form("Motor Monocilíndrico"),
+    model_type: str = Form("combustion_engine"),
+):
+    """Permite subir una imagen de referencia desde la interfaz web y analizarla con OpenCV local (Fase 3.3)."""
+    from studio.visual_reference_director import VisualReferenceDirector
+
+    refs_dir = PROJECTS_DIR / "_references"
+    refs_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(file.filename or "reference.png").name
+    dest_path = refs_dir / safe_name
+    content = await file.read()
+    dest_path.write_bytes(content)
+
+    vrd = VisualReferenceDirector()
+    direction = vrd.build_visual_direction_from_reference(
+        image_path=dest_path,
+        reference_mode=reference_mode,
+        topic_or_title=topic,
+        model_type=model_type,
+    )
+    return {
+        "success": True,
+        "saved_reference_path": str(dest_path.resolve()),
+        "visual_direction": direction,
+    }
 
 
 @router.post("/blender/render-scene")
@@ -359,10 +432,27 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
         srt_content = build_clauses_srt(text, dur_sec)
         subtitles_path.write_text(srt_content, encoding="utf-8")
 
+    from studio.visual_reference_director import VisualReferenceDirector, AutonomousVisualDirector
+    if req.reference_image_path and Path(req.reference_image_path).is_file():
+        vis_dir = VisualReferenceDirector().build_visual_direction_from_reference(
+            image_path=req.reference_image_path,
+            reference_mode=req.reference_mode,
+            topic_or_title=req.narration or req.model_name,
+            model_type=req.model_name,
+        )
+    else:
+        vis_dir = AutonomousVisualDirector().generate_autonomous_visual_direction(
+            topic_or_title=req.narration or req.model_name,
+            model_type=req.model_name,
+            preferred_profile_id=req.visual_profile_id,
+        )
+
     scene_spec = {
         "scene_id": "custom",
+        "model_type": req.model_name,
         "composition_type": req.composition,
         "duration_sec": dur_sec,
+        "visual_direction": vis_dir,
         "diagram_spec": {"composition_type": req.composition, "phase": "full_cycle"},
     }
 

@@ -610,19 +610,26 @@
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Modelo 3D Procedural</label>
                 <select id="blenderModelSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
                   <option value="combustion_engine" selected>🚗 Motor 4 Tiempos (Pistón, Biela, Cigüeñal, Válvulas, Bujía)</option>
+                  <option value="automatic_transmission">⚙️ Transmisión Automática (Tren Planetario Epicicloidal + Convertidor)</option>
+                  <option value="refrigerator_cycle">❄️ Refrigerador (Circuito Cerrado + Compresor Seccionado + Capilar)</option>
+                  <option value="printer_3d_fdm">🖨️ Impresora 3D FDM (Pórtico V-Slot + Correas GT2 + Hotend + Capas)</option>
                 </select>
               </div>
 
               <div>
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-1">Composición / Cámara ★</label>
                 <select id="blenderCompositionSelect" class="w-full rounded-xl bg-slate-950 border border-cyan-500/40 px-3 py-2 text-xs text-white">
-                  <option value="hero_view">🌟 Hero View (Vista General de Estudio)</option>
-                  <option value="close_up_view">🔍 Close-Up (Acercamiento Macro)</option>
-                  <option value="cutaway_view">✂️ Cutaway View (Corte Técnico 120°)</option>
+                  <option value="hero_view">🌟 Hero Shot (Vista General de Estudio)</option>
+                  <option value="close_up_view">🔍 Close-Up (Acercamiento a Subsistema)</option>
+                  <option value="extreme_close_up">🔬 Extreme Close-Up (Macro Extremo)</option>
+                  <option value="cutaway_view">✂️ Cutaway (Corte Transversal Técnico)</option>
                   <option value="exploded_view">💥 Exploded View (Despiece Axial)</option>
-                  <option value="crank_track">🔄 Crank Track (Seguimiento Biela/Cigüeñal)</option>
-                  <option value="process_view">🔥 Process View (Ciclo 4 Tiempos)</option>
-                  <option value="turntable_orbit">🌐 Turntable Orbit (Giro 360°)</option>
+                  <option value="internal_tracking">🎯 Internal Tracking (Cavidad Funcional)</option>
+                  <option value="tracking">🔄 Tracking Shot (Seguimiento de Movimiento)</option>
+                  <option value="isometric">📐 Isometric View (Perspectiva Técnica 38°)</option>
+                  <option value="side_view">↔️ Side View (Vista Lateral)</option>
+                  <option value="top_view">⬇️ Top View (Vista Superior)</option>
+                  <option value="turntable_orbit">🌐 Orbit Shot (Recorrido Orbital)</option>
                 </select>
               </div>
 
@@ -654,6 +661,48 @@
                 value="Observa el movimiento sincronizado del pistón, la biela y el cigüeñal transformando la energía en movimiento rotativo."
                 class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
               />
+            </div>
+
+            <!-- FASE 3.3: Director de Referencias Visuales (Modo A) & Director Visual Autónomo (Modo B) -->
+            <div class="p-3.5 rounded-xl bg-slate-950/90 border border-indigo-500/40 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold text-indigo-300">🎨 Fase 3.3 — Visual Reference Director (Modo A con Imagen) & Autonomous Director (Modo B)</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/40">OpenCV Local · 8 Perfiles</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Imagen de Referencia (Opcional · Modo A)</label>
+                  <input id="blenderReferenceFile" type="file" accept="image/*" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200" />
+                  <input id="blenderReferencePathHidden" type="hidden" value="" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1">Modalidad de Referencia</label>
+                  <select id="blenderReferenceModeSelect" class="w-full rounded-xl bg-slate-900 border border-indigo-500/40 px-3 py-2 text-xs text-white">
+                    <option value="full" selected>D. Referencia Completa (Estilo + Composición + Modelo)</option>
+                    <option value="style">A. Referencia de Estilo (Colores, Materiales, Luz, Fondo)</option>
+                    <option value="composition">B. Referencia de Composición (Escala, Encuadre, Márgenes)</option>
+                    <option value="model">C. Referencia de Modelo (Zonas y Componentes)</option>
+                    <option value="autonomous">🤖 Modo B Autónomo (Sin Imagen de Referencia)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Perfil Visual Reutilizable (8 Perfiles)</label>
+                  <select id="blenderVisualProfileSelect" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white">
+                    <option value="">✨ Selección Automática por Significado</option>
+                    <option value="maqueta_tecnica_educativa">1. Maqueta Técnica Educativa</option>
+                    <option value="corte_transversal_tecnico">2. Corte Transversal Técnico</option>
+                    <option value="isometrico_industrial">3. Isométrico Industrial</option>
+                    <option value="modelo_mecanico_estudio">4. Modelo Mecánico de Estudio</option>
+                    <option value="visualizacion_tecnologica">5. Visualización Tecnológica</option>
+                    <option value="anatomia_3d">6. Anatomía 3D</option>
+                    <option value="ciencia_visual">7. Ciencia Visual</option>
+                    <option value="vista_explosionada">8. Vista Explosionada</option>
+                  </select>
+                </div>
+              </div>
+              <div id="blenderVisualDirectionSummary" class="text-[11px] text-slate-400">
+                Si cargas una imagen se activará el Modo A (OpenCV extrae paleta, fondo, silueta, escala e iluminación). Si no cargas imagen, el Modo B Autónomo diseñará la dirección visual.
+              </div>
             </div>
 
             <!-- Botones de Acción -->

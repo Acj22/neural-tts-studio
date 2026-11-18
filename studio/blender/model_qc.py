@@ -91,9 +91,11 @@ def check_animation_motion(f0: int = 1, f1: int = 48) -> dict[str, Any]:
     bpy.context.view_layer.update()
     snap0 = {o.name: (o.matrix_world.translation.copy(), o.matrix_world.to_euler()) for o in objs}
 
+    q1 = max(f0 + 1, f0 + (f1 - f0) // 4)
     mid = max(f0 + 1, (f0 + f1) // 2)
+    q3 = max(f0 + 1, f0 + (3 * (f1 - f0)) // 4)
     moving: set[str] = set()
-    for fr in (mid, f1):
+    for fr in (q1, mid, q3, f1):
         scene.frame_set(fr)
         bpy.context.view_layer.update()
         for o in objs:
