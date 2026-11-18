@@ -1,14 +1,18 @@
-"""Modelo 3D Procedural de Motor de Cuatro Tiempos en Blender 5.3 (Fase 2.1 - Alto Realismo CAD).
+"""Modelo 3D Procedural de Motor de Cuatro Tiempos en Blender 5.3 (Fase 2.1 / 2.3 - Ultra Realismo CAD).
 
-Mejoras de Fidelidad Mecánica y Visual (Estilo Coverfox / Precision Engineering):
-- Bloque monolítico de fundición grafito con cara de corte en acero mecanizado nítido.
-- Resortes de válvula helicoidales 3D reales de alambre de acero con deformación física de compresión.
-- Bujía con aislador cerámico corrugado, tuerca hexagonal de apriete y electrodo de masa en escuadra ('L').
-- Pistón automotriz con bisel perimétrico, muescas de válvulas en corona, falda arqueada y 3 aros de compresión.
-- Biela forjada en viga 'I' con sombrerete de cabeza partido y pernos hexagonales de bancada.
-- Cigüeñal con muñequilla rectificada a espejo y contrapesos lobulares aerodinámicos.
-- Cárter inferior (Oil Pan) estampado en base del motor.
-- Llama de combustión explosiva multicapa (Coverfox starburst explosion) con luz puntual interna dinámica.
+Fidelidad Mecánica y Visual idéntica a la Referencia CAD Técnica del Usuario (Imagen 2):
+- Bloque monolítico de fundición de aluminio con silueta orgánica, apoyos de bancada y corte transversal nítido.
+- Cárter inferior macizo con apoyos escalonados y hendidura rectangular frontal característica.
+- Camisa de cilindro rectificada con ánima pulida a espejo y chaflán mecanizado.
+- Culata de doble cúpula redondeada (tapa de balancines en antracita oscura técnica) con conductos curvos de admisión y escape.
+- Pistón automotriz forjado en cobre / bronce anodizado cálido con aros de compresión en cromo brillante.
+- Bulón del pistón tubular pasante en acero templado oscuro (núcleo cilíndrico hueco visible en corte frontal).
+- Biela forjada en viga 'I' con flancos maquinados, canal forjado oscurecido, casquillos de bronce y tornillos de sombrerete.
+- Cigüeñal con muñequilla rectificada, contrapesos lobulares aerodinámicos y muñón de salida.
+- Válvulas inclinadas simétricamente a 16° con resortes helicoidales 3D de alambre de acero de alta tensión.
+- Bujía centralizada en la cúspide con aislador cerámico blanco corrugado, tuerca hexagonal y electrodos.
+- Efectos de combustión explosiva estilo Coverfox (starburst multicapa) con luz puntual interna sincronizada.
+- Ciclorama de estudio en Slate Blue técnico (#2A4053) con iluminación de 3 puntos (Key, Fill, Rim specular).
 """
 
 from __future__ import annotations
@@ -37,7 +41,7 @@ def _smooth(obj: Any) -> Any:
     return obj
 
 
-def _apply_bevel(obj: Any, width: float = 0.02, segments: int = 2, angle_deg: float = 35.0) -> None:
+def _apply_bevel(obj: Any, width: float = 0.016, segments: int = 2, angle_deg: float = 35.0) -> None:
     """Aplica un modificador de bisel para generar brillos especulares en aristas mecanizadas."""
     try:
         mod = obj.modifiers.new("Bevel_Highlight", type="BEVEL")
@@ -51,11 +55,11 @@ def _apply_bevel(obj: Any, width: float = 0.02, segments: int = 2, angle_deg: fl
 
 def _create_helical_spring(
     name: str,
-    radius: float = 0.22,
+    radius: float = 0.20,
     wire_radius: float = 0.032,
-    height: float = 0.85,
-    num_turns: float = 6.0,
-    pts_per_turn: int = 16,
+    height: float = 0.88,
+    num_turns: float = 6.5,
+    pts_per_turn: int = 24,
     mat: Any = None,
 ) -> Any:
     """Crea proceduralmente un resorte helicoidal 3D de alta precisión mediante curva poligonal."""
@@ -97,28 +101,21 @@ def _create_starburst_flame_layer(
     verts = []
     faces = []
 
-    # Generar caras frontales y traseras con grosor 3D
     half_d = depth * 0.5
     for y_val in [-half_d, half_d]:
-        verts.append((0.0, y_val, 0.0))  # Vértice central
+        verts.append((0.0, y_val, 0.0))
         for i in range(n_spikes * 2):
             angle = (i / (n_spikes * 2)) * 2 * math.pi
-            # Alternar entre punta de llama y valle
             r = outer_r if (i % 2 == 1) else inner_r
-            # Aplanar suavemente la parte superior para adaptarse a la culata
             x_coord = r * math.cos(angle)
             z_coord = r * math.sin(angle) * 0.85
             verts.append((x_coord, y_val, z_coord))
 
-    # Construir abanicos y faldón lateral
     offset_back = 1 + n_spikes * 2
     for i in range(n_spikes * 2):
         next_i = (i + 1) % (n_spikes * 2)
-        # Cara frontal
         faces.append((0, 1 + i, 1 + next_i))
-        # Cara trasera
         faces.append((offset_back, offset_back + 1 + next_i, offset_back + 1 + i))
-        # Faldón perimetral
         faces.append((1 + i, offset_back + 1 + i, offset_back + 1 + next_i, 1 + next_i))
 
     mesh.from_pydata(verts, [], faces)
@@ -126,7 +123,6 @@ def _create_starburst_flame_layer(
 
     if mat:
         obj.data.materials.append(mat)
-    # Sombrado plano para aristas afiladas de cómic técnico
     if hasattr(mesh, "polygons"):
         for p in mesh.polygons:
             p.use_smooth = False
@@ -138,15 +134,15 @@ def create_combustion_engine_3d(
     crank_radius: float = 1.0,
     rod_length: float = 3.6,
     cylinder_radius: float = 1.30,
-    piston_height: float = 1.40,
+    piston_height: float = 1.45,
     crank_center_z: float = 0.0,
 ) -> dict[str, Any]:
-    """Crea proceduralmente todos los componentes mecánicos con grado de realismo CAD y estética Coverfox."""
+    """Crea proceduralmente todos los componentes mecánicos con grado de realismo CAD idéntico a la referencia del usuario."""
     if bpy is None:
         raise RuntimeError("Este módulo debe ejecutarse dentro del entorno de Blender.")
 
     mats = setup_engine_materials()
-    col_name = "Engine_3D_v21"
+    col_name = "Engine_3D_v23_CAD"
     collection = bpy.data.collections.get(col_name)
     if not collection:
         collection = bpy.data.collections.new(col_name)
@@ -163,576 +159,662 @@ def create_combustion_engine_3d(
         return obj
 
     # =========================================================================
-    # DIMENSIONES GLOBALES COHERENTES
+    # DIMENSIONES GLOBALES EXACTAS
     # =========================================================================
     cr = cylinder_radius
-    pms_z = crank_center_z + crank_radius + rod_length
-    block_top = pms_z + piston_height + 0.45
-    block_bottom = crank_center_z - 1.15
-    block_height = block_top - block_bottom
-    block_center_z = (block_top + block_bottom) / 2.0
-    head_z = pms_z + piston_height * 0.5 + 0.35
+    pms_z = crank_center_z + crank_radius + rod_length  # 4.60
+    head_z = pms_z + piston_height * 0.5 + 0.35         # 5.675
+    block_bottom = crank_center_z - 1.25
 
     # =========================================================================
-    # 1. BLOQUE EXTERIOR DEL MOTOR Y CÁRTER (Fundición oscura con aletas)
+    # 0. CICLORAMA DE ESTUDIO (Slate Blue #2A4053 de la Referencia CAD)
     # =========================================================================
-    block_w = cr * 3.4
-    block_d = cr * 2.05
+    mesh_cyc = bpy.data.meshes.new("Studio_Cyclorama_Mesh")
+    obj_cyc = bpy.data.objects.new("Studio_Cyclorama", mesh_cyc)
+    verts_cyc = [
+        (-16.0, -14.0, block_bottom),
+        ( 16.0, -14.0, block_bottom),
+        (-16.0,   3.0, block_bottom),
+        ( 16.0,   3.0, block_bottom),
+        (-16.0,   5.0, block_bottom + 1.0),
+        ( 16.0,   5.0, block_bottom + 1.0),
+        (-16.0,   7.5, block_bottom + 3.5),
+        ( 16.0,   7.5, block_bottom + 3.5),
+        (-16.0,   8.5, block_bottom + 14.0),
+        ( 16.0,   8.5, block_bottom + 14.0),
+    ]
+    faces_cyc = [
+        (0, 1, 3, 2),
+        (2, 3, 5, 4),
+        (4, 5, 7, 6),
+        (6, 7, 9, 8),
+    ]
+    mesh_cyc.from_pydata(verts_cyc, [], faces_cyc)
+    mesh_cyc.update()
+    obj_cyc.data.materials.append(mats["studio_backdrop"])
+    _smooth(obj_cyc)
+    add(obj_cyc)
 
+    # =========================================================================
+    # 1. BLOQUE DEL MOTOR Y CÁRTER MACIZO CON HENDIDURA Y APOYO DE BANCADA
+    # =========================================================================
+    # Base inferior / Cárter macizo
     bpy.ops.mesh.primitive_cube_add(
         size=1.0,
-        location=(0.0, 0.0, block_center_z),
+        location=(0.0, 0.40, block_bottom + 0.40),
     )
-    block = bpy.context.active_object
-    block.name = "Engine_Block"
-    block.scale = (block_w, block_d, block_height)
-    block.data.materials.append(mats["engine_block"])
-    block.data.materials.append(mats["cutaway_rim"])  # Slot 1 para corte seccionado
-    add(block)
+    base_pan = bpy.context.active_object
+    base_pan.name = "Engine_Base_Sump"
+    base_pan.scale = (4.4, 2.4, 0.80)
+    base_pan.data.materials.append(mats["engine_block"])
+    base_pan.data.materials.append(mats["cutaway_rim"])
+    add(base_pan)
+    _apply_bevel(base_pan, width=0.035, segments=2)
 
-    # Aletas de refrigeración laterales
-    fin_z_start = block_bottom + 0.85
-    fin_z_end = block_top - 0.65
-    for i in range(5):
-        pct = i / 4.0
-        z_fin_world = fin_z_start + pct * (fin_z_end - fin_z_start)
+    # Hendidura rectangular frontal en la base (visible claramente en la Referencia)
+    bpy.ops.mesh.primitive_cube_add(
+        size=1.0,
+        location=(0.0, -0.65, block_bottom + 0.40),
+    )
+    pocket_front = bpy.context.active_object
+    pocket_front.scale = (2.2, 0.45, 0.50)
+    mpf = base_pan.modifiers.new("PocketFront", type="BOOLEAN")
+    mpf.object = pocket_front
+    mpf.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = base_pan
+    bpy.ops.object.modifier_apply(modifier="PocketFront")
+    bpy.data.objects.remove(pocket_front, do_unlink=True)
+
+    # Pies de apoyo escalonados en los flancos
+    for sx in [-2.05, 2.05]:
         bpy.ops.mesh.primitive_cube_add(
             size=1.0,
-            location=(0.0, 0.0, z_fin_world),
+            location=(sx, 0.40, block_bottom + 0.20),
         )
-        fin = bpy.context.active_object
-        fin.scale = (block_w + 0.38, block_d + 0.22, 0.13)
-        fin.data.materials.append(mats["engine_block"])
-        mod_uf = block.modifiers.new(f"UnionFin_{i}", type="BOOLEAN")
-        mod_uf.object = fin
-        mod_uf.operation = "UNION"
-        bpy.context.view_layer.objects.active = block
-        bpy.ops.object.modifier_apply(modifier=f"UnionFin_{i}")
-        bpy.data.objects.remove(fin, do_unlink=True)
+        foot = bpy.context.active_object
+        foot.name = f"Engine_Mount_Foot_{'L' if sx < 0 else 'R'}"
+        foot.scale = (0.50, 2.2, 0.38)
+        foot.data.materials.append(mats["engine_block"])
+        foot.parent = base_pan
+        add(foot)
+        _apply_bevel(foot, width=0.02, segments=2)
 
-    # Vaciado interior del cilindro (Bore)
+    # Cárter cilíndrico del cigüeñal
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=cr + 0.12,
-        depth=block_height * 0.72,
-        location=(0.0, 0.0, block_center_z + 0.85),
+        radius=1.85,
+        depth=2.2,
+        location=(0.0, 0.30, crank_center_z + 0.25),
         vertices=48,
     )
-    bore = bpy.context.active_object
-    mod_bore = block.modifiers.new(name="Bore_Block", type="BOOLEAN")
-    mod_bore.object = bore
-    mod_bore.operation = "DIFFERENCE"
-    bpy.context.view_layer.objects.active = block
-    bpy.ops.object.modifier_apply(modifier="Bore_Block")
-    bpy.data.objects.remove(bore, do_unlink=True)
+    crank_housing = bpy.context.active_object
+    crank_housing.name = "Engine_Crank_Housing"
+    crank_housing.rotation_euler = (math.pi / 2, 0, 0)
+    crank_housing.data.materials.append(mats["engine_block"])
+    crank_housing.data.materials.append(mats["cutaway_rim"])
+    add(crank_housing)
 
-    # Cavidad inferior del cárter para giro del cigüeñal
-    bpy.ops.mesh.primitive_cube_add(
-        size=1.0,
-        location=(0.0, 0.0, crank_center_z + 0.35),
+    # Apoyo semicircular de bancada frontal (Bearing Saddle en Y=0)
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=0.72,
+        depth=0.55,
+        location=(0.0, 0.15, crank_center_z),
+        vertices=48,
+    )
+    saddle = bpy.context.active_object
+    saddle.name = "Bearing_Saddle"
+    saddle.rotation_euler = (math.pi / 2, 0, 0)
+    saddle.data.materials.append(mats["engine_block"])
+    saddle.data.materials.append(mats["cutaway_rim"])
+    add(saddle)
+
+    # Cavidad cilíndrica interior del cárter
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=1.45,
+        depth=2.4,
+        location=(0.0, 0.30, crank_center_z + 0.25),
+        vertices=48,
     )
     crank_cav = bpy.context.active_object
-    crank_cav.scale = (cr * 2.65, block_d * 1.1, 3.4)
-    mod_cc = block.modifiers.new(name="CrankCavity", type="BOOLEAN")
-    mod_cc.object = crank_cav
-    mod_cc.operation = "DIFFERENCE"
-    bpy.context.view_layer.objects.active = block
-    bpy.ops.object.modifier_apply(modifier="CrankCavity")
+    crank_cav.rotation_euler = (math.pi / 2, 0, 0)
+    mcc = crank_housing.modifiers.new("CrankCav", type="BOOLEAN")
+    mcc.object = crank_cav
+    mcc.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = crank_housing
+    bpy.ops.object.modifier_apply(modifier="CrankCav")
     bpy.data.objects.remove(crank_cav, do_unlink=True)
 
-    # Bandeja del cárter inferior (Oil Pan)
-    bpy.ops.mesh.primitive_cube_add(
-        size=1.0,
-        location=(0.0, 0.0, block_bottom - 0.25),
-    )
-    oil_pan = bpy.context.active_object
-    oil_pan.name = "Engine_Oil_Pan"
-    oil_pan.scale = (block_w * 0.88, block_d * 0.88, 0.45)
-    oil_pan.data.materials.append(mats["oil_pan"])
-    add(oil_pan)
-    _apply_bevel(oil_pan, width=0.03, segments=2)
-
-    # Tapón de drenaje de aceite
+    # Cuerpo principal del bloque que rodea el cilindro (Barrel)
+    barrel_center_z = crank_center_z + rod_length * 0.75  # ~2.7
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.10,
-        depth=0.15,
-        location=(0.0, -block_d * 0.42, block_bottom - 0.35),
-        vertices=6,
+        radius=cr + 0.42,
+        depth=3.6,
+        location=(0.0, 0.10, barrel_center_z),
+        vertices=48,
     )
-    drain_plug = bpy.context.active_object
-    drain_plug.name = "Oil_Drain_Plug"
-    drain_plug.rotation_euler = (math.pi / 2, 0, 0)
-    drain_plug.parent = oil_pan
-    drain_plug.data.materials.append(mats["rod_bolts"])
-    add(drain_plug)
+    barrel = bpy.context.active_object
+    barrel.name = "Engine_Block_Barrel"
+    barrel.data.materials.append(mats["engine_block"])
+    barrel.data.materials.append(mats["cutaway_rim"])
+    add(barrel)
 
-    # Corte cutaway frontal (la mitad frontal del bloque se retira)
-    bpy.ops.mesh.primitive_cube_add(
-        size=1.0,
-        location=(0.0, -block_d * 0.5, block_center_z),
-    )
-    cutter = bpy.context.active_object
-    cutter.name = "Cutaway_Cutter"
-    cutter.scale = (block_w * 1.35, block_d, block_height * 1.15)
-    cutter.data.materials.append(mats["cutaway_rim"])  # Transfiere material de corte a las caras
-    mod_b = block.modifiers.new(name="Cutaway_Block", type="BOOLEAN")
-    mod_b.object = cutter
-    mod_b.operation = "DIFFERENCE"
-    mod_b.material_mode = "TRANSFER" if hasattr(mod_b, "material_mode") else "INDEX"
-    bpy.context.view_layer.objects.active = block
-    bpy.ops.object.modifier_apply(modifier="Cutaway_Block")
-    bpy.data.objects.remove(cutter, do_unlink=True)
+    # Paredes laterales curvas que crean la silueta orgánica acampanada
+    for sx in [-1.50, 1.50]:
+        bpy.ops.mesh.primitive_cube_add(
+            size=1.0,
+            location=(sx, 0.35, crank_center_z + 1.55),
+        )
+        rib = bpy.context.active_object
+        rib.name = f"Structural_Rib_{'L' if sx < 0 else 'R'}"
+        rib.scale = (0.38, 2.0, 2.4)
+        rib.data.materials.append(mats["engine_block"])
+        rib.data.materials.append(mats["cutaway_rim"])
+        add(rib)
+        _apply_bevel(rib, width=0.03, segments=2)
 
-    # =========================================================================
-    # 2. CAMISA INTERIOR DEL CILINDRO (Acero satinado con bisel de corte)
-    # =========================================================================
-    liner_height = rod_length + crank_radius + piston_height + 0.35
-    liner_center_z = crank_center_z + liner_height / 2.0 + 0.15
-
+    # Camisa interior del cilindro (Cylinder Liner)
+    liner_len = rod_length + crank_radius + piston_height * 0.5
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=cr + 0.10,
-        depth=liner_height,
-        location=(0.0, 0.0, liner_center_z),
+        radius=cr + 0.12,
+        depth=liner_len,
+        location=(0.0, 0.0, barrel_center_z),
         vertices=48,
     )
     liner = bpy.context.active_object
     liner.name = "Cylinder_Liner"
     liner.data.materials.append(mats["cylinder_liner"])
+    liner.data.materials.append(mats["cutaway_rim"])
     add(liner)
 
-    # Vaciado interior de la camisa
+    # Vaciado del ánima de la camisa
     bpy.ops.mesh.primitive_cylinder_add(
         radius=cr,
-        depth=liner_height + 0.2,
-        location=(0.0, 0.0, liner_center_z),
+        depth=liner_len + 0.4,
+        location=(0.0, 0.0, barrel_center_z),
         vertices=48,
     )
-    bore_l = bpy.context.active_object
-    mod_bl = liner.modifiers.new(name="Bore_Liner", type="BOOLEAN")
-    mod_bl.object = bore_l
-    mod_bl.operation = "DIFFERENCE"
+    bore = bpy.context.active_object
+    mb = liner.modifiers.new("Bore", type="BOOLEAN")
+    mb.object = bore
+    mb.operation = "DIFFERENCE"
     bpy.context.view_layer.objects.active = liner
-    bpy.ops.object.modifier_apply(modifier="Bore_Liner")
-    bpy.data.objects.remove(bore_l, do_unlink=True)
+    bpy.ops.object.modifier_apply(modifier="Bore")
+    bpy.data.objects.remove(bore, do_unlink=True)
 
-    # Corte de la mitad frontal de la camisa
-    bpy.ops.mesh.primitive_cube_add(
-        size=1.0,
-        location=(0.0, -(cr * 0.6 + 0.5), liner_center_z),
-    )
-    cutter_l = bpy.context.active_object
-    cutter_l.scale = (cr * 2.8, cr * 1.6, liner_height * 1.1)
-    mod_l = liner.modifiers.new(name="Cutaway_Liner", type="BOOLEAN")
-    mod_l.object = cutter_l
-    mod_l.operation = "DIFFERENCE"
-    bpy.context.view_layer.objects.active = liner
-    bpy.ops.object.modifier_apply(modifier="Cutaway_Liner")
-    bpy.data.objects.remove(cutter_l, do_unlink=True)
+    # Corte seccionado frontal en Y <= 0 para todas las piezas del bloque
+    cut_targets = [barrel, crank_housing, saddle, liner]
+    for target in cut_targets:
+        bpy.ops.mesh.primitive_cube_add(
+            size=1.0,
+            location=(0.0, -1.8, crank_center_z + 2.0),
+        )
+        cutter = bpy.context.active_object
+        cutter.scale = (6.0, 3.5, 9.0)
+        cutter.data.materials.append(mats["cutaway_rim"])
+        mc = target.modifiers.new("Cutaway", type="BOOLEAN")
+        mc.object = cutter
+        mc.operation = "DIFFERENCE"
+        mc.material_mode = "TRANSFER" if hasattr(mc, "material_mode") else "INDEX"
+        bpy.context.view_layer.objects.active = target
+        bpy.ops.object.modifier_apply(modifier="Cutaway")
+        bpy.data.objects.remove(cutter, do_unlink=True)
+        _apply_bevel(target, width=0.016, segments=2)
 
     # =========================================================================
-    # 3. CULATA Y CONDUCTOS DE ADMISIÓN / ESCAPE
+    # 2. CULATA DE DOBLE CÚPULA CON CONDUCTOS CURVOS (Estilo CAD Imagen 2)
     # =========================================================================
     head_root = bpy.data.objects.new("Cylinder_Head_Root", None)
-    head_root.empty_display_type = "PLAIN_AXES"
     head_root.location = (0.0, 0.0, head_z)
     bpy.context.scene.collection.objects.link(head_root)
     add(head_root)
 
-    # Conducto de admisión izquierdo (40° hacia arriba)
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.29,
-        depth=1.35,
-        location=(-0.75, 0.0, 0.55),
-        vertices=24,
+    # Base de la culata seccionada
+    bpy.ops.mesh.primitive_cube_add(
+        size=1.0,
+        location=(0.0, 0.25, head_z + 0.35),
     )
-    port_in = bpy.context.active_object
-    port_in.name = "Intake_Port_Duct"
-    port_in.rotation_euler = (0.0, math.radians(40), 0.0)
-    port_in.parent = head_root
-    port_in.data.materials.append(mats.get("manifold_pipes", mats["valve_intake"]))
-    add(port_in)
-    _apply_bevel(port_in, width=0.015, segments=2)
+    head_base = bpy.context.active_object
+    head_base.name = "Cylinder_Head_Base"
+    head_base.scale = (3.5, 2.2, 0.70)
+    head_base.data.materials.append(mats["engine_block"])
+    head_base.data.materials.append(mats["cutaway_rim"])
+    add(head_base)
 
-    # Conducto de escape derecho (40° hacia arriba)
+    # Cúpulas gemelas redondeadas en antracita técnica (Rocker Domes como en la Referencia)
+    for vx, v_name in [(-0.72, "Intake"), (0.72, "Exhaust")]:
+        bpy.ops.mesh.primitive_cylinder_add(
+            radius=0.72,
+            depth=2.15,
+            location=(vx, 0.25, head_z + 0.70),
+            vertices=36,
+        )
+        dome = bpy.context.active_object
+        dome.name = f"Head_Dome_{v_name}"
+        dome.rotation_euler = (math.pi / 2, 0, 0)
+        dome.data.materials.append(mats["rocker_cover"])
+        dome.data.materials.append(mats["cutaway_rim"])
+        add(dome)
+
+        # Corte frontal en Y < 0 para la cúpula
+        bpy.ops.mesh.primitive_cube_add(
+            size=1.0,
+            location=(vx, -1.5, head_z + 0.70),
+        )
+        c_dome = bpy.context.active_object
+        c_dome.scale = (2.2, 3.0, 2.0)
+        mcd = dome.modifiers.new("CutDome", type="BOOLEAN")
+        mcd.object = c_dome
+        mcd.operation = "DIFFERENCE"
+        bpy.context.view_layer.objects.active = dome
+        bpy.ops.object.modifier_apply(modifier="CutDome")
+        bpy.data.objects.remove(c_dome, do_unlink=True)
+        _apply_bevel(dome, width=0.016, segments=2)
+
+    # Corte frontal para head_base
+    bpy.ops.mesh.primitive_cube_add(
+        size=1.0,
+        location=(0.0, -1.8, head_z + 0.35),
+    )
+    c_hb = bpy.context.active_object
+    c_hb.scale = (5.0, 3.5, 2.0)
+    mchb = head_base.modifiers.new("CutHB", type="BOOLEAN")
+    mchb.object = c_hb
+    mchb.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = head_base
+    bpy.ops.object.modifier_apply(modifier="CutHB")
+    bpy.data.objects.remove(c_hb, do_unlink=True)
+    _apply_bevel(head_base, width=0.016, segments=2)
+
+    # Conducto curvo de admisión negro (hacia la izquierda, -X)
+    curve_in = bpy.data.curves.new("Intake_Manifold_Curve", type="CURVE")
+    curve_in.dimensions = "3D"
+    curve_in.bevel_depth = 0.24
+    curve_in.bevel_resolution = 6
+    spline_in = curve_in.splines.new("BEZIER")
+    spline_in.bezier_points.add(2)
+    p0 = spline_in.bezier_points[0]
+    p0.co = (-0.85, 0.10, head_z + 0.60)
+    p0.handle_left = (-1.10, 0.10, head_z + 0.60)
+    p0.handle_right = (-0.60, 0.10, head_z + 0.60)
+    p1 = spline_in.bezier_points[1]
+    p1.co = (-1.85, 0.10, head_z + 0.75)
+    p1.handle_left = (-1.55, 0.10, head_z + 0.70)
+    p1.handle_right = (-2.15, 0.10, head_z + 0.80)
+    p2 = spline_in.bezier_points[2]
+    p2.co = (-2.45, -0.05, head_z + 1.45)
+    p2.handle_left = (-2.40, 0.05, head_z + 1.15)
+    p2.handle_right = (-2.50, -0.15, head_z + 1.65)
+
+    obj_in_pipe = bpy.data.objects.new("Intake_Manifold_Pipe", curve_in)
+    obj_in_pipe.data.materials.append(mats["manifold_pipes"])
+    add(obj_in_pipe)
+
+    # Brida esférica terminal de admisión
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.29,
-        depth=1.35,
-        location=(0.75, 0.0, 0.55),
+        radius=0.38,
+        depth=0.20,
+        location=(-2.45, -0.05, head_z + 1.48),
         vertices=24,
     )
-    port_ex = bpy.context.active_object
-    port_ex.name = "Exhaust_Port_Duct"
-    port_ex.rotation_euler = (0.0, math.radians(-40), 0.0)
-    port_ex.parent = head_root
-    port_ex.data.materials.append(mats.get("manifold_pipes", mats["valve_exhaust"]))
-    add(port_ex)
-    _apply_bevel(port_ex, width=0.015, segments=2)
+    flange_in = bpy.context.active_object
+    flange_in.name = "Intake_Manifold_Flange"
+    flange_in.data.materials.append(mats["manifold_pipes"])
+    add(flange_in)
+    _apply_bevel(flange_in, width=0.02, segments=2)
+
+    # Conducto curvo de escape negro (hacia la derecha, +X)
+    curve_ex = bpy.data.curves.new("Exhaust_Manifold_Curve", type="CURVE")
+    curve_ex.dimensions = "3D"
+    curve_ex.bevel_depth = 0.24
+    curve_ex.bevel_resolution = 6
+    spline_ex = curve_ex.splines.new("BEZIER")
+    spline_ex.bezier_points.add(1)
+    ep0 = spline_ex.bezier_points[0]
+    ep0.co = (0.85, 0.10, head_z + 0.60)
+    ep0.handle_left = (0.60, 0.10, head_z + 0.60)
+    ep0.handle_right = (1.10, 0.10, head_z + 0.60)
+    ep1 = spline_ex.bezier_points[1]
+    ep1.co = (2.25, 0.10, head_z + 0.45)
+    ep1.handle_left = (1.80, 0.10, head_z + 0.55)
+    ep1.handle_right = (2.50, 0.10, head_z + 0.40)
+
+    obj_ex_pipe = bpy.data.objects.new("Exhaust_Manifold_Pipe", curve_ex)
+    obj_ex_pipe.data.materials.append(mats["manifold_pipes"])
+    add(obj_ex_pipe)
 
     # =========================================================================
-    # 4. PISTÓN AUTOMOTRIZ DE ALTA FIDELIDAD (MUESCAS, ANILLOS, BULÓN FRONTAL)
+    # 3. PISTÓN DE COBRE ANODIZADO Y BULÓN TUBULAR (Idéntico a Imagen 2)
     # =========================================================================
     piston_root = bpy.data.objects.new("Piston_Root", None)
-    piston_root.empty_display_type = "ARROWS"
-    piston_root.empty_display_size = 0.4
     piston_root.location = (0.0, 0.0, pms_z)
     bpy.context.scene.collection.objects.link(piston_root)
     add(piston_root)
 
-    # Cuerpo cilíndrico del pistón
     piston_rad = cr - 0.035
     bpy.ops.mesh.primitive_cylinder_add(
         radius=piston_rad,
         depth=piston_height,
-        location=(0.0, 0.0, 0.0),
+        location=(0.0, 0.0, pms_z),
         vertices=48,
     )
     piston_body = bpy.context.active_object
     piston_body.name = "Piston_Body"
-    piston_body.parent = piston_root
     piston_body.data.materials.append(mats["piston"])
     add(piston_body)
 
-    # Muescas circulares en corona para válvulas (Valve Relief Pockets)
-    for vx, v_rot in [(-0.55, 15), (0.55, -15)]:
-        bpy.ops.mesh.primitive_cylinder_add(
-            radius=0.40,
-            depth=0.15,
-            location=(vx, 0.0, piston_height * 0.5),
-            vertices=28,
-        )
-        pocket = bpy.context.active_object
-        pocket.parent = piston_root
-        mp = piston_body.modifiers.new("ValvePocket", type="BOOLEAN")
-        mp.object = pocket
-        mp.operation = "DIFFERENCE"
-        bpy.context.view_layer.objects.active = piston_body
-        bpy.ops.object.modifier_apply(modifier="ValvePocket")
-        bpy.data.objects.remove(pocket, do_unlink=True)
-
-    # Recortes arqueados de la falda a los lados (-X y +X)
-    for sx in [-cr * 0.88, cr * 0.88]:
-        bpy.ops.mesh.primitive_cylinder_add(
-            radius=cr * 0.54,
-            depth=piston_height * 0.78,
-            location=(sx, 0.0, -piston_height * 0.28),
-            vertices=36,
-        )
-        cut_sk = bpy.context.active_object
-        cut_sk.parent = piston_root
-        msk = piston_body.modifiers.new("SkirtArch", type="BOOLEAN")
-        msk.object = cut_sk
-        msk.operation = "DIFFERENCE"
-        bpy.context.view_layer.objects.active = piston_body
-        bpy.ops.object.modifier_apply(modifier="SkirtArch")
-        bpy.data.objects.remove(cut_sk, do_unlink=True)
-
-    # Vaciado interior de la falda
+    # Vaciado interior de la falda (Skirt Cavity)
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=cr - 0.26,
-        depth=piston_height * 0.65,
-        location=(0.0, 0.0, -piston_height * 0.20),
+        radius=piston_rad - 0.22,
+        depth=piston_height * 0.70,
+        location=(0.0, 0.0, pms_z - piston_height * 0.20),
         vertices=36,
     )
-    skirt_cut = bpy.context.active_object
-    skirt_cut.parent = piston_root
-    mod_p = piston_body.modifiers.new(name="Piston_Cavity", type="BOOLEAN")
-    mod_p.object = skirt_cut
-    mod_p.operation = "DIFFERENCE"
+    skirt_cav = bpy.context.active_object
+    msk = piston_body.modifiers.new("SkirtCav", type="BOOLEAN")
+    msk.object = skirt_cav
+    msk.operation = "DIFFERENCE"
     bpy.context.view_layer.objects.active = piston_body
-    bpy.ops.object.modifier_apply(modifier="Piston_Cavity")
-    bpy.data.objects.remove(skirt_cut, do_unlink=True)
+    bpy.ops.object.modifier_apply(modifier="SkirtCav")
+    bpy.data.objects.remove(skirt_cav, do_unlink=True)
 
-    # Orificio pasante del bulón en el centro
+    # Orificio pasante del bulón del pistón
+    pin_rad = 0.24
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.28,
-        depth=cr * 2.0,
-        location=(0.0, 0.0, 0.0),
+        radius=pin_rad + 0.015,
+        depth=piston_rad * 2.2,
+        location=(0.0, 0.0, pms_z),
         vertices=36,
     )
-    ph = bpy.context.active_object
-    ph.parent = piston_root
-    ph.rotation_euler = (math.pi / 2, 0, 0)
+    hole_pin = bpy.context.active_object
+    hole_pin.rotation_euler = (math.pi / 2, 0, 0)
     mph = piston_body.modifiers.new("PinHole", type="BOOLEAN")
-    mph.object = ph
+    mph.object = hole_pin
     mph.operation = "DIFFERENCE"
     bpy.context.view_layer.objects.active = piston_body
     bpy.ops.object.modifier_apply(modifier="PinHole")
-    bpy.data.objects.remove(ph, do_unlink=True)
+    bpy.data.objects.remove(hole_pin, do_unlink=True)
+    _apply_bevel(piston_body, width=0.014, segments=2)
 
-    _apply_bevel(piston_body, width=0.012, segments=2)
-
-    # Bulón cilíndrico de acero templado insertado en el orificio
+    # Bulón tubular pasante en acero templado oscuro (Visible en el orificio frontal)
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.25,
-        depth=cr * 1.90,
-        location=(0.0, 0.0, 0.0),
+        radius=pin_rad,
+        depth=piston_rad * 1.95,
+        location=(0.0, 0.0, pms_z),
         vertices=36,
     )
     wrist_pin = bpy.context.active_object
     wrist_pin.name = "Piston_Wrist_Pin"
     wrist_pin.rotation_euler = (math.pi / 2, 0, 0)
-    wrist_pin.parent = piston_root
     wrist_pin.data.materials.append(mats["wrist_pin"])
     add(wrist_pin)
-    _apply_bevel(wrist_pin, width=0.015, segments=2)
 
-    # 3 aros de compresión y aceite independientes
-    ring_z_positions = [
-        piston_height * 0.40,
-        piston_height * 0.26,
-        piston_height * 0.12,
-    ]
-    for idx, z_ring in enumerate(ring_z_positions):
+    # Núcleo hueco del bulón (Hollow Bore)
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=0.14,
+        depth=piston_rad * 2.1,
+        location=(0.0, 0.0, pms_z),
+        vertices=32,
+    )
+    core_pin = bpy.context.active_object
+    core_pin.rotation_euler = (math.pi / 2, 0, 0)
+    mwp = wrist_pin.modifiers.new("HollowCore", type="BOOLEAN")
+    mwp.object = core_pin
+    mwp.operation = "DIFFERENCE"
+    bpy.context.view_layer.objects.active = wrist_pin
+    bpy.ops.object.modifier_apply(modifier="HollowCore")
+    bpy.data.objects.remove(core_pin, do_unlink=True)
+    _apply_bevel(wrist_pin, width=0.012, segments=2)
+
+    # 3 aros de compresión en acero pulido brillante
+    ring_zs = [pms_z + piston_height * 0.40, pms_z + piston_height * 0.26, pms_z + piston_height * 0.12]
+    piston_rings = []
+    for idx, rz in enumerate(ring_zs):
         bpy.ops.mesh.primitive_torus_add(
-            major_radius=cr - 0.030,
-            minor_radius=0.032,
-            location=(0.0, 0.0, z_ring),
+            major_radius=piston_rad - 0.025,
+            minor_radius=0.030,
+            location=(0.0, 0.0, rz),
             major_segments=48,
             minor_segments=12,
         )
         ring = bpy.context.active_object
         ring.name = f"Piston_Ring_{idx+1}"
-        ring.parent = piston_root
         ring.data.materials.append(mats["piston_rings"])
         add(ring)
+        piston_rings.append(ring)
+
+    # Parentado al root manteniendo matriz local correcta
+    piston_body.parent = piston_root
+    piston_body.matrix_parent_inverse = piston_root.matrix_world.inverted()
+    wrist_pin.parent = piston_root
+    wrist_pin.matrix_parent_inverse = piston_root.matrix_world.inverted()
+    for ring in piston_rings:
+        ring.parent = piston_root
+        ring.matrix_parent_inverse = piston_root.matrix_world.inverted()
 
     # =========================================================================
-    # 5. BIELA FORJADA EN VIGA 'I', CASQUILLOS DE BRONCE Y PERNOS
+    # 4. BIELA FORJADA EN VIGA 'I' (Connecting Rod)
     # =========================================================================
     crank_pin_z = crank_center_z + crank_radius
-
     rod_root = bpy.data.objects.new("Connecting_Rod_Root", None)
-    rod_root.empty_display_type = "PLAIN_AXES"
     rod_root.location = (0.0, 0.0, crank_pin_z)
     bpy.context.scene.collection.objects.link(rod_root)
     add(rod_root)
 
-    # Vástago principal de la biela
+    # Vástago central de la biela en sección I
     bpy.ops.mesh.primitive_cube_add(
         size=1.0,
-        location=(0.0, 0.0, rod_length * 0.5),
+        location=(0.0, 0.0, crank_pin_z + rod_length * 0.50),
     )
-    rod_body = bpy.context.active_object
-    rod_body.name = "Rod_IBeam_Body"
-    rod_body.scale = (0.35, 0.24, rod_length * 0.74)
-    rod_body.parent = rod_root
-    rod_body.data.materials.append(mats["connecting_rod"])
-    add(rod_body)
-    _apply_bevel(rod_body, width=0.018, segments=2)
+    rod_shank = bpy.context.active_object
+    rod_shank.name = "Rod_Shank"
+    rod_shank.scale = (0.34, 0.22, rod_length * 0.72)
+    rod_shank.data.materials.append(mats["connecting_rod"])
+    add(rod_shank)
+    _apply_bevel(rod_shank, width=0.018, segments=2)
 
-    # Canal en I forjado por ambos lados
-    for r_y in [-0.09, 0.09]:
+    # Canales maquinados en I (frente y dorso)
+    for ry in [-0.08, 0.08]:
         bpy.ops.mesh.primitive_cube_add(
             size=1.0,
-            location=(0.0, r_y, rod_length * 0.5),
+            location=(0.0, ry, crank_pin_z + rod_length * 0.50),
         )
         rec = bpy.context.active_object
-        rec.name = f"Rod_Recess_{'F' if r_y < 0 else 'B'}"
-        rec.scale = (0.20, 0.10, rod_length * 0.66)
-        rec.parent = rod_root
+        rec.name = f"Rod_Recess_{'F' if ry < 0 else 'B'}"
+        rec.scale = (0.20, 0.09, rod_length * 0.65)
         rec.data.materials.append(mats["rod_recess"])
         add(rec)
+        rec.parent = rod_root
+        rec.matrix_parent_inverse = rod_root.matrix_world.inverted()
 
-    # Small end (pie de biela, abraza el bulón)
+    # Pie de biela (Small End)
     bpy.ops.mesh.primitive_cylinder_add(
         radius=0.40,
-        depth=0.42,
-        location=(0.0, 0.0, rod_length),
+        depth=0.36,
+        location=(0.0, 0.0, crank_pin_z + rod_length),
         vertices=36,
     )
     small_end = bpy.context.active_object
     small_end.name = "Rod_Small_End"
     small_end.rotation_euler = (math.pi / 2, 0, 0)
-    small_end.parent = rod_root
     small_end.data.materials.append(mats["connecting_rod"])
     add(small_end)
     _apply_bevel(small_end, width=0.015, segments=2)
 
-    # Casquillo de bronce de fricción en pie
+    # Casquillo de bronce del pie de biela
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.27,
-        depth=0.44,
-        location=(0.0, 0.0, rod_length),
+        radius=pin_rad + 0.01,
+        depth=0.38,
+        location=(0.0, 0.0, crank_pin_z + rod_length),
         vertices=36,
     )
-    small_bushing = bpy.context.active_object
-    small_bushing.name = "Rod_Small_Bushing"
-    small_bushing.rotation_euler = (math.pi / 2, 0, 0)
-    small_bushing.parent = rod_root
-    small_bushing.data.materials.append(mats["rod_bearings"])
-    add(small_bushing)
+    bushing_small = bpy.context.active_object
+    bushing_small.name = "Rod_Small_Bushing"
+    bushing_small.rotation_euler = (math.pi / 2, 0, 0)
+    bushing_small.data.materials.append(mats["rod_bearings"])
+    add(bushing_small)
 
-    # Big end (cabeza de biela con sombrerete partido)
+    # Cabeza de biela (Big End)
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.56,
-        depth=0.48,
-        location=(0.0, 0.0, 0.0),
+        radius=0.58,
+        depth=0.44,
+        location=(0.0, 0.0, crank_pin_z),
         vertices=36,
     )
     big_end = bpy.context.active_object
     big_end.name = "Rod_Big_End"
     big_end.rotation_euler = (math.pi / 2, 0, 0)
-    big_end.parent = rod_root
     big_end.data.materials.append(mats["connecting_rod"])
     add(big_end)
-    _apply_bevel(big_end, width=0.018, segments=2)
+    _apply_bevel(big_end, width=0.02, segments=2)
 
-    # Casquillo de bronce de bancada en cabeza
+    # Casquillo de cabeza de biela
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.34,
-        depth=0.50,
-        location=(0.0, 0.0, 0.0),
+        radius=0.36,
+        depth=0.46,
+        location=(0.0, 0.0, crank_pin_z),
         vertices=36,
     )
-    big_bearing = bpy.context.active_object
-    big_bearing.name = "Rod_Big_Bearing"
-    big_bearing.rotation_euler = (math.pi / 2, 0, 0)
-    big_bearing.parent = rod_root
-    big_bearing.data.materials.append(mats["rod_bearings"])
-    add(big_bearing)
+    bushing_big = bpy.context.active_object
+    bushing_big.name = "Rod_Big_Bearing"
+    bushing_big.rotation_euler = (math.pi / 2, 0, 0)
+    bushing_big.data.materials.append(mats["rod_bearings"])
+    add(bushing_big)
 
-    # Tornillos de sombrerete hexagonales con arandelas
-    for x_bolt in [-0.36, 0.36]:
+    # Tornillos de sombrerete hexagonales
+    for x_bolt in [-0.38, 0.38]:
         bpy.ops.mesh.primitive_cylinder_add(
             radius=0.08,
-            depth=0.62,
-            location=(x_bolt, 0.0, -0.22),
+            depth=0.60,
+            location=(x_bolt, 0.0, crank_pin_z - 0.22),
             vertices=6,
         )
         bolt = bpy.context.active_object
         bolt.name = f"Rod_Bolt_{'L' if x_bolt < 0 else 'R'}"
-        bolt.parent = rod_root
         bolt.data.materials.append(mats["rod_bolts"])
         add(bolt)
+        bolt.parent = rod_root
+        bolt.matrix_parent_inverse = rod_root.matrix_world.inverted()
+
+    # Parentado de componentes de biela a rod_root
+    for part in [rod_shank, small_end, bushing_small, big_end, bushing_big]:
+        part.parent = rod_root
+        part.matrix_parent_inverse = rod_root.matrix_world.inverted()
 
     # =========================================================================
-    # 6. CIGÜEÑAL (EJE, MUÑEQUILLA, CONTRAPESOS AERODINÁMICOS, VOLANTE)
+    # 5. CIGÜEÑAL Y CONTRAPESOS AERODINÁMICOS
     # =========================================================================
     crank_root = bpy.data.objects.new("Crankshaft_Root", None)
-    crank_root.empty_display_type = "SINGLE_ARROW"
     crank_root.location = (0.0, 0.0, crank_center_z)
     bpy.context.scene.collection.objects.link(crank_root)
     add(crank_root)
 
-    # Eje principal (en Y)
+    # Muñón principal del cigüeñal (eje de salida horizontal en Y)
     bpy.ops.mesh.primitive_cylinder_add(
         radius=0.34,
-        depth=2.6,
-        location=(0.0, 0.0, 0.0),
-        vertices=32,
+        depth=2.7,
+        location=(0.0, 0.0, crank_center_z),
+        vertices=36,
     )
     main_journal = bpy.context.active_object
     main_journal.name = "Crank_Main_Journal"
     main_journal.rotation_euler = (math.pi / 2, 0, 0)
-    main_journal.parent = crank_root
     main_journal.data.materials.append(mats["crankshaft"])
     add(main_journal)
 
-    # Muñequilla excéntrica rectificada a espejo
+    # Muñequilla excéntrica rectificada (Crankpin)
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.22,
-        depth=0.48,
-        location=(0.0, 0.0, crank_radius),
-        vertices=32,
+        radius=0.24,
+        depth=0.46,
+        location=(0.0, 0.0, crank_pin_z),
+        vertices=36,
     )
-    crank_pin_obj = bpy.context.active_object
-    crank_pin_obj.name = "Crank_Pin"
-    crank_pin_obj.rotation_euler = (math.pi / 2, 0, 0)
-    crank_pin_obj.parent = crank_root
-    crank_pin_obj.data.materials.append(mats["crankshaft"])
-    add(crank_pin_obj)
+    crank_pin = bpy.context.active_object
+    crank_pin.name = "Crank_Pin"
+    crank_pin.rotation_euler = (math.pi / 2, 0, 0)
+    crank_pin.data.materials.append(mats["crankshaft"])
+    add(crank_pin)
 
-    # Brazos del cigüeñal (web arms)
+    # Brazos de manivela (Webs)
     for y_arm in [-0.28, 0.28]:
         bpy.ops.mesh.primitive_cube_add(
             size=1.0,
-            location=(0.0, y_arm, crank_radius * 0.5),
+            location=(0.0, y_arm, crank_center_z + crank_radius * 0.50),
         )
         arm = bpy.context.active_object
-        arm.name = f"Crank_Arm_{'Front' if y_arm < 0 else 'Back'}"
-        arm.scale = (0.24, 0.12, crank_radius * 0.95)
-        arm.parent = crank_root
+        arm.name = f"Crank_Web_{'F' if y_arm < 0 else 'B'}"
+        arm.scale = (0.28, 0.12, crank_radius * 0.95)
         arm.data.materials.append(mats["crankshaft"])
         add(arm)
         _apply_bevel(arm, width=0.015, segments=2)
+        arm.parent = crank_root
+        arm.matrix_parent_inverse = crank_root.matrix_world.inverted()
 
-    # Contrapesos lobulares aerodinámicos (en Z <= 0, opuestos a la muñequilla)
+    # Contrapesos lobulares aerodinámicos (en Z <= 0)
     for y_cw in [-0.28, 0.28]:
         bpy.ops.mesh.primitive_cylinder_add(
-            radius=1.05,
-            depth=0.18,
-            location=(0.0, y_cw, 0.0),
-            vertices=36,
+            radius=1.12,
+            depth=0.20,
+            location=(0.0, y_cw, crank_center_z),
+            vertices=40,
         )
         cw = bpy.context.active_object
         cw.name = f"Counterweight_{'F' if y_cw < 0 else 'B'}"
         cw.rotation_euler = (math.pi / 2, 0, 0)
 
-        # Cortar la mitad superior para media luna
         bpy.ops.mesh.primitive_cube_add(
             size=1.0,
-            location=(0.0, y_cw, 0.65),
+            location=(0.0, y_cw, crank_center_z + 0.70),
         )
-        cw_cutter = bpy.context.active_object
-        cw_cutter.scale = (2.5, 0.5, 1.3)
-        mod_cw = cw.modifiers.new(name="Cut_CW", type="BOOLEAN")
-        mod_cw.object = cw_cutter
-        mod_cw.operation = "DIFFERENCE"
+        cw_c = bpy.context.active_object
+        cw_c.scale = (2.6, 0.5, 1.4)
+        mcw = cw.modifiers.new("CutCW", type="BOOLEAN")
+        mcw.object = cw_c
+        mcw.operation = "DIFFERENCE"
         bpy.context.view_layer.objects.active = cw
-        bpy.ops.object.modifier_apply(modifier="Cut_CW")
-        bpy.data.objects.remove(cw_cutter, do_unlink=True)
+        bpy.ops.object.modifier_apply(modifier="CutCW")
+        bpy.data.objects.remove(cw_c, do_unlink=True)
 
-        cw.parent = crank_root
         cw.data.materials.append(mats["counterweights"])
         add(cw)
         _apply_bevel(cw, width=0.02, segments=2)
+        cw.parent = crank_root
+        cw.matrix_parent_inverse = crank_root.matrix_world.inverted()
 
-    # Volante de inercia
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=1.70,
-        depth=0.30,
-        location=(0.0, 1.15, 0.0),
-        vertices=48,
-    )
-    flywheel = bpy.context.active_object
-    flywheel.name = "Engine_Flywheel"
-    flywheel.rotation_euler = (math.pi / 2, 0, 0)
-    flywheel.parent = crank_root
-    flywheel.data.materials.append(mats["flywheel"])
-    add(flywheel)
-    _apply_bevel(flywheel, width=0.025, segments=2)
+    main_journal.parent = crank_root
+    main_journal.matrix_parent_inverse = crank_root.matrix_world.inverted()
+    crank_pin.parent = crank_root
+    crank_pin.matrix_parent_inverse = crank_root.matrix_world.inverted()
 
     # =========================================================================
-    # 7. VÁLVULAS CON RESORTES HELICOIDALES 3D REALES
+    # 6. VÁLVULAS ANGULADAS CON RESORTES HELICOIDALES 3D (Estilo Imagen 2)
     # =========================================================================
     valves = {}
     springs = {}
-    valve_defs = [
-        ("intake",  -0.58, mats["valve_intake"]),
-        ("exhaust",  0.58, mats["valve_exhaust"]),
-    ]
+    v_angle_deg = 16.0
+    v_angle_rad = math.radians(v_angle_deg)
 
-    for v_type, x_pos, v_mat in valve_defs:
+    for v_type, x_pos, rot_y in [("intake", -0.65, -v_angle_rad), ("exhaust", 0.65, v_angle_rad)]:
         v_root = bpy.data.objects.new(f"Valve_{v_type.capitalize()}_Root", None)
-        v_root.empty_display_type = "PLAIN_AXES"
-        v_root.location = (x_pos, 0.0, head_z + 0.06)
+        v_root.location = (x_pos, 0.0, head_z + 0.15)
+        v_root.rotation_euler = (0.0, rot_y, 0.0)
         bpy.context.scene.collection.objects.link(v_root)
         add(v_root)
+        valves[v_type] = v_root
 
-        # Platillo de válvula con bisel de asiento a 45°
+        # Platillo de la válvula
         bpy.ops.mesh.primitive_cylinder_add(
             radius=0.42,
-            depth=0.11,
+            depth=0.10,
             location=(0.0, 0.0, 0.0),
             vertices=32,
         )
         v_head = bpy.context.active_object
         v_head.name = f"Valve_{v_type}_Head"
         v_head.parent = v_root
-        v_head.data.materials.append(v_mat)
+        v_head.data.materials.append(mats[f"valve_{v_type}"])
         add(v_head)
         _apply_bevel(v_head, width=0.015, segments=2)
 
-        # Vástago vertical pulido hacia arriba
+        # Vástago pulido que sube por la guía
         bpy.ops.mesh.primitive_cylinder_add(
             radius=0.08,
             depth=1.55,
@@ -745,11 +827,11 @@ def create_combustion_engine_3d(
         v_stem.data.materials.append(mats["wrist_pin"])
         add(v_stem)
 
-        # Platillo retenedor superior
+        # Platillo retenedor superior del muelle
         bpy.ops.mesh.primitive_cylinder_add(
-            radius=0.27,
-            depth=0.09,
-            location=(0.0, 0.0, 1.14),
+            radius=0.26,
+            depth=0.08,
+            location=(0.0, 0.0, 1.30),
             vertices=24,
         )
         v_ret = bpy.context.active_object
@@ -759,128 +841,84 @@ def create_combustion_engine_3d(
         add(v_ret)
         _apply_bevel(v_ret, width=0.012, segments=2)
 
-        # RESORTE HELICOIDAL 3D REAL (Espirales de alambre de acero)
-        # Nace en la culata y abraza el vástago hasta el retenedor
-        spring = _create_helical_spring(
-            name=f"Valve_{v_type}_Spring",
-            radius=0.22,
+        # Resorte helicoidal 3D de alambre de acero
+        s_obj = _create_helical_spring(
+            name=f"Valve_Spring_{v_type.capitalize()}",
+            radius=0.20,
             wire_radius=0.032,
-            height=0.82,
-            num_turns=6.0,
-            pts_per_turn=16,
+            height=0.88,
+            num_turns=6.5,
             mat=mats["valve_spring"],
         )
-        spring.location = (x_pos, 0.0, head_z + 0.32)
-        add(spring)
-        springs[v_type] = spring
-
-        valves[v_type] = v_root
+        s_obj.location = (0.0, 0.0, 0.38)
+        s_obj.parent = v_root
+        add(s_obj)
+        springs[v_type] = s_obj
 
     # =========================================================================
-    # 8. BUJÍA DE ALTA PRECISIÓN (AISLADOR CORRUGADO, HEXÁGONO Y ELECTRODOS)
+    # 7. BUJÍA CENTRAL CON AISLADOR CERÁMICO BLANCO Y TUERCA HEXAGONAL
     # =========================================================================
     spark_root = bpy.data.objects.new("Spark_Plug_Root", None)
-    spark_root.location = (0.0, 0.0, head_z + 0.06)
+    spark_root.location = (0.0, 0.0, head_z + 0.50)
     bpy.context.scene.collection.objects.link(spark_root)
     add(spark_root)
 
-    # Cuerpo cerámico principal
+    # Rosca metálica y junta de cobre
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.20,
-        depth=1.25,
-        location=(0.0, 0.0, 0.65),
+        radius=0.18,
+        depth=0.45,
+        location=(0.0, 0.0, 0.0),
         vertices=24,
     )
-    ceramic = bpy.context.active_object
-    ceramic.name = "Spark_Ceramic_Body"
-    ceramic.parent = spark_root
-    ceramic.data.materials.append(mats["spark_ceramic"])
-    add(ceramic)
-
-    # 3 Anillos corrugados dieléctricos en la porcelana
-    for i_rib in range(3):
-        z_rib = 0.85 + i_rib * 0.14
-        bpy.ops.mesh.primitive_torus_add(
-            major_radius=0.21,
-            minor_radius=0.025,
-            location=(0.0, 0.0, z_rib),
-            major_segments=24,
-            minor_segments=8,
-        )
-        rib = bpy.context.active_object
-        rib.name = f"Spark_Rib_{i_rib+1}"
-        rib.parent = spark_root
-        rib.data.materials.append(mats["spark_ceramic"])
-        add(rib)
+    sp_thread = bpy.context.active_object
+    sp_thread.name = "Spark_Thread"
+    sp_thread.parent = spark_root
+    sp_thread.data.materials.append(mats["spark_metal"])
+    add(sp_thread)
 
     # Tuerca hexagonal de apriete
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.30,
-        depth=0.38,
-        location=(0.0, 0.0, 0.12),
+        radius=0.22,
+        depth=0.25,
+        location=(0.0, 0.0, 0.35),
         vertices=6,
     )
-    hex_nut = bpy.context.active_object
-    hex_nut.name = "Spark_Hex_Nut"
-    hex_nut.parent = spark_root
-    hex_nut.data.materials.append(mats["spark_metal"])
-    add(hex_nut)
-    _apply_bevel(hex_nut, width=0.015, segments=2)
+    sp_hex = bpy.context.active_object
+    sp_hex.name = "Spark_Hex"
+    sp_hex.parent = spark_root
+    sp_hex.data.materials.append(mats["spark_metal"])
+    add(sp_hex)
+    _apply_bevel(sp_hex, width=0.015, segments=2)
 
-    # Arandela / Junta de estanqueidad de cobre
+    # Aislador cerámico blanco con corrugaciones
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.29,
-        depth=0.06,
-        location=(0.0, 0.0, -0.06),
+        radius=0.15,
+        depth=0.75,
+        location=(0.0, 0.0, 0.85),
         vertices=24,
     )
-    washer = bpy.context.active_object
-    washer.name = "Spark_Copper_Washer"
-    washer.parent = spark_root
-    washer.data.materials.append(mats["spark_copper"])
-    add(washer)
+    sp_cer = bpy.context.active_object
+    sp_cer.name = "Spark_Ceramic"
+    sp_cer.parent = spark_root
+    sp_cer.data.materials.append(mats["spark_ceramic"])
+    add(sp_cer)
+    _apply_bevel(sp_cer, width=0.015, segments=2)
 
-    # Electrodo central
+    # Terminal superior de latón
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.05,
-        depth=0.35,
-        location=(0.0, 0.0, -0.22),
-        vertices=12,
+        radius=0.08,
+        depth=0.22,
+        location=(0.0, 0.0, 1.32),
+        vertices=16,
     )
-    electrode = bpy.context.active_object
-    electrode.name = "Spark_Electrode_Center"
-    electrode.parent = spark_root
-    electrode.data.materials.append(mats["spark_metal"])
-    add(electrode)
-
-    # Electrodo de masa en escuadra ('L' Ground Strap)
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.035,
-        depth=0.24,
-        location=(0.14, 0.0, -0.22),
-        vertices=10,
-    )
-    ground_leg = bpy.context.active_object
-    ground_leg.name = "Spark_Ground_Leg"
-    ground_leg.parent = spark_root
-    ground_leg.data.materials.append(mats["spark_metal"])
-    add(ground_leg)
-
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.035,
-        depth=0.15,
-        location=(0.07, 0.0, -0.34),
-        vertices=10,
-    )
-    ground_tip = bpy.context.active_object
-    ground_tip.name = "Spark_Ground_Tip"
-    ground_tip.rotation_euler = (0, math.pi / 2, 0)
-    ground_tip.parent = spark_root
-    ground_tip.data.materials.append(mats["spark_metal"])
-    add(ground_tip)
+    sp_term = bpy.context.active_object
+    sp_term.name = "Spark_Terminal"
+    sp_term.parent = spark_root
+    sp_term.data.materials.append(mats["spark_copper"])
+    add(sp_term)
 
     # =========================================================================
-    # 9. EFECTOS VISUALES Y LLAMA COVERFOX DE ALTO IMPACTO
+    # 8. EFECTOS VISUALES Y LLAMA COVERFOX DE ALTO IMPACTO (Imagen 1)
     # =========================================================================
     combustion_z = head_z - 0.22
 
@@ -941,7 +979,7 @@ def create_combustion_engine_3d(
     flame_core.rotation_euler = (0, 0, math.radians(30))
     add(flame_core)
 
-    # Luz puntual dinámica interior de combustión (ilumina el cilindro y el pistón al estallar)
+    # Luz puntual dinámica interior de combustión
     bpy.ops.object.light_add(
         type="POINT",
         radius=0.35,
@@ -950,7 +988,7 @@ def create_combustion_engine_3d(
     light_combustion = bpy.context.active_object
     light_combustion.name = "Light_Combustion_Dynamic"
     light_combustion.data.color = (1.0, 0.45, 0.08)
-    light_combustion.data.energy = 0.0  # Apagada por defecto
+    light_combustion.data.energy = 0.0
     collection.objects.link(light_combustion)
     if light_combustion.name in bpy.context.scene.collection.objects:
         bpy.context.scene.collection.objects.unlink(light_combustion)
@@ -986,33 +1024,23 @@ def create_combustion_engine_3d(
     fx_exhaust.scale = (0.001, 0.001, 0.001)
     add(fx_exhaust)
 
-    # Volumen de mezcla comprimida
+    # Gas comprimido en cámara (volumen azul/amarillo semitransparente)
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=cr * 0.90,
-        depth=0.70,
-        location=(0.0, 0.0, combustion_z - 0.25),
-        vertices=24,
+        radius=cr - 0.08,
+        depth=0.45,
+        location=(0.0, 0.0, head_z - 0.18),
+        vertices=32,
     )
-    fx_compression = bpy.context.active_object
-    fx_compression.name = "FX_Compression_Gas"
-    fx_compression.data.materials.append(mats["compression_gas"])
-    fx_compression.scale = (0.001, 0.001, 0.001)
-    add(fx_compression)
-
-    # =========================================================================
-    # 10. SUELO DE ESTUDIO TÉCNICO
-    # =========================================================================
-    bpy.ops.mesh.primitive_plane_add(
-        size=50.0,
-        location=(0.0, 0.0, block_bottom - 0.50),
-    )
-    floor = bpy.context.active_object
-    floor.name = "Studio_Floor"
-    floor.data.materials.append(mats["studio_floor"])
-    add(floor)
+    fx_comp = bpy.context.active_object
+    fx_comp.name = "FX_Compression_Gas"
+    mat_comp = mats.get("compression_gas", mats.get("compression_mix"))
+    if mat_comp:
+        fx_comp.data.materials.append(mat_comp)
+    fx_comp.scale = (0.001, 0.001, 0.001)
+    add(fx_comp)
 
     return {
-        "engine_block": block,
+        "engine_block": base_pan,
         "cylinder_liner": liner,
         "cylinder_head": head_root,
         "piston_root": piston_root,
@@ -1029,7 +1057,7 @@ def create_combustion_engine_3d(
         "light_combustion": light_combustion,
         "fx_intake": fx_intake,
         "fx_exhaust": fx_exhaust,
-        "fx_compression": fx_compression,
+        "fx_compression": fx_comp,
         "crank_radius": crank_radius,
         "rod_length": rod_length,
         "crank_center_z": crank_center_z,

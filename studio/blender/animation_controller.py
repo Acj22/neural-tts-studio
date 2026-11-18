@@ -147,44 +147,41 @@ def apply_engine_pose_at_frame(
     piston.keyframe_insert(data_path="location", frame=frame)
 
     # -------------------------------------------------------------------
-    # 4. VÁLVULA DE ADMISIÓN Y RESORTE — Desplaza y comprime en −Z
+    # 4. VÁLVULA DE ADMISIÓN Y RESORTE — Desplaza a 16° y comprime muelle
     # -------------------------------------------------------------------
     v_in = engine_data["valve_intake"]
-    intake_base_z = head_z + 0.06
+    theta_v = math.radians(16.0)
+    intake_base_z = head_z + 0.15
     v_in.location = (
-        -0.58,
+        -0.65 + intake_lift * math.sin(theta_v),
         0.0,
-        intake_base_z - intake_lift + 2.6 * exploded_factor,
+        intake_base_z - intake_lift * math.cos(theta_v) + 2.6 * exploded_factor,
     )
     v_in.keyframe_insert(data_path="location", frame=frame)
 
     if "spring_intake" in engine_data:
         s_in = engine_data["spring_intake"]
-        # El resorte se comprime físicamente cuando la válvula abre (lift > 0)
-        s_in_comp = max(0.40, (0.82 - intake_lift) / 0.82)
+        # El resorte se comprime físicamente a lo largo de su eje local Z cuando la válvula abre
+        s_in_comp = max(0.40, (0.88 - intake_lift) / 0.88)
         s_in.scale = (1.0, 1.0, s_in_comp)
-        s_in.location = (-0.58, 0.0, head_z + 0.32 + 2.4 * exploded_factor)
         s_in.keyframe_insert(data_path="scale", frame=frame)
-        s_in.keyframe_insert(data_path="location", frame=frame)
 
     # -------------------------------------------------------------------
-    # 5. VÁLVULA DE ESCAPE Y RESORTE — Desplaza y comprime en −Z
+    # 5. VÁLVULA DE ESCAPE Y RESORTE — Desplaza a 16° y comprime muelle
     # -------------------------------------------------------------------
     v_ex = engine_data["valve_exhaust"]
     v_ex.location = (
-        0.58,
+        0.65 - exhaust_lift * math.sin(theta_v),
         0.0,
-        intake_base_z - exhaust_lift + 2.6 * exploded_factor,
+        intake_base_z - exhaust_lift * math.cos(theta_v) + 2.6 * exploded_factor,
     )
     v_ex.keyframe_insert(data_path="location", frame=frame)
 
     if "spring_exhaust" in engine_data:
         s_ex = engine_data["spring_exhaust"]
-        s_ex_comp = max(0.40, (0.82 - exhaust_lift) / 0.82)
+        s_ex_comp = max(0.40, (0.88 - exhaust_lift) / 0.88)
         s_ex.scale = (1.0, 1.0, s_ex_comp)
-        s_ex.location = (0.58, 0.0, head_z + 0.32 + 2.4 * exploded_factor)
         s_ex.keyframe_insert(data_path="scale", frame=frame)
-        s_ex.keyframe_insert(data_path="location", frame=frame)
 
     # -------------------------------------------------------------------
     # 6. BUJÍA — Sube en despiece axial

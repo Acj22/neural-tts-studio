@@ -118,115 +118,124 @@ def setup_engine_materials() -> dict[str, Any]:
         # 1. Estudio de Maqueta (Fondo Slate Blue Elegante estilo Referencia CAD 2.3)
         "studio_floor": get_or_create_material(
             "Mat_StudioFloor",
-            base_color=hex_to_rgba("#1E2A36"),  # Slate blue oscuro para suelo
+            base_color=hex_to_rgba("#1C2A36"),  # Slate blue oscuro para suelo
             roughness=0.90,
             metallic=0.0,
-            emission_color=hex_to_rgba("#1E2A36"),
+            emission_color=hex_to_rgba("#1C2A36"),
             emission_strength=0.90,
         ),
         "studio_backdrop": get_or_create_material(
             "Mat_StudioBackdrop",
-            base_color=hex_to_rgba("#253545"),  # Slate blue de la referencia
+            base_color=hex_to_rgba("#2A4053"),  # Slate blue de la referencia CAD del usuario
             roughness=0.95,
             metallic=0.0,
-            emission_color=hex_to_rgba("#253545"),
+            emission_color=hex_to_rgba("#2A4053"),
             emission_strength=0.90,
         ),
 
-        # 2. Bloque del Motor y Estructura Mecánica
+        # 2. Bloque del Motor y Estructura Mecánica (Fundición de Aluminio Estilo CAD)
         "engine_block": get_or_create_material(
             "Mat_EngineBlock",
-            base_color=hex_to_rgba("#8E9DAE"),  # Aluminio técnico claro de fundición
-            roughness=0.55,
+            base_color=hex_to_rgba("#94A3B8"),  # Aluminio técnico claro de fundición
+            roughness=0.45,
             metallic=0.35,
             use_cast_bump=True,
         ),
         "cutaway_rim": get_or_create_material(
             "Mat_CutawayRim",
-            base_color=hex_to_rgba("#B8C4D0"),  # Cara de corte seccionada: acero pulido satinado
-            roughness=0.25,
-            metallic=0.75,
+            base_color=hex_to_rgba("#E2E8F0"),  # Cara de corte seccionada: acero/aluminio mecanizado nítido
+            roughness=0.18,
+            metallic=0.85,
             anisotropic=0.35,
+        ),
+        "rocker_cover": get_or_create_material(
+            "Mat_RockerCover",
+            base_color=hex_to_rgba("#2B3B42"),  # Tapa de balancines / cúpula en antracita técnica de la referencia
+            roughness=0.35,
+            metallic=0.45,
         ),
         "manifold_pipes": get_or_create_material(
             "Mat_ManifoldPipes",
-            base_color=hex_to_rgba("#1E242B"),  # Tubos oscuros de colectores de la referencia
+            base_color=hex_to_rgba("#1E242B"),  # Tubos oscuros curvados de colectores de la referencia
             roughness=0.40,
-            metallic=0.60,
+            metallic=0.55,
         ),
         "oil_pan": get_or_create_material(
             "Mat_OilPan",
-            base_color=hex_to_rgba("#2B3846"),  # Chapa de cárter gris azulada
+            base_color=hex_to_rgba("#94A3B8"),  # Chapa/fundición de cárter a juego con el bloque
             roughness=0.45,
-            metallic=0.50,
+            metallic=0.35,
         ),
         "cylinder_liner": get_or_create_material(
             "Mat_CylinderLiner",
-            base_color=hex_to_rgba("#CAD4DE"),  # Camisa de acero rectificado con brillo satinado
-            roughness=0.18,
+            base_color=hex_to_rgba("#CBD5E1"),  # Camisa de acero rectificado con brillo satinado
+            roughness=0.14,
             metallic=0.90,
             anisotropic=0.40,
         ),
 
-        # 3. Conjunto Pistón de Precisión (Cobre Anodizado de Alto Impacto)
+        # 3. Conjunto Pistón de Precisión (Cobre Anodizado de Alto Impacto - Idéntico a Imagen 2)
         "piston": get_or_create_material(
             "Mat_Piston",
-            base_color=hex_to_rgba("#C86432"),  # Cobre / bronce anodizado cálido de la referencia
+            base_color=hex_to_rgba("#D07644"),  # Cobre / bronce anodizado cálido de la referencia
             roughness=0.22,
             metallic=0.85,
             anisotropic=0.40,
+            coat_weight=0.40,
+            coat_roughness=0.08,
         ),
         "piston_rings": get_or_create_material(
             "Mat_PistonRings",
-            base_color=hex_to_rgba("#D97706"),  # Aros de bronce nitrurado dorado de fricción
-            roughness=0.18,
-            metallic=0.92,
+            base_color=hex_to_rgba("#E2E8F0"),  # Aros de compresión en acero pulido brillante
+            roughness=0.10,
+            metallic=0.98,
         ),
         "wrist_pin": get_or_create_material(
             "Mat_WristPin",
-            base_color=hex_to_rgba("#1A2027"),  # Bulón de acero templado y rectificado a espejo
-            roughness=0.12,
-            metallic=0.95,
+            base_color=hex_to_rgba("#1C1F24"),  # Bulón tubular de acero templado oscuro rectificado
+            roughness=0.18,
+            metallic=0.92,
         ),
 
-        # 4. Biela Forjada y Cojinetes
+        # 4. Biela Forjada en I y Cojinetes (Machined Forged Steel)
         "connecting_rod": get_or_create_material(
             "Mat_ConnectingRod",
-            base_color=hex_to_rgba("#687684"),  # Bridas exteriores de acero mecanizado
-            roughness=0.28,
-            metallic=0.70,
+            base_color=hex_to_rgba("#CBD5E1"),  # Bridas exteriores de acero mecanizado satinado
+            roughness=0.22,
+            metallic=0.85,
+            anisotropic=0.30,
         ),
         "rod_recess": get_or_create_material(
             "Mat_RodRecess",
-            base_color=hex_to_rgba("#3B444C"),  # Canal en I forjado oscuro
-            roughness=0.48,
-            metallic=0.55,
+            base_color=hex_to_rgba("#475569"),  # Canal en I forjado oscuro
+            roughness=0.42,
+            metallic=0.75,
         ),
         "rod_bearings": get_or_create_material(
             "Mat_RodBearings",
-            base_color=hex_to_rgba("#F59E0B"),  # Bronce fosforoso de cojinetes pulido
-            roughness=0.16,
-            metallic=0.95,
+            base_color=hex_to_rgba("#D97706"),  # Bronce fosforoso de cojinetes pulido
+            roughness=0.18,
+            metallic=0.90,
         ),
         "rod_bolts": get_or_create_material(
             "Mat_RodBolts",
             base_color=hex_to_rgba("#15181C"),  # Tornillos de biela pavonados de alta resistencia
-            roughness=0.18,
+            roughness=0.20,
             metallic=0.90,
         ),
 
-        # 5. Cigüeñal y Volante
+        # 5. Cigüeñal y Volante (Forged Crankshaft)
         "crankshaft": get_or_create_material(
             "Mat_Crankshaft",
-            base_color=hex_to_rgba("#4B5563"),  # Muñequilla y muñones rectificados
-            roughness=0.14,
-            metallic=0.95,
+            base_color=hex_to_rgba("#94A3B8"),  # Muñequilla y muñones rectificados a espejo
+            roughness=0.16,
+            metallic=0.92,
         ),
         "counterweights": get_or_create_material(
             "Mat_Counterweights",
-            base_color=hex_to_rgba("#23282E"),  # Contrapesos en forja oscura
-            roughness=0.45,
-            metallic=0.65,
+            base_color=hex_to_rgba("#333C48"),  # Contrapesos en forja oscura
+            roughness=0.25,
+            metallic=0.85,
         ),
         "flywheel": get_or_create_material(
             "Mat_Flywheel",
@@ -250,9 +259,9 @@ def setup_engine_materials() -> dict[str, Any]:
         ),
         "valve_spring": get_or_create_material(
             "Mat_ValveSpring",
-            base_color=hex_to_rgba("#CAD4E0"),  # Alambre de acero de resorte de alta tensión
-            roughness=0.18,
-            metallic=0.92,
+            base_color=hex_to_rgba("#F1F5F9"),  # Alambre de acero de resorte de alta tensión pulido
+            roughness=0.12,
+            metallic=0.98,
         ),
         "valve_retainer": get_or_create_material(
             "Mat_ValveRetainer",
