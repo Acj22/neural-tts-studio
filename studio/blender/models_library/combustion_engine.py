@@ -209,20 +209,7 @@ def create_combustion_engine_3d(
     bpy.data.objects.remove(cutter_l, do_unlink=True)
 
     # =========================================================================
-    # 3. CÁRTER Y BANCADA INFERIOR
-    # =========================================================================
-    bpy.ops.mesh.primitive_cube_add(
-        size=1.0,
-        location=(0.0, 0.3, block_bottom + 0.55),
-    )
-    crankcase = bpy.context.active_object
-    crankcase.name = "Crankcase_Housing"
-    crankcase.scale = (block_r * 1.8, block_r * 0.95, 1.15)
-    crankcase.data.materials.append(mats["engine_block"])
-    add(crankcase)
-
-    # =========================================================================
-    # 4. CULATA CON CONDUCTOS DE ADMISIÓN Y ESCAPE
+    # 3. CULATA Y CONDUCTOS DE ADMISIÓN / ESCAPE
     # =========================================================================
     head_root = bpy.data.objects.new("Cylinder_Head_Root", None)
     head_root.empty_display_type = "PLAIN_AXES"
@@ -230,38 +217,11 @@ def create_combustion_engine_3d(
     bpy.context.scene.collection.objects.link(head_root)
     add(head_root)
 
-    # Cuerpo de culata
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=block_r,
-        depth=1.1,
-        location=(0.0, 0.0, 0.55),
-        vertices=36,
-    )
-    head_mesh = bpy.context.active_object
-    head_mesh.name = "Cylinder_Head_Mesh"
-    head_mesh.parent = head_root
-    head_mesh.data.materials.append(mats["engine_block"])
-    add(head_mesh)
-
-    # Corte cutaway frontal de la culata (para ver conductos, guías y válvulas)
-    bpy.ops.mesh.primitive_cube_add(
-        size=1.0,
-        location=(0.0, -(block_r * 0.6 + 0.5), 0.55),
-    )
-    cutter_h = bpy.context.active_object
-    cutter_h.scale = (block_r * 2.8, block_r * 1.5, 1.4)
-    mod_h = head_mesh.modifiers.new(name="Cutaway_Head", type="BOOLEAN")
-    mod_h.object = cutter_h
-    mod_h.operation = "DIFFERENCE"
-    bpy.context.view_layer.objects.active = head_mesh
-    bpy.ops.object.modifier_apply(modifier="Cutaway_Head")
-    bpy.data.objects.remove(cutter_h, do_unlink=True)
-
     # Conducto de admisión izquierdo, 40° hacia arriba-izquierda
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.30,
-        depth=1.5,
-        location=(-0.80, 0.0, 0.55),
+        radius=0.28,
+        depth=1.3,
+        location=(-0.75, 0.0, 0.55),
         vertices=24,
     )
     port_in = bpy.context.active_object
@@ -273,9 +233,9 @@ def create_combustion_engine_3d(
 
     # Conducto de escape derecho, 40° hacia arriba-derecha
     bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.30,
-        depth=1.5,
-        location=(0.80, 0.0, 0.55),
+        radius=0.28,
+        depth=1.3,
+        location=(0.75, 0.0, 0.55),
         vertices=24,
     )
     port_ex = bpy.context.active_object
@@ -318,6 +278,7 @@ def create_combustion_engine_3d(
             vertices=36,
         )
         cut_sk = bpy.context.active_object
+        cut_sk.parent = piston_root
         msk = piston_body.modifiers.new("SkirtArch", type="BOOLEAN")
         msk.object = cut_sk
         msk.operation = "DIFFERENCE"
@@ -333,6 +294,7 @@ def create_combustion_engine_3d(
         vertices=36,
     )
     skirt_cut = bpy.context.active_object
+    skirt_cut.parent = piston_root
     mod_p = piston_body.modifiers.new(name="Piston_Cavity", type="BOOLEAN")
     mod_p.object = skirt_cut
     mod_p.operation = "DIFFERENCE"
@@ -348,6 +310,7 @@ def create_combustion_engine_3d(
         vertices=36,
     )
     ph = bpy.context.active_object
+    ph.parent = piston_root
     ph.rotation_euler = (math.pi / 2, 0, 0)
     mph = piston_body.modifiers.new("PinHole", type="BOOLEAN")
     mph.object = ph
@@ -740,6 +703,9 @@ def create_combustion_engine_3d(
     f_out.parent = flame_root
     f_out.data.materials.append(mats["flame_combustion"])
     add(f_out)
+    if hasattr(f_out.data, "polygons"):
+        for p in f_out.data.polygons:
+            p.use_smooth = False
 
     # Capa interior: núcleo blanco incandescente de altísima emisión
     bpy.ops.mesh.primitive_cylinder_add(
@@ -754,6 +720,9 @@ def create_combustion_engine_3d(
     f_core.parent = flame_root
     f_core.data.materials.append(mats.get("flame_core", mats["flame_combustion"]))
     add(f_core)
+    if hasattr(f_core.data, "polygons"):
+        for p in f_core.data.polygons:
+            p.use_smooth = False
 
     combustion_flame = flame_root
 
