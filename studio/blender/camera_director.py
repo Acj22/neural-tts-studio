@@ -49,15 +49,15 @@ def setup_studio_lighting() -> dict[str, Any]:
     lights_col = bpy.data.collections.new("Studio_Lighting")
     bpy.context.scene.collection.children.link(lights_col)
 
-    # 0. Telón de fondo Cream Cálido Emisivo (sin sombras proyectadas sucias)
+    # 0. Telón de fondo Slate Blue Elegante (Inspirado en Referencia CAD 2.3)
     mat_bg = bpy.data.materials.get("Mat_StudioBackdrop")
     if not mat_bg:
         mat_bg = bpy.data.materials.new("Mat_StudioBackdrop")
         b_bg = mat_bg.node_tree.nodes.get("Principled BSDF")
         if b_bg:
-            b_bg.inputs["Base Color"].default_value = (0.96, 0.94, 0.91, 1.0)
-            b_bg.inputs["Emission Color"].default_value = (0.96, 0.94, 0.91, 1.0)
-            b_bg.inputs["Emission Strength"].default_value = 0.95
+            b_bg.inputs["Base Color"].default_value = (0.145, 0.21, 0.27, 1.0)  # Slate Blue #253545
+            b_bg.inputs["Emission Color"].default_value = (0.145, 0.21, 0.27, 1.0)
+            b_bg.inputs["Emission Strength"].default_value = 0.90
 
     bpy.ops.mesh.primitive_plane_add(size=60.0, location=(0, 12.0, 3.0))
     bg_plane = bpy.context.active_object
@@ -118,7 +118,7 @@ def setup_studio_lighting() -> dict[str, Any]:
     if top_light.name in scene.collection.objects:
         scene.collection.objects.unlink(top_light)
 
-    # 6. Entorno Suave
+    # 6. Entorno Suave Slate Blue
     world = bpy.context.scene.world
     if not world:
         world = bpy.data.worlds.new("StudioWorld_Light")
@@ -126,8 +126,8 @@ def setup_studio_lighting() -> dict[str, Any]:
     world.use_nodes = True
     bg_node = world.node_tree.nodes.get("Background")
     if bg_node:
-        bg_node.inputs["Color"].default_value = (0.96, 0.94, 0.91, 1.0)
-        bg_node.inputs["Strength"].default_value = 0.40
+        bg_node.inputs["Color"].default_value = (0.145, 0.21, 0.27, 1.0)
+        bg_node.inputs["Strength"].default_value = 0.50
 
     return {
         "key": key_light,
@@ -169,88 +169,60 @@ def setup_camera_for_shot(
     total_frames = max(10, end_frame - start_frame)
 
     # =========================================================================
-    # CATÁLOGO DE TOMAS CINEMÁTICAS — Fase 2.1 (coordenadas actualizadas)
+    # CATÁLOGO DE TOMAS CINEMÁTICAS — Fase 2.3 (10 Plantillas Cinematográficas)
     # =========================================================================
 
-    # 1. HERO VIEW (Vista General 3/4 de Estudio — perspectiva CAD con 65mm)
-    if shot_type in ("hero_view", "hero_intro"):
+    # 1. HERO SHOT (Plantilla A: Presentación 3/4 general equilibrada - CAD 65mm)
+    if shot_type in ("hero_shot", "hero_view", "hero_intro"):
         cam_data.lens = 65
-        target_loc = mathutils.Vector((0.0, 0.0, 2.8))
-        start_loc = mathutils.Vector((2.8 * dist_mult, -19.5 * dist_mult, 3.8))
-        end_loc   = mathutils.Vector((2.4 * dist_mult, -18.5 * dist_mult, 3.5))
+        target_loc = mathutils.Vector((0.0, 0.0, 2.7))
+        start_loc = mathutils.Vector((2.6 * dist_mult, -19.2 * dist_mult, 3.6))
+        end_loc   = mathutils.Vector((2.2 * dist_mult, -18.2 * dist_mult, 3.3))
 
-    # 2. ISOMETRIC VIEW (Perspectiva Isométrica Técnica a 45°)
-    elif shot_type == "isometric_view":
+    # 2. ISOMETRIC SHOT (Plantilla B: Perspectiva Isométrica Técnica 3D a 45°)
+    elif shot_type in ("isometric_shot", "isometric_view"):
         cam_data.lens = 65
-        target_loc = mathutils.Vector((0.0, 0.0, 2.8))
-        start_loc = mathutils.Vector((6.5 * dist_mult, -17.0 * dist_mult, 5.5))
-        end_loc   = mathutils.Vector((6.0 * dist_mult, -16.0 * dist_mult, 5.0))
+        target_loc = mathutils.Vector((0.0, 0.0, 2.7))
+        start_loc = mathutils.Vector((6.2 * dist_mult, -16.5 * dist_mult, 5.2))
+        end_loc   = mathutils.Vector((5.8 * dist_mult, -15.5 * dist_mult, 4.8))
 
-    # 3. CLOSE-UP VIEW (Primer Plano Controlado — zona válvulas y cámara de combustión con contexto)
-    elif shot_type in ("close_up_view", "cylinder_macro"):
-        cam_data.lens = 60
-        target_loc = mathutils.Vector((0.0, 0.0, 4.2))
-        start_loc = mathutils.Vector((1.6 * dist_mult, -13.0 * dist_mult, 4.6))
-        end_loc   = mathutils.Vector((1.2 * dist_mult, -12.0 * dist_mult, 4.3))
+    # 3. CLOSE-UP: PISTÓN (Plantilla C1: Macro al pistón de cobre y aros)
+    elif shot_type in ("close_up_piston", "piston_macro"):
+        cam_data.lens = 68
+        target_loc = mathutils.Vector((0.0, 0.0, 3.8))
+        start_loc = mathutils.Vector((1.2 * dist_mult, -13.0 * dist_mult, 4.2))
+        end_loc   = mathutils.Vector((0.9 * dist_mult, -12.0 * dist_mult, 3.9))
 
-    # 4. SIDE VIEW (Vista Lateral Perfil — centro 2.8)
-    elif shot_type == "side_view":
-        cam_data.lens = 60
-        target_loc = mathutils.Vector((0.0, 0.0, 2.8))
-        start_loc = mathutils.Vector((17.0 * dist_mult, 0.0, 3.0))
-        end_loc   = mathutils.Vector((16.0 * dist_mult, 0.0, 2.8))
+    # 4. CLOSE-UP: CIGÜEÑAL (Plantilla C2: Macro a muñequilla y contrapesos)
+    elif shot_type in ("close_up_crank", "crank_macro"):
+        cam_data.lens = 62
+        target_loc = mathutils.Vector((0.0, 0.0, 0.5))
+        start_loc = mathutils.Vector((1.5 * dist_mult, -12.0 * dist_mult, 1.2))
+        end_loc   = mathutils.Vector((1.2 * dist_mult, -11.0 * dist_mult, 0.9))
 
-    # 5. TOP VIEW (Vista Superior de Culata y Válvulas — apunta a head_z=5.5)
-    elif shot_type == "top_view":
-        cam_data.lens = 55
-        target_loc = mathutils.Vector((0.0, 0.0, 5.2))
-        start_loc = mathutils.Vector((0.1, -3.5, 16.0 * dist_mult))
-        end_loc   = mathutils.Vector((0.1, -3.0, 15.0 * dist_mult))
-
-    # 6. CUTAWAY VIEW (Corte Transversal Frontal — centro 2.8)
-    elif shot_type == "cutaway_view":
+    # 5. CLOSE-UP: VÁLVULAS & CÁMARA (Plantilla C3: Cámara de combustión, bujía y estallido)
+    elif shot_type in ("close_up_chamber", "close_up_view", "close_up"):
         cam_data.lens = 65
-        target_loc = mathutils.Vector((0.0, 0.0, 2.8))
-        start_loc = mathutils.Vector((0.2 * dist_mult, -19.0 * dist_mult, 3.2))
-        end_loc   = mathutils.Vector((0.1 * dist_mult, -18.0 * dist_mult, 2.9))
+        target_loc = mathutils.Vector((0.0, 0.0, 4.3))
+        start_loc = mathutils.Vector((1.1 * dist_mult, -12.5 * dist_mult, 4.6))
+        end_loc   = mathutils.Vector((0.8 * dist_mult, -11.5 * dist_mult, 4.3))
 
-    # 7. EXPLODED VIEW (Despiece Axial Amplio — rango vertical −1 … +10, centro ≈ 3.2)
-    elif shot_type == "exploded_view":
-        cam_data.lens = 55
-        target_loc = mathutils.Vector((0.0, 0.0, 3.2))
-        start_loc = mathutils.Vector((3.2 * dist_mult, -21.0 * dist_mult, 4.2))
-        end_loc   = mathutils.Vector((2.6 * dist_mult, -19.5 * dist_mult, 3.8))
+    # 6. TRACKING SHOT (Plantilla D: Seguimiento de biela y pistón en movimiento oscilante)
+    elif shot_type in ("tracking_shot", "tracking_rod", "component_track", "crank_track"):
+        cam_data.lens = 52
+        target_loc = mathutils.Vector((0.0, 0.0, 1.8))
+        start_loc = mathutils.Vector((1.8 * dist_mult, -10.5 * dist_mult, 2.2))
+        end_loc   = mathutils.Vector((1.4 * dist_mult, -9.5 * dist_mult, 1.8))
 
-    # 8. COMPONENT TRACK (Seguimiento Cigüeñal y Biela — zona baja ≈ Z=1.0)
-    elif shot_type in ("component_track", "crank_track"):
-        cam_data.lens = 44
-        target_loc = mathutils.Vector((0.0, 0.0, 1.0))
-        start_loc = mathutils.Vector((2.2 * dist_mult, -9.0 * dist_mult, 1.8))
-        end_loc   = mathutils.Vector((1.8 * dist_mult, -8.2 * dist_mult, 1.5))
-
-    # 9. VALVE TOP VIEW (Vista 3/4 Elevada a 45° de Culata y Válvulas con profundidad tridimensional)
-    elif shot_type in ("valve_top_view", "valves_view"):
-        cam_data.lens = 45
-        target_loc = mathutils.Vector((0.0, 0.0, 5.0))
-        start_loc = mathutils.Vector((2.2 * dist_mult, -7.5 * dist_mult, 7.8))
-        end_loc   = mathutils.Vector((1.8 * dist_mult, -6.8 * dist_mult, 7.2))
-
-    # 10. SIDE CUTAWAY (Vista Lateral de Corte Biela-Cigüeñal — NUEVA Fase 2.1)
-    elif shot_type == "side_cutaway":
-        cam_data.lens = 50
-        target_loc = mathutils.Vector((0.0, 0.0, 1.5))
-        start_loc = mathutils.Vector((9.0 * dist_mult, 0.0, 1.8))
-        end_loc   = mathutils.Vector((8.4 * dist_mult, 0.0, 1.5))
-
-    # 11. TURNTABLE ORBIT (Recorrido Orbital Suave — centro 2.3)
-    elif shot_type in ("turntable_orbit", "full_cycle"):
+    # 7. ORBIT SHOT (Plantilla E: Recorrido orbital dinámico suave)
+    elif shot_type in ("orbit_shot", "turntable_orbit"):
         cam_data.lens = 42
-        target_loc = mathutils.Vector((0.0, 0.0, 2.3))
-        radius = 9.5 * dist_mult
-        z_height = 3.5
+        target_loc = mathutils.Vector((0.0, 0.0, 2.4))
+        radius = 9.2 * dist_mult
+        z_height = 3.6
         for f in range(start_frame, end_frame + 1, max(1, total_frames // 24)):
             pct = (f - start_frame) / float(total_frames)
-            ang = -math.pi / 2 + (pct * math.radians(70) - math.radians(35))
+            ang = -math.pi / 2 + (pct * math.radians(72) - math.radians(36))
             cx = radius * math.cos(ang)
             cy = radius * math.sin(ang)
             cpos = mathutils.Vector((cx, cy, z_height))
@@ -261,11 +233,46 @@ def setup_camera_for_shot(
             cam_obj.keyframe_insert(data_path="rotation_euler", frame=f)
         return cam_obj
 
-    else:  # default process_view — vista general de proceso completa y equilibrada (CAD 65mm)
+    # 8. CUTAWAY SHOT (Plantilla F: Corte transversal frontal para flujos y ciclos)
+    elif shot_type in ("cutaway_shot", "cutaway_view"):
         cam_data.lens = 65
+        target_loc = mathutils.Vector((0.0, 0.0, 2.7))
+        start_loc = mathutils.Vector((0.15 * dist_mult, -18.8 * dist_mult, 3.1))
+        end_loc   = mathutils.Vector((0.08 * dist_mult, -17.8 * dist_mult, 2.8))
+
+    # 9. EXPLODED VIEW (Plantilla G: Despiece axial amplio de todos los componentes)
+    elif shot_type == "exploded_view":
+        cam_data.lens = 55
+        target_loc = mathutils.Vector((0.0, 0.0, 3.2))
+        start_loc = mathutils.Vector((3.0 * dist_mult, -21.0 * dist_mult, 4.2))
+        end_loc   = mathutils.Vector((2.4 * dist_mult, -19.5 * dist_mult, 3.8))
+
+    # 10. ASSEMBLY SHOT (Plantilla H: Ensamblaje inverso donde los componentes se unen)
+    elif shot_type in ("assembly_shot", "assembly_view"):
+        cam_data.lens = 58
         target_loc = mathutils.Vector((0.0, 0.0, 2.8))
-        start_loc = mathutils.Vector((2.8 * dist_mult, -19.5 * dist_mult, 3.8))
-        end_loc   = mathutils.Vector((2.4 * dist_mult, -18.5 * dist_mult, 3.5))
+        start_loc = mathutils.Vector((2.8 * dist_mult, -20.5 * dist_mult, 4.0))
+        end_loc   = mathutils.Vector((2.2 * dist_mult, -18.2 * dist_mult, 3.4))
+
+    # 11. TOP VIEW (Plantilla I: Vista superior elevada a 50° de culata, válvulas y muelles)
+    elif shot_type in ("top_view", "valve_top_view", "valves_view"):
+        cam_data.lens = 48
+        target_loc = mathutils.Vector((0.0, 0.0, 5.0))
+        start_loc = mathutils.Vector((1.8 * dist_mult, -8.0 * dist_mult, 7.5))
+        end_loc   = mathutils.Vector((1.4 * dist_mult, -7.2 * dist_mult, 6.9))
+
+    # 12. SIDE VIEW (Plantilla J: Vista lateral técnica)
+    elif shot_type in ("side_view", "side_cutaway"):
+        cam_data.lens = 58
+        target_loc = mathutils.Vector((0.0, 0.0, 2.6))
+        start_loc = mathutils.Vector((16.5 * dist_mult, 0.0, 3.0))
+        end_loc   = mathutils.Vector((15.5 * dist_mult, 0.0, 2.7))
+
+    else:  # default process_view — vista equilibrada CAD
+        cam_data.lens = 65
+        target_loc = mathutils.Vector((0.0, 0.0, 2.7))
+        start_loc = mathutils.Vector((2.6 * dist_mult, -19.2 * dist_mult, 3.6))
+        end_loc   = mathutils.Vector((2.2 * dist_mult, -18.2 * dist_mult, 3.3))
 
     # Animar desplazamiento de cámara con orientación calculada matemáticamente en cada extremo
     cam_obj.location = start_loc

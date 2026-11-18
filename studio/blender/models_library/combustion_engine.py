@@ -348,7 +348,7 @@ def create_combustion_engine_3d(
     port_in.name = "Intake_Port_Duct"
     port_in.rotation_euler = (0.0, math.radians(40), 0.0)
     port_in.parent = head_root
-    port_in.data.materials.append(mats["valve_intake"])
+    port_in.data.materials.append(mats.get("manifold_pipes", mats["valve_intake"]))
     add(port_in)
     _apply_bevel(port_in, width=0.015, segments=2)
 
@@ -363,7 +363,7 @@ def create_combustion_engine_3d(
     port_ex.name = "Exhaust_Port_Duct"
     port_ex.rotation_euler = (0.0, math.radians(-40), 0.0)
     port_ex.parent = head_root
-    port_ex.data.materials.append(mats["valve_exhaust"])
+    port_ex.data.materials.append(mats.get("manifold_pipes", mats["valve_exhaust"]))
     add(port_ex)
     _apply_bevel(port_ex, width=0.015, segments=2)
 

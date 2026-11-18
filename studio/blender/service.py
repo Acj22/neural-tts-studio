@@ -67,6 +67,7 @@ def render_scene_3d_video(
         "duration_sec": dur_sec,
         "composition_type": composition_type,
         "cycle_phase": cycle_phase,
+        "highlight_component": scene.get("highlight_component") or (scene.get("diagram_spec") or {}).get("highlight_component"),
         "render_profile": render_profile,
         "output_dir": str(temp_frames_dir.resolve()),
         "single_frame_only": False,
@@ -216,64 +217,11 @@ def run_combustion_engine_prototype_benchmark(
     qc_res = run_blender_scene_quality_control(shot_type="hero_view", is_vertical=is_vertical)
     (target_dir / "qc_report.json").write_text(json.dumps(qc_res, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    scenes_spec = [
-        {
-            "id": "PROT_01",
-            "title": "1. Presentación Tridimensional",
-            "text": "El motor de cuatro tiempos es una de las mayores obras de la ingeniería mecánica moderna.",
-            "composition": "hero_view",
-            "phase": "hero_intro",
-        },
-        {
-            "id": "PROT_02",
-            "title": "2. Acercamiento al Cilindro",
-            "text": "En el interior del bloque se encuentra la cámara de combustión herméticamente sellada.",
-            "composition": "close_up_view",
-            "phase": "compression",
-        },
-        {
-            "id": "PROT_03",
-            "title": "3. Despiece de Componentes",
-            "text": "Cada componente, desde la culata hasta los anillos, resiste fricción extrema y calor.",
-            "composition": "exploded_view",
-            "phase": "exploded_view",
-        },
-        {
-            "id": "PROT_04",
-            "title": "4. Movimiento del Pistón",
-            "text": "El pistón recorre el cilindro guiado entre el punto muerto superior y el inferior.",
-            "composition": "cutaway_view",
-            "phase": "intake",
-        },
-        {
-            "id": "PROT_05",
-            "title": "5. Válvulas de Admisión y Escape",
-            "text": "Las válvulas sincronizan con precisión milimétrica la entrada de aire y la salida de gases.",
-            "composition": "valve_top_view",
-            "phase": "exhaust",
-        },
-        {
-            "id": "PROT_06",
-            "title": "6. Biela y Cigüeñal",
-            "text": "La biela transforma el empuje lineal del pistón en fuerza rotativa continua del cigüeñal.",
-            "composition": "component_track",
-            "phase": "full_cycle",
-        },
-        {
-            "id": "PROT_07",
-            "title": "7. Ciclo de Cuatro Tiempos",
-            "text": "Admisión, compresión, combustión y escape: un ciclo termodinámico continuo y eficiente.",
-            "composition": "process_view",
-            "phase": "combustion",
-        },
-        {
-            "id": "PROT_08",
-            "title": "8. Vista General Final",
-            "text": "Así convierte la energía química del combustible en el movimiento que impulsa al mundo.",
-            "composition": "turntable_orbit",
-            "phase": "full_cycle",
-        },
-    ]
+    # Visual Scene Director (Fase 2.3 - 12 Escenas Oficiales Canónicas)
+    from studio.blender.visual_scene_director import VisualSceneDirector
+    director = VisualSceneDirector()
+    scenes_spec = director.get_canonical_12_scenes_sequence()
+    total_scenes = len(scenes_spec)
 
     rendered_clips = []
     total_start = time.time()
@@ -282,11 +230,11 @@ def run_combustion_engine_prototype_benchmark(
         sid = sc["id"]
         scene_final_mp4 = target_dir / f"{sid}_final.mp4"
         if not force_rerender and scene_final_mp4.exists() and scene_final_mp4.stat().st_size > 10000:
-            logger.info("Escena %d/8 (%s) ya renderizada previamente. Reutilizando clip.", idx, sid)
+            logger.info("Escena %d/%d (%s) ya renderizada previamente. Reutilizando clip.", idx, total_scenes, sid)
             rendered_clips.append(scene_final_mp4)
             continue
 
-        logger.info("Renderizando escena %d/8: %s", idx, sc["title"])
+        logger.info("Renderizando escena %d/%d: %s [%s]", idx, total_scenes, sc["title"], sc.get("shot_type"))
 
         # A. Sintetizar voz neuronal Edge-TTS local
         audio_path = target_dir / f"{sid}_audio.wav"
@@ -299,8 +247,9 @@ def run_combustion_engine_prototype_benchmark(
         scene_mp4 = target_dir / f"{sid}_raw_video.mp4"
         scene_dict = {
             "scene_id": sid,
-            "composition_type": sc["composition"],
-            "diagram_spec": {"composition_type": sc["composition"], "phase": sc["phase"]},
+            "composition_type": sc["shot_subtype"],
+            "diagram_spec": {"composition_type": sc["shot_subtype"], "phase": sc["phase"]},
+            "highlight_component": sc.get("highlight_component"),
             "duration_sec": dur_sec,
         }
         render_scene_3d_video(
@@ -330,10 +279,10 @@ def run_combustion_engine_prototype_benchmark(
             srt_lines.append(f"{c_idx}\n{s_str} --> {e_str}\n{' '.join(chunk)}\n")
         srt_path.write_text("\n".join(srt_lines), encoding="utf-8")
 
-        # Integrar audio y subtítulo con FFmpeg (inferior centrado Alignment=2 con resolución nativa PlayRes)
-        font_size = 36 if is_vertical else 28
-        sub_margin_v = 40 if is_vertical else 25
-        sub_filter = f"subtitles={srt_path.name}:force_style='PlayResY={height},PlayResX={width},FontName=Arial,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.0,Shadow=1,Alignment=2,MarginV={sub_margin_v}'"
+        # Integrar audio y subtítulo mejorado con mayor tamaño y legibilidad (Fase 2.3)
+        font_size = 48 if is_vertical else 34
+        sub_margin_v = 55 if is_vertical else 30
+        sub_filter = f"subtitles={srt_path.name}:force_style='PlayResY={height},PlayResX={width},FontName=Arial,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.8,Shadow=1.5,Alignment=2,MarginV={sub_margin_v}'"
 
         ff_cmd = [
             _get_ffmpeg(),

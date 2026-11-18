@@ -105,12 +105,14 @@ def run_blender_render(spec: dict) -> None:
         crank_center_z=0.0,    # era sin especificar (default 0.4) → cigüeñal en origen
     )
 
-    # 4. Cinemática de Animación
+    # 4. Cinemática de Animación y Resaltado Narrativo
+    highlight_comp = spec.get("highlight_component")
     build_4_stroke_cycle_keyframes(
         engine_data=engine_data,
         start_frame=1,
         end_frame=total_frames,
         cycle_phase=cycle_phase,
+        highlight_component=highlight_comp,
     )
 
     # 5. Cámara Cinemática Inteligente

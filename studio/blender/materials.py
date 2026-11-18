@@ -115,42 +115,48 @@ def get_or_create_material(
 def setup_engine_materials() -> dict[str, Any]:
     """Instancia y devuelve la biblioteca completa de materiales PBR de alto realismo."""
     return {
-        # 1. Estudio de Maqueta (Fondo Cream Cálido Técnico estilo Coverfox)
+        # 1. Estudio de Maqueta (Fondo Slate Blue Elegante estilo Referencia CAD 2.3)
         "studio_floor": get_or_create_material(
             "Mat_StudioFloor",
-            base_color=hex_to_rgba("#F6F1E8"),  # Cream cálido exacto de catálogo técnico
+            base_color=hex_to_rgba("#1E2A36"),  # Slate blue oscuro para suelo
             roughness=0.90,
             metallic=0.0,
-            emission_color=hex_to_rgba("#F6F1E8"),
-            emission_strength=0.95,
+            emission_color=hex_to_rgba("#1E2A36"),
+            emission_strength=0.90,
         ),
         "studio_backdrop": get_or_create_material(
             "Mat_StudioBackdrop",
-            base_color=hex_to_rgba("#F6F1E8"),
+            base_color=hex_to_rgba("#253545"),  # Slate blue de la referencia
             roughness=0.95,
             metallic=0.0,
-            emission_color=hex_to_rgba("#F6F1E8"),
-            emission_strength=0.95,
+            emission_color=hex_to_rgba("#253545"),
+            emission_strength=0.90,
         ),
 
         # 2. Bloque del Motor y Estructura Mecánica
         "engine_block": get_or_create_material(
             "Mat_EngineBlock",
-            base_color=hex_to_rgba("#20252B"),  # Fundición grafito carbón oscuro de alto contraste
-            roughness=0.62,
-            metallic=0.20,
+            base_color=hex_to_rgba("#8E9DAE"),  # Aluminio técnico claro de fundición
+            roughness=0.55,
+            metallic=0.35,
             use_cast_bump=True,
         ),
         "cutaway_rim": get_or_create_material(
             "Mat_CutawayRim",
-            base_color=hex_to_rgba("#4B5563"),  # Cara de corte seccionada: acero mecanizado pulido
-            roughness=0.32,
-            metallic=0.70,
-            anisotropic=0.30,
+            base_color=hex_to_rgba("#B8C4D0"),  # Cara de corte seccionada: acero pulido satinado
+            roughness=0.25,
+            metallic=0.75,
+            anisotropic=0.35,
+        ),
+        "manifold_pipes": get_or_create_material(
+            "Mat_ManifoldPipes",
+            base_color=hex_to_rgba("#1E242B"),  # Tubos oscuros de colectores de la referencia
+            roughness=0.40,
+            metallic=0.60,
         ),
         "oil_pan": get_or_create_material(
             "Mat_OilPan",
-            base_color=hex_to_rgba("#181B20"),  # Chapa de cárter estampada oscura
+            base_color=hex_to_rgba("#2B3846"),  # Chapa de cárter gris azulada
             roughness=0.45,
             metallic=0.50,
         ),
@@ -162,13 +168,13 @@ def setup_engine_materials() -> dict[str, Any]:
             anisotropic=0.40,
         ),
 
-        # 3. Conjunto Pistón de Precisión
+        # 3. Conjunto Pistón de Precisión (Cobre Anodizado de Alto Impacto)
         "piston": get_or_create_material(
             "Mat_Piston",
-            base_color=hex_to_rgba("#D8DFE7"),  # Aleación ligera de aluminio mecanizado
-            roughness=0.20,
-            metallic=0.78,
-            anisotropic=0.45,
+            base_color=hex_to_rgba("#C86432"),  # Cobre / bronce anodizado cálido de la referencia
+            roughness=0.22,
+            metallic=0.85,
+            anisotropic=0.40,
         ),
         "piston_rings": get_or_create_material(
             "Mat_PistonRings",

@@ -249,37 +249,70 @@ def build_4_stroke_cycle_keyframes(
     start_frame: int = 1,
     end_frame: int = 120,
     cycle_phase: str = "full_cycle",
+    highlight_component: str | None = None,
 ) -> None:
     """Genera la secuencia completa de animación según la fase del ciclo de 4 tiempos.
 
     Fases disponibles:
-      full_cycle  — ciclo completo 720° (2 vueltas de cigüeñal).
-      hero_intro  — 360° con pistón y cigüeñal en movimiento continuo.
-      intake      — 0°–180° (1er tiempo: admisión).
-      compression — 180°–360° (2° tiempo: compresión).
-      combustion  — 360°–540° (3er tiempo: expansión/combustión).
-      exhaust     — 540°–720° (4° tiempo: escape).
-      exploded_view — despiece axial suave.
+      full_cycle    — ciclo completo 720° (2 vueltas de cigüeñal).
+      hero_intro    — 360° con pistón y cigüeñal en movimiento continuo.
+      intake        — 0°–180° (1er tiempo: admisión).
+      compression   — 180°–360° (2° tiempo: compresión).
+      combustion    — 360°–540° (3er tiempo: expansión/combustión).
+      exhaust       — 540°–720° (4° tiempo: escape).
+      exploded_view — despiece axial progresivo.
+      assembly_shot — ensamblaje inverso sincronizado (despiece a cerrado).
     """
     total_frames = max(10, end_frame - start_frame)
 
     # Rango angular
     phase_ranges = {
-        "intake":       (0.0, math.pi),
-        "compression":  (math.pi, 2 * math.pi),
-        "combustion":   (2 * math.pi, 3 * math.pi),
-        "exhaust":      (3 * math.pi, 4 * math.pi),
-        "hero_intro":   (0.0, 2 * math.pi),
-        "exploded_view":(0.0, math.pi),
+        "intake":        (0.0, math.pi),
+        "compression":   (math.pi, 2 * math.pi),
+        "combustion":    (2 * math.pi, 3 * math.pi),
+        "exhaust":       (3 * math.pi, 4 * math.pi),
+        "hero_intro":    (0.0, 2 * math.pi),
+        "exploded_view": (0.0, math.pi),
+        "assembly_shot": (0.0, 2 * math.pi),
     }
     theta_start, theta_end = phase_ranges.get(cycle_phase, (0.0, 4 * math.pi))
+
+    # Pulso de resaltado (Highlight) en el material del componente mencionado
+    if highlight_component and bpy is not None:
+        target_mat_names = []
+        if highlight_component == "piston":
+            target_mat_names = ["Mat_Piston"]
+        elif highlight_component == "connecting_rod":
+            target_mat_names = ["Mat_ConnectingRod"]
+        elif highlight_component == "crankshaft":
+            target_mat_names = ["Mat_Crankshaft"]
+        elif highlight_component == "valves":
+            target_mat_names = ["Mat_ValveIntake", "Mat_ValveExhaust"]
+
+        for m_name in target_mat_names:
+            if m_name in bpy.data.materials:
+                h_mat = bpy.data.materials[m_name]
+                if h_mat.node_tree:
+                    bsdf = h_mat.node_tree.nodes.get("Principled BSDF")
+                    if bsdf and "Emission Strength" in bsdf.inputs:
+                        f_start = start_frame + int(total_frames * 0.10)
+                        f_peak = start_frame + int(total_frames * 0.35)
+                        f_end = start_frame + int(total_frames * 0.65)
+                        bsdf.inputs["Emission Color"].default_value = (1.0, 0.82, 0.35, 1.0)
+                        bsdf.inputs["Emission Strength"].default_value = 0.0
+                        bsdf.inputs["Emission Strength"].keyframe_insert(data_path="default_value", frame=start_frame)
+                        bsdf.inputs["Emission Strength"].keyframe_insert(data_path="default_value", frame=f_start)
+                        bsdf.inputs["Emission Strength"].default_value = 1.8
+                        bsdf.inputs["Emission Strength"].keyframe_insert(data_path="default_value", frame=f_peak)
+                        bsdf.inputs["Emission Strength"].default_value = 0.0
+                        bsdf.inputs["Emission Strength"].keyframe_insert(data_path="default_value", frame=f_end)
 
     for f in range(start_frame, end_frame + 1):
         progress = (f - start_frame) / float(total_frames)
         current_theta = theta_start + progress * (theta_end - theta_start)
         cycle_angle_deg = math.degrees(current_theta) % 720.0
 
-        # --- Factor de despiece ---
+        # --- Factor de despiece y ensamblaje ---
         if cycle_phase == "exploded_view":
             if progress < 0.35:
                 exploded_factor = progress / 0.35
@@ -287,6 +320,15 @@ def build_4_stroke_cycle_keyframes(
                 exploded_factor = 1.0
             else:
                 exploded_factor = max(0.0, 1.0 - (progress - 0.68) / 0.32)
+        elif cycle_phase == "assembly_shot":
+            if progress < 0.15:
+                exploded_factor = 1.0
+            elif progress < 0.75:
+                t = (progress - 0.15) / 0.60
+                s = t * t * (3.0 - 2.0 * t)  # Transición cúbica suave hermite
+                exploded_factor = max(0.0, 1.0 - s)
+            else:
+                exploded_factor = 0.0
         else:
             exploded_factor = 0.0
 
