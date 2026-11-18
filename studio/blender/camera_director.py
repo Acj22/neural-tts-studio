@@ -63,12 +63,14 @@ def setup_studio_lighting() -> dict[str, Any]:
     if key_light.name in scene.collection.objects:
         scene.collection.objects.unlink(key_light)
 
-    # 2. Fill Light (Luz de Relleno Suave)
+    # 2. Fill Light (Luz de Relleno Suave — sin sombras adicionales para optimizar VRAM en Iris Xe)
     bpy.ops.object.light_add(type="AREA", radius=6.0, location=(-6.0, -8.0, 5.0))
     fill_light = bpy.context.active_object
     fill_light.name = "Light_Fill_Studio"
     fill_light.data.energy = 300.0
     fill_light.data.color = (0.88, 0.93, 1.0)
+    if hasattr(fill_light.data, "use_shadow"):
+        fill_light.data.use_shadow = False
     lights_col.objects.link(fill_light)
     if fill_light.name in scene.collection.objects:
         scene.collection.objects.unlink(fill_light)
@@ -79,6 +81,8 @@ def setup_studio_lighting() -> dict[str, Any]:
     rim_light.name = "Light_Rim_Studio"
     rim_light.data.energy = 450.0
     rim_light.data.color = (1.0, 1.0, 1.0)
+    if hasattr(rim_light.data, "use_shadow"):
+        rim_light.data.use_shadow = False
     lights_col.objects.link(rim_light)
     if rim_light.name in scene.collection.objects:
         scene.collection.objects.unlink(rim_light)
@@ -89,6 +93,8 @@ def setup_studio_lighting() -> dict[str, Any]:
     front_light.name = "Light_Front_Studio"
     front_light.data.energy = 200.0
     front_light.data.color = (1.0, 0.97, 0.93)
+    if hasattr(front_light.data, "use_shadow"):
+        front_light.data.use_shadow = False
     lights_col.objects.link(front_light)
     if front_light.name in scene.collection.objects:
         scene.collection.objects.unlink(front_light)
@@ -98,6 +104,8 @@ def setup_studio_lighting() -> dict[str, Any]:
     top_light = bpy.context.active_object
     top_light.name = "Light_Top_Studio"
     top_light.data.energy = 300.0
+    if hasattr(top_light.data, "use_shadow"):
+        top_light.data.use_shadow = False
     top_light.data.color = (1.0, 0.98, 0.96)
     lights_col.objects.link(top_light)
     if top_light.name in scene.collection.objects:

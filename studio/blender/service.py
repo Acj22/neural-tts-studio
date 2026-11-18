@@ -70,6 +70,7 @@ def render_scene_3d_video(
         "model_type": scene.get("model_type", "combustion_engine"),
         "highlight_component": scene.get("highlight_component") or (scene.get("diagram_spec") or {}).get("highlight_component"),
         "render_profile": render_profile,
+        "camera_plan": scene.get("camera_plan"),
         "output_dir": str(temp_frames_dir.resolve()),
         "single_frame_only": False,
     }
@@ -187,6 +188,7 @@ def render_scene_3d_still(
         "cycle_phase": cycle_phase,
         "model_type": scene.get("model_type", "combustion_engine"),
         "render_profile": render_profile,
+        "camera_plan": scene.get("camera_plan"),
         "output_dir": str(temp_dir.resolve()),
         "single_frame_only": True,
     }

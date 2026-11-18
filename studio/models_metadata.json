@@ -1,0 +1,213 @@
+{
+  "version": "3.1.0",
+  "framework": "Blender 5.3+ Procedural Geometry & EEVEE Next Engine",
+  "license_policy": "100% Procedural Free / Zero external commercial 3D assets / Zero paid APIs",
+  "external_resources_audit": {
+    "blender_5_3": {
+      "resource": "Blender 5.3.0 Local Runtime",
+      "license": "GNU GPL v3.0",
+      "cost": "Gratuito / Open Source",
+      "verified": true
+    },
+    "geometry_and_materials": {
+      "resource": "Mallas 3D, engranajes, perfiles V-Slot, tuberías y shaders Principled BSDF",
+      "license": "100% Código Procedural Propio (CC0 / Dominio del Proyecto)",
+      "cost": "Gratuito / Sin assets descargados de terceros",
+      "verified": true
+    },
+    "ffmpeg_imageio": {
+      "resource": "FFmpeg + libass local muxer",
+      "license": "LGPL v2.1+ / GPL v2+",
+      "cost": "Gratuito / Local",
+      "verified": true
+    },
+    "tts_synthesis": {
+      "resource": "Síntesis neuronal local / Edge-TTS + Masterización DSP SciPy/NumPy",
+      "license": "MIT / BSD-3-Clause",
+      "cost": "Gratuito",
+      "verified": true
+    }
+  },
+  "categories_index": [
+    "mecanica",
+    "electrodomesticos",
+    "impresion_fabricacion",
+    "electronica",
+    "procesos_industriales",
+    "energia",
+    "transporte",
+    "ciencia",
+    "tecnologia"
+  ],
+  "camera_templates": [
+    "presentacion_general",
+    "despiece",
+    "corte_transversal",
+    "seguimiento_movimiento",
+    "primer_plano",
+    "vista_superior",
+    "vista_lateral",
+    "vista_interna",
+    "comparacion_estados"
+  ],
+  "materials_catalog": [
+    "studio_floor", "studio_backdrop", "engine_block", "cutaway_rim", "rocker_cover",
+    "manifold_pipes", "oil_pan", "cylinder_liner", "piston", "piston_rings", "wrist_pin",
+    "connecting_rod", "rod_recess", "rod_bearings", "rod_bolts", "crankshaft",
+    "counterweights", "flywheel", "valve_intake", "valve_exhaust", "valve_spring",
+    "valve_retainer", "spark_ceramic", "spark_metal", "spark_copper", "brass_gold",
+    "ring_gear_blue", "fluid_atf", "clutch_plate", "copper_coil", "white_cabinet",
+    "compressor_black", "frost_blue", "heat_red", "vslot_black", "filament_orange",
+    "extrusion_glow", "pei_bed"
+  ],
+  "models": {
+    "combustion_engine": {
+      "id": "combustion_engine",
+      "name": "Motor de Combustión Interna de Cuatro Tiempos",
+      "category": "mecanica",
+      "module_path": "studio/blender/models_library/combustion_engine.py",
+      "version": "3.1.0",
+      "bounding_scale": [4.4, 2.5, 8.8],
+      "center_point": [0.0, 0.0, 3.2],
+      "components": [
+        "Bloque de motor en fundición de aluminio con corte transversal frontal a 180°",
+        "Cárter inferior macizo con apoyos escalonados y hendidura frontal",
+        "Camisa de cilindro rectificada con bisel mecanizado",
+        "Pistón de cobre/bronce anodizado con 3 aros de compresión en cromo",
+        "Bulón tubular pasante en acero templado oscuro con núcleo hueco",
+        "Biela forjada en perfil viga I con casquillos de bronce fosforoso y pernos",
+        "Cigüeñal rectificado con muñequilla y contrapesos lobulares",
+        "Culata de doble cúpula con colectores curvos de admisión y escape",
+        "Válvulas de admisión y escape inclinadas a 16° con resortes helicoidales 3D",
+        "Bujía central con aislador cerámico corrugado y estallido estelar Coverfox"
+      ],
+      "mechanical_relations": [
+        "Cinemática biela-manivela exacta: z_piston = r*cos(theta) + sqrt(l^2 - r^2*sin^2(theta))",
+        "Ángulo de biela: phi_rod = arcsin(-(r/l)*sin(theta))",
+        "Apertura de válvulas a 16° sincronizada con compresión física de resortes helicoidales"
+      ],
+      "supported_phases": [
+        "hero_intro", "full_cycle", "exploded_view", "intake",
+        "compression", "combustion", "exhaust", "assembly_shot"
+      ],
+      "scene_templates": [
+        "presentacion_general", "despiece", "corte_transversal", "primer_plano",
+        "seguimiento_movimiento", "vista_superior", "comparacion_estados"
+      ],
+      "declared_limitations": "Modelo monocilíndrico didáctico. No modela bomba de aceite ni galería de refrigeración líquida.",
+      "licenses": "100% Procedural Python en Blender. Libre de regalías."
+    },
+    "automatic_transmission": {
+      "id": "automatic_transmission",
+      "name": "Transmisión Automática Automotriz & Tren Planetario Epicicloidal",
+      "category": "mecanica",
+      "module_path": "studio/blender/models_library/automatic_transmission.py",
+      "version": "3.1.0",
+      "bounding_scale": [4.2, 5.6, 4.0],
+      "center_point": [0.0, 1.5, 2.0],
+      "components": [
+        "Carcasa principal y campana en corte angular de 120° sin obstrucción visual",
+        "Convertidor de par hidráulico con impulsor (20 álabes), turbina (20 álabes), estátor (12 álabes) y flujo toroidal ATF",
+        "Engranaje solar central (Zs = 24 dientes involutas trapezoidales) en latón dorado sobre eje de entrada",
+        "4 Engranajes satélites/planetarios (Zp = 12 dientes) en acero templado con pasadores y tapas",
+        "Portasatélites (Planet Carrier) rígido acoplado al tubo de salida con chaveta indicadora",
+        "Corona exterior dentada interna (Zr = 48 dientes = Zs + 2*Zp) en azul cobalto con tambor",
+        "Banda de freno exterior con servo hidráulico y vástago actuador",
+        "Paquete de 6 discos de embrague multidisco alternados (acero y fricción)",
+        "Cuerpo de válvulas inferior con 6 carretes (spools) y líneas hidráulicas presurizadas",
+        "Marcadores cromáticos de estado (Verde=Entrada, Rojo=Fijo, Azul=Salida) y etiquetas 3D"
+      ],
+      "mechanical_relations": [
+        "Condición geométrica de engrane epicicloidal: Zr (48) = Zs (24) + 2 * Zp (12)",
+        "Ecuación cinemática fundamental de Willis: omega_s*Zs + omega_r*Zr = omega_c*(Zs + Zr)",
+        "Régimen 1 (1ª Marcha / Reducción 3:1): Corona fija (omega_r = 0) -> omega_c = omega_s / 3",
+        "Régimen 2 (Marcha Directa 1:1): Embrague acopla sol y portasatélites -> omega_s = omega_c = omega_r",
+        "Régimen 3 (Reversa -1:2): Portasatélites fijo (omega_c = 0) -> omega_r = -omega_s * (Zs/Zr) = -omega_s / 2"
+      ],
+      "supported_phases": [
+        "overview", "components", "torque_converter", "planetary_intro",
+        "planetary_reduction", "planetary_direct", "planetary_reverse",
+        "planetary_compare", "clutch", "conclusion"
+      ],
+      "scene_templates": [
+        "presentacion_general", "despiece", "corte_transversal", "vista_interna",
+        "primer_plano", "seguimiento_movimiento", "vista_lateral", "comparacion_estados"
+      ],
+      "declared_limitations": "Modela un tren planetario simple de una etapa con relaciones exactas de Willis (las cajas reales encadenan 2 o 3 conjuntos Ravigneaux/Lepelletier). No modela solenoides PWM individuales.",
+      "licenses": "100% Procedural Python en Blender. Libre de regalías."
+    },
+    "refrigerator_cycle": {
+      "id": "refrigerator_cycle",
+      "name": "Refrigerador y Circuito Termodinámico de Compresión de Vapor",
+      "category": "electrodomesticos",
+      "module_path": "studio/blender/models_library/refrigerator_cycle.py",
+      "version": "3.1.0",
+      "bounding_scale": [3.8, 1.8, 4.8],
+      "center_point": [0.5, 0.1, 2.2],
+      "components": [
+        "Gabinete seccionado de 3 capas visibles (chapa blanca exterior, aislamiento de espuma de poliuretano amarilla y liner interior)",
+        "Compartimento congelador superior con placa de escarcha y compartimento fresco inferior con estantes de cristal",
+        "Alimentos estilizados (botellas, cartón de leche, queso, manzanas, tomates, bandeja de huevos, cubetera de hielo)",
+        "Compresor hermético seccionado a 150° mostrando bobinado de cobre del estátor, rotor giratorio y pistón alternativo en cilindro",
+        "Línea de descarga de alta presión (rojo incandescente) con soldaduras de latón",
+        "Serpentín condensador continuo de 8 pasadas con codos en U redondeados y 12 aletas disipadoras verticales",
+        "Transición continua de fase en condensador (4 filas superiores de vapor rojo-naranja -> 4 filas inferiores de líquido naranja)",
+        "Filtro deshidratador de latón con casquillos soldados en la línea de líquido",
+        "Dispositivo de expansión: tubo capilar helicoidal de 7 espiras donde cae la presión",
+        "Serpentín evaporador continuo de 5 pasadas en el congelador y línea de succión azul-cian de retorno al compresor",
+        "Partículas dinámicas de refrigerante (burbujas de vapor y gotas de líquido) y flechas 3D de transferencia de calor"
+      ],
+      "mechanical_relations": [
+        "Lazo cerrado continuo sin cortes: Compresor -> Descarga -> Condensador -> Filtro -> Capilar -> Subida -> Evaporador -> Succión -> Compresor",
+        "Conservación de flujo: las partículas recorren la longitud de arco de cada tramo con cambio de radio (vapor grande -> líquido compacto)",
+        "Balance térmico: flechas naranjas extraen calor de los alimentos hacia el evaporador; flechas rojas disipan calor del condensador al exterior"
+      ],
+      "supported_phases": [
+        "overview", "components", "compressor", "condenser",
+        "expansion", "evaporator", "heat_balance", "conclusion"
+      ],
+      "scene_templates": [
+        "presentacion_general", "corte_transversal", "despiece", "primer_plano",
+        "vista_lateral", "vista_interna", "seguimiento_movimiento", "vista_superior", "comparacion_estados"
+      ],
+      "declared_limitations": "El condensador se despliega ligeramente hacia el costado derecho para que la cámara frontal observe simultáneamente el gabinete interior y el rechazo de calor. El dispositivo de expansión es un tubo capilar doméstico.",
+      "licenses": "100% Procedural Python en Blender. Libre de regalías."
+    },
+    "printer_3d_fdm": {
+      "id": "printer_3d_fdm",
+      "name": "Impresora 3D Cartesiana FDM (Modelado por Deposición Fundida)",
+      "category": "impresion_fabricacion",
+      "module_path": "studio/blender/models_library/printer_3d_fdm.py",
+      "version": "3.1.0",
+      "bounding_scale": [3.8, 2.8, 5.2],
+      "center_point": [0.0, 0.7, 2.3],
+      "components": [
+        "Chasis rígido en pórtico construido con perfiles de aluminio V-Slot 2020 con ranuras en T reales y patas de goma",
+        "Doble husillo roscado en eje Z con motores paso a paso NEMA 17, guías lineales lisas y tuercas trapezoidales de latón",
+        "Puente horizontal del eje X con motor NEMA 17, polea motriz, polea tensora y correa dentada GT2 con dientes tallados",
+        "Carro del cabezal con 4 ruedas V-Wheel sobre el perfil X y soporte de aluminio",
+        "Extrusor directo con motor NEMA 17, engranaje dentado de tracción en latón y rodamiento tensor",
+        "Hotend completo: disipador con 9 aletas circulares, garganta térmica (heat-break), bloque calefactor incandescente y boquilla cónica de latón con tuerca hexagonal",
+        "Ventilador de enfriamiento de capa con tobera direccional apuntando a la punta de la boquilla",
+        "Plataforma/cama móvil en eje Y sobre rieles V-Slot con 4 ruedas, motor NEMA 17, correa dentada GT2, 4 resortes helicoidales de nivelación, perillas y lámina PEI dorada",
+        "Carrete superior giratorio de filamento PLA naranja con hebra dinámica traccionada hacia el extrusor",
+        "Pieza impresa real (vaso orgánico de 22 capas x 16 segmentos = 352 arcos depositados secuencialmente al paso de la boquilla) y gota fundida activa"
+      ],
+      "mechanical_relations": [
+        "Cinemática cartesiana relativa exacta: el cabezal traza X(t) = R*cos(theta) y asciende Z(t) = Z0 + capa*h, mientras la cama traza Y(t) = -R*sin(theta)",
+        "Sincronización de deposición: cada segmento de arco (k, j) aparece exactamente en el fotograma en que la punta de la boquilla pasa por su coordenada",
+        "Tracción de material: la rotación del carrete superior, el engranaje del extrusor y los marcadores de la hebra avanzan proporcionalmente al volumen extruido"
+      ],
+      "supported_phases": [
+        "overview", "components", "hotend", "axis_motion",
+        "layer_by_layer", "cooling", "comparison", "conclusion"
+      ],
+      "scene_templates": [
+        "presentacion_general", "despiece", "primer_plano", "seguimiento_movimiento",
+        "vista_superior", "vista_interna", "vista_lateral", "comparacion_estados"
+      ],
+      "declared_limitations": "Representa una arquitectura cartesiana tipo cama móvil en Y (Prusa/Ender). Se omiten cables eléctricos colgantes y pantalla LCD para maximizar la limpieza visual de las correas GT2 y husillos.",
+      "licenses": "100% Procedural Python en Blender. Libre de regalías."
+    }
+  }
+}

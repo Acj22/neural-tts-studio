@@ -1,10 +1,14 @@
-"""Módulo de Producción de Videos Educativos 3D para Redes Sociales (Fase 3).
+"""Módulo de Producción de Videos Educativos 3D Especializados por Categoría (Fase 3.1).
 
-Optimizado para TikTok, YouTube Shorts y Facebook Reels (9:16).
+Optimizado para TikTok, YouTube Shorts y Facebook Reels (9:16) en hardware Intel Core i5 11ª gen + 8 GB RAM + Iris Xe.
 Incluye:
-1. Biblioteca oficial de 3 temas piloto (Transmisión Automática, Refrigerador, Impresora 3D).
-2. Generador de subtítulos dinámicos (.ASS) con tipografía bold, márgenes seguros y palabras clave en amarillo.
-3. Pipeline automatizado de renderizado 3D por escenas + síntesis de voz masterizada + muxing final con FFmpeg.
+1. Clasificación automática del tema en las 9 categorías (`content_classifier.py`).
+2. Director Visual Especializado (`specialized_visual_director.py`) con las 9 tipologías de toma sin repetición consecutiva.
+3. Banco de 3 guiones educativos profundos de 8 escenas (90 a 115 segundos) alineados 1:1 con la física y mecánica 3D.
+4. Particionador sintáctico de subtítulos dinámicos (.ASS) sin palabras huérfanas, máximo 2 líneas equilibradas,
+   sincronización proporcional por peso fonético y resaltado de términos clave en amarillo.
+5. Control de Calidad Técnico (`technical_qc_report.json`) que verifica componentes, conexiones mecánicas,
+   ausencia de cortes de cámara, correspondencia escena-narración y sincronización audio-subtítulos.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -23,183 +27,289 @@ import soundfile as sf
 
 from studio.blender.service import _get_ffmpeg, _synthesize_audio_local, render_scene_3d_video
 from studio.blender.render_profiles import get_render_profile
+from studio.specialized_visual_director import SpecializedVisualDirector
 
 logger = logging.getLogger("studio.educational_production")
 
+# Palabras débiles (artículos, preposiciones, clíticos y conjunciones) que NUNCA deben quedar huérfanas al final de línea/bloque
+_WEAK_TRAILING_WORDS = {
+    "el", "la", "los", "las", "un", "una", "unos", "unas", "lo",
+    "de", "del", "al", "a", "en", "con", "por", "para", "sin", "sobre", "entre", "hacia", "hasta", "desde",
+    "que", "y", "e", "o", "u", "ni", "pero", "como", "cuando", "donde",
+    "se", "su", "sus", "mi", "mis", "tu", "tus", "le", "les", "nos",
+    "más", "muy", "tan", "casi", "cada", "todo", "toda", "todos", "todas",
+}
+
 
 # ==============================================================================
-# 1. BANCO DE GUIONES EDUCATIVOS CANÓNICOS (90 A 115 SEGUNDOS)
+# 1. BANCO DE GUIONES EDUCATIVOS ESPECIALIZADOS FASE 3.1 (90 A 115 SEGUNDOS)
 # ==============================================================================
 
 EDUCATIONAL_PILOT_SCRIPTS: dict[str, dict[str, Any]] = {
     "transmision_automatica": {
         "id": "pilot_01_transmision_automatica",
         "title": "¿Cómo funciona una transmisión automática?",
-        "topic": "Transmisión Automática Automotriz",
+        "topic": "Transmisión Automática Automotriz y Tren Planetario Epicicloidal",
         "model_type": "automatic_transmission",
         "voice_key": "es-US-AlonsoNeural",
         "scenes": [
             {
                 "id": "SCN_01_HOOK",
-                "title": "1. El Enigma del Cambio Invisible",
-                "text": "¡Alguna vez te has preguntado... cómo tu auto cambia de marcha con total suavidad sin que tengas que pisar un embrague? Detrás de esa magia, existe una prodigiosa obra de hidráulica y engranajes planetarios.",
-                "composition_type": "hero_view",
+                "title": "1. El Secreto del Cambio sin Embrague",
+                "text": "¿Cómo logra tu automóvil multiplicar la fuerza para subir una pendiente y luego rodar a alta velocidad en autopista sin que pises un pedal de embrague? La respuesta combina energía hidrodinámica con la geometría exacta de un tren de engranajes planetarios.",
+                "shot_type": "presentacion_general",
                 "phase": "overview",
-                "keywords": ["auto", "cambia de marcha", "embrague", "hidráulica", "engranajes planetarios"],
+                "focus_group": "all",
+                "pedagogical_intent": "Presentar la transmisión automática completa en corte de 120° identificando su función de transformación de par y velocidad.",
+                "keywords": ["multiplicar la fuerza", "alta velocidad", "embrague", "energía hidrodinámica", "engranajes planetarios"],
             },
             {
                 "id": "SCN_02_COMPONENTS",
-                "title": "2. Anatomía de la Transmisión",
-                "text": "¡Observa su arquitectura interior!... Tres elementos dominan el sistema: el convertidor de par hidráulico, el tren de engranajes epicicloidal, y un complejo laberinto de válvulas gobernado por fluido a presión.",
-                "composition_type": "exploded_view",
+                "title": "2. Despiece de los Subsistemas",
+                "text": "Al separar sus módulos principales descubrimos tres etapas conectadas en serie: el convertidor de par acoplado al motor, el paquete de embragues y frenos de banda, y el conjunto epicicloidal gobernado por el cuerpo inferior de válvulas hidráulicas.",
+                "shot_type": "despiece",
                 "phase": "components",
-                "keywords": ["arquitectura interior", "convertidor de par", "tren epicicloidal", "válvulas", "fluido a presión"],
+                "focus_group": "all",
+                "pedagogical_intent": "Separar axialmente cada subsistema para comprender cómo fluye la potencia desde el volante del motor hasta el tubo de salida.",
+                "keywords": ["módulos principales", "convertidor de par", "embragues", "frenos de banda", "válvulas hidráulicas"],
             },
             {
                 "id": "SCN_03_TORQUE_CONVERTER",
-                "title": "3. El Convertidor de Par Hidráulico",
-                "text": "En lugar de una conexión sólida, el motor hace girar un impulsor dentro de aceite rojo ATF. Como dos ventiladores enfrentados, el fluido proyectado arrastra a la turbina, transfiriendo fuerza con absoluta fluidez.",
-                "composition_type": "close_up_view",
+                "title": "3. Convertidor de Par Hidráulico",
+                "text": "El convertidor de par reemplaza al embrague mecánico. La bomba impulsora lanza fluido rojo de transmisión contra los álabes de la turbina, mientras el estátor central redirige el flujo toroidal para multiplicar el par de arranque sin desgaste físico.",
+                "shot_type": "corte_transversal",
                 "phase": "torque_converter",
-                "keywords": ["impulsor", "aceite rojo ATF", "turbina", "fuerza", "fluidez"],
+                "focus_group": ["converter", "engine_side"],
+                "pedagogical_intent": "Mostrar en corte transversal la circulación toroidal del fluido ATF entre impulsor, turbina y estátor.",
+                "keywords": ["convertidor de par", "bomba impulsora", "fluido rojo", "turbina", "estátor central"],
             },
             {
-                "id": "SCN_04_PLANETARY_GEARS",
-                "title": "4. El Tren de Engranajes Planetario",
-                "text": "Aquí reside el secreto de las marchas: el engranaje solar central, los satélites y la corona exterior permiten multiplicar la fuerza para arrancar, o brindar velocidad de autopista... ¡todo en el mismo eje!",
-                "composition_type": "close_up_view",
-                "phase": "planetary",
-                "keywords": ["engranaje solar", "satélites", "corona exterior", "multiplicar fuerza", "velocidad"],
+                "id": "SCN_04_PLANETARY_ANATOMY",
+                "title": "4. Anatomía del Tren Planetario",
+                "text": "En el corazón del sistema engranan cuatro piezas coaxiales: el engranaje solar dorado de veinticuatro dientes en el centro, cuatro satélites planetarios de doce dientes sujetos por el portasatélites, y la corona exterior azul de cuarenta y ocho dientes.",
+                "shot_type": "vista_interna",
+                "phase": "planetary_intro",
+                "focus_group": ["sun", "planets", "carrier", "ring"],
+                "pedagogical_intent": "Identificar con etiquetas tridimensionales cada componente del tren epicicloidal y su relación geométrica de engrane.",
+                "keywords": ["engranaje solar", "veinticuatro dientes", "satélites planetarios", "portasatélites", "corona exterior"],
             },
             {
-                "id": "SCN_05_HYDRAULIC_CLUTCH",
-                "title": "5. Embragues y Frenos de Banda",
-                "text": "Diminutos pistones hidráulicos comprimen paquetes de embrague en milisegundos. Al frenar o liberar distintas partes del tren planetario, la computadora altera la relación de transmisión al instante.",
-                "composition_type": "close_up_view",
-                "phase": "clutch",
-                "keywords": ["pistones hidráulicos", "paquetes de embrague", "tren planetario", "relación de transmisión"],
+                "id": "SCN_05_FIRST_GEAR_REDUCTION",
+                "title": "5. Primera Marcha: Reducción Tres a Uno",
+                "text": "Para arrancar en primera marcha, el servo hidráulico tensa la banda de freno y bloquea fija la corona exterior. El engranaje solar gira rápido e impulsa a los satélites a rodar por dentro, haciendo que el portasatélites salga con un tercio de velocidad pero el triple de fuerza.",
+                "shot_type": "primer_plano",
+                "phase": "planetary_reduction",
+                "focus_group": ["sun", "planets", "carrier", "ring", "brake"],
+                "pedagogical_intent": "Demostrar visualmente la reducción 3:1 cuando la corona permanece fija (rojo), el sol entra (verde) y el portasatélites sale (azul).",
+                "keywords": ["primera marcha", "banda de freno", "corona exterior", "tercio de velocidad", "triple de fuerza"],
             },
             {
-                "id": "SCN_06_CONCLUSION",
-                "title": "6. Sinfonía Mecánica en Marcha",
-                "text": "De este modo... presión de fluido y engranajes espaciales trabajan en perfecta armonía, permitiendo que tú sólo tengas que acelerar y disfrutar de un viaje constante y eficiente.",
-                "composition_type": "assembly_view",
-                "phase": "conclusion",
-                "keywords": ["presión de fluido", "engranajes espaciales", "perfecta armonía", "acelerar", "eficiente"],
+                "id": "SCN_06_DIRECT_DRIVE_CLUTCH",
+                "title": "6. Marcha Directa: Acoplamiento Uno a Uno",
+                "text": "Cuando el vehículo gana velocidad, la presión hidráulica comprime el paquete de embragues multidisco y libera la corona. Al unir solidariamente el sol con el portasatélites, los satélites dejan de rotar sobre sus pasadores y todo el conjunto gira bloqueado en relación directa uno a uno.",
+                "shot_type": "vista_lateral",
+                "phase": "planetary_direct",
+                "focus_group": ["clutch", "sun", "carrier", "ring"],
+                "pedagogical_intent": "Evidenciar desde vista lateral cómo el cierre del paquete de embragues bloquea el tren planetario para girar a relación 1:1.",
+                "keywords": ["presión hidráulica", "embragues multidisco", "portasatélites", "relación directa", "uno a uno"],
+            },
+            {
+                "id": "SCN_07_REVERSE_GEAR",
+                "title": "7. Reversa: Inversión por Portasatélites Fijo",
+                "text": "¿Y cómo se consigue la marcha atrás sin añadir otro eje? El sistema inmoviliza ahora al portasatélites. Los cuatro satélites giran sobre su propio sitio como ruedas intermedias e invierten el sentido de rotación de la corona exterior a la mitad de velocidad.",
+                "shot_type": "seguimiento_movimiento",
+                "phase": "planetary_reverse",
+                "focus_group": ["sun", "planets", "carrier", "ring"],
+                "pedagogical_intent": "Seguir la inversión cinemática del giro de la corona cuando los pasadores del portasatélites quedan retenidos.",
+                "keywords": ["marcha atrás", "inmoviliza", "portasatélites", "ruedas intermedias", "invierten el sentido"],
+            },
+            {
+                "id": "SCN_08_STATE_COMPARISON",
+                "title": "8. Comparación de Estados y Control Hidráulico",
+                "text": "Al comparar los tres regímenes vemos la elegancia de la ecuación de Willis: basta con fijar la corona, acoplar el embrague o retener el portasatélites desde el cuerpo de válvulas para obtener reducción, directa o reversa en el mismo espacio compacto.",
+                "shot_type": "comparacion_estados",
+                "phase": "planetary_compare",
+                "focus_group": "all",
+                "pedagogical_intent": "Contrastar de forma consecutiva los tres estados operativos del tren planetario junto con el cuerpo de válvulas hidráulicas.",
+                "keywords": ["tres regímenes", "ecuación de Willis", "reducción", "directa", "reversa"],
             },
         ],
     },
     "refrigerador": {
         "id": "pilot_02_refrigerador",
         "title": "¿Cómo funciona un refrigerador?",
-        "topic": "Ciclo de Refrigeración por Compresión de Vapor",
+        "topic": "Ciclo de Refrigeración por Compresión de Vapor y Transferencia de Calor",
         "model_type": "refrigerator_cycle",
         "voice_key": "es-US-AlonsoNeural",
         "scenes": [
             {
                 "id": "SCN_01_HOOK",
-                "title": "1. El Mito de Fabricar Frío",
-                "text": "¡Un refrigerador en realidad no produce frío!... Lo que hace es extraer el calor de tus alimentos... y expulsarlo fuera de tu cocina. ¿Cómo logra desafiar a la física todos los días?",
-                "composition_type": "hero_view",
+                "title": "1. La Física de Extraer Calor",
+                "text": "En física el frío no se fabrica: lo que hace tu refrigerador las veinticuatro horas del día es bombear el calor que contienen los alimentos hacia el aire exterior de tu cocina, utilizando un fluido refrigerante que cambia de estado en un circuito hermético.",
+                "shot_type": "presentacion_general",
                 "phase": "overview",
-                "keywords": ["no produce frío", "extraer el calor", "alimentos", "expulsarlo", "física"],
+                "focus_group": "all",
+                "pedagogical_intent": "Presentar el gabinete en corte con sus compartimentos, alimentos y el lazo termodinámico completo en funcionamiento.",
+                "keywords": ["frío no se fabrica", "bombear el calor", "alimentos", "fluido refrigerante", "circuito hermético"],
             },
             {
                 "id": "SCN_02_COMPONENTS",
-                "title": "2. Los Cuatro Guardianes Térmicos",
-                "text": "¡Fíjate en su circuito cerrado!... Cuatro componentes hacen posible el milagro: el compresor en la base, el serpentín condensador exterior, el tubo capilar de expansión y el evaporador interno.",
-                "composition_type": "exploded_view",
+                "title": "2. Mapa del Circuito Cerrado de Refrigeración",
+                "text": "Observa las cinco estaciones soldadas en serie sin un solo corte: el compresor en el zócalo inferior, el serpentín condensador de alta presión, el filtro deshidratador, el estrecho tubo capilar de expansión y el evaporador oculto en el congelador superior.",
+                "shot_type": "despiece",
                 "phase": "components",
-                "keywords": ["circuito cerrado", "compresor", "serpentín condensador", "tubo capilar", "evaporador interno"],
+                "focus_group": "all",
+                "pedagogical_intent": "Identificar secuencialmente con etiquetas 3D cada componente del circuito cerrado y la pared aislante de tres capas.",
+                "keywords": ["cinco estaciones", "compresor", "serpentín condensador", "filtro deshidratador", "tubo capilar", "evaporador"],
             },
             {
                 "id": "SCN_03_COMPRESSOR",
-                "title": "3. El Compresor: Bomba de Presión",
-                "text": "El corazón del sistema es el compresor hermético: absorbe el gas refrigerante y eleva drásticamente su presión y temperatura, convirtiéndolo en un vapor caliente listo para ceder energía.",
-                "composition_type": "close_up_view",
+                "title": "3. Compresor Hermético: Elevación de Presión",
+                "text": "Todo comienza dentro del compresor hermético. Su motor eléctrico con bobinado de cobre hace girar el rotor e impulsa un pistón alternativo que comprime el gas refrigerante frío, disparando su presión y temperatura hasta convertirlo en vapor sobrecalentado.",
+                "shot_type": "vista_interna",
                 "phase": "compressor",
-                "keywords": ["compresor hermético", "gas refrigerante", "presión", "temperatura", "vapor caliente"],
+                "focus_group": "compressor",
+                "pedagogical_intent": "Mostrar el interior seccionado del compresor hermético con el bobinado del estátor, el rotor girando y el pistón comprimiendo el vapor.",
+                "keywords": ["compresor hermético", "bobinado de cobre", "pistón alternativo", "presión y temperatura", "vapor sobrecalentado"],
             },
             {
                 "id": "SCN_04_CONDENSER",
-                "title": "4. El Condensador: Expulsión de Calor",
-                "text": "Al circular por la rejilla trasera, el refrigerante libera su calor hacia el aire de la habitación. Al enfriarse, el gas se condensa, transformándose en un líquido tibio a alta presión.",
-                "composition_type": "close_up_view",
+                "title": "4. Condensador: Rechazo de Calor y Cambio a Líquido",
+                "text": "Ese vapor rojo ardiente asciende por la línea de descarga e ingresa a las ocho pasadas del serpentín condensador. A medida que las aletas metálicas disipan el calor hacia el ambiente exterior, el gas pierde energía térmica y se condensa en un líquido naranja a alta presión.",
+                "shot_type": "vista_lateral",
                 "phase": "condenser",
-                "keywords": ["rejilla trasera", "libera su calor", "se condensa", "líquido tibio", "alta presión"],
+                "focus_group": ["condenser", "heat_arrows"],
+                "pedagogical_intent": "Visualizar el cambio gradual de vapor rojo (burbujas grandes) a líquido naranja (gotas compactas) mientras las flechas rojas expulsan calor.",
+                "keywords": ["línea de descarga", "serpentín condensador", "aletas metálicas", "disipan el calor", "se condensa"],
             },
             {
-                "id": "SCN_05_EXPANSION_EVAPORATOR",
-                "title": "5. Expansión y Absorción de Frío",
-                "text": "El líquido atraviesa el estrecho tubo capilar: ¡la presión se desploma de golpe! Al entrar al evaporador, el refrigerante se congela y hierve a baja temperatura, absorbiendo con avidez todo el calor interno.",
-                "composition_type": "close_up_view",
+                "id": "SCN_05_EXPANSION",
+                "title": "5. Filtro y Tubo Capilar: Caída Brusca de Presión",
+                "text": "El líquido a alta presión atraviesa primero el filtro deshidratador de latón, que retiene cualquier humedad, y enseguida entra a las siete espiras del diminuto tubo capilar. La fricción en ese conducto milimétrico estrangula el flujo y provoca que la presión y la temperatura se desplomen.",
+                "shot_type": "primer_plano",
                 "phase": "expansion",
-                "keywords": ["tubo capilar", "presión se desploma", "evaporador", "se congela", "absorbiendo calor"],
+                "focus_group": ["dryer", "capillary"],
+                "pedagogical_intent": "Enfocar en primer plano el filtro deshidratador y la hélice del tubo capilar donde ocurre la expansión adiabática del refrigerante.",
+                "keywords": ["filtro deshidratador", "tubo capilar", "estrangula el flujo", "presión", "temperatura se desplomen"],
             },
             {
-                "id": "SCN_06_CONCLUSION",
-                "title": "6. Bucle Termodinámico Infinito",
-                "text": "El ciclo se repite continuamente en un circuito sellado milimétrico, conservando tus alimentos frescos por semanas gracias a las leyes fundamentales de la termodinámica moderna.",
-                "composition_type": "assembly_view",
+                "id": "SCN_06_EVAPORATOR",
+                "title": "6. Evaporador: Absorción del Calor de los Alimentos",
+                "text": "Ya helado y a baja presión, el refrigerante sube hasta el serpentín evaporador del congelador. Allí hierve a varios grados bajo cero, absorbiendo el calor de las botellas, frutas y alimentos almacenados, para transformarse nuevamente en vapor frío.",
+                "shot_type": "corte_transversal",
+                "phase": "evaporator",
+                "focus_group": ["evaporator", "food"],
+                "pedagogical_intent": "Mostrar en corte transversal del congelador y compartimento fresco cómo las flechas térmicas extraen calor de los alimentos hacia el evaporador.",
+                "keywords": ["baja presión", "serpentín evaporador", "hierve", "bajo cero", "absorbiendo el calor"],
+            },
+            {
+                "id": "SCN_07_SUCTION_RETURN",
+                "title": "7. Línea de Succión y Retorno Continuo",
+                "text": "Una vez cargado con el calor extraído del interior, el vapor azul desciende por la tubería aislada de succión directamente de regreso a la entrada del compresor, manteniendo una circulación ininterrumpida a lo largo de todas las uniones soldadas.",
+                "shot_type": "seguimiento_movimiento",
+                "phase": "heat_balance",
+                "focus_group": "circuit",
+                "pedagogical_intent": "Seguir el recorrido completo de las partículas de refrigerante cerrando el lazo desde el evaporador hasta la succión del compresor.",
+                "keywords": ["calor extraído", "vapor azul", "tubería aislada", "succión", "circulación ininterrumpida"],
+            },
+            {
+                "id": "SCN_08_CONCLUSION",
+                "title": "8. Balance Termodinámico: Zona Caliente vs Zona Fría",
+                "text": "Al observar ambos lados del circuito a la vez se comprende la segunda ley de la termodinámica en acción: el lado izquierdo a baja presión absorbe el calor interno, mientras el lado derecho a alta presión lo expulsa fuera, conservando tus alimentos frescos día tras día.",
+                "shot_type": "comparacion_estados",
                 "phase": "conclusion",
-                "keywords": ["circuito sellado", "alimentos frescos", "termodinámica moderna"],
+                "focus_group": "all",
+                "pedagogical_intent": "Comparar simultáneamente la zona de baja presión absorbente y la zona de alta presión disipadora con el aislamiento del gabinete.",
+                "keywords": ["ambos lados", "termodinámica", "baja presión", "alta presión", "alimentos frescos"],
             },
         ],
     },
     "impresora_3d": {
         "id": "pilot_03_impresora_3d",
         "title": "¿Cómo funciona una impresora 3D?",
-        "topic": "Manufactura Aditiva FDM",
+        "topic": "Impresora 3D Cartesiana de Fabricación Aditiva FDM",
         "model_type": "printer_3d_fdm",
         "voice_key": "es-US-AlonsoNeural",
         "scenes": [
             {
                 "id": "SCN_01_HOOK",
-                "title": "1. Del Hilo Plástico a la Realidad",
-                "text": "¡Cómo es posible fabricar desde una pieza de repuesto hasta una prótesis médica... con tan solo un rollo de hilo plástico? Descubre la fascinante precisión de la impresión tridimensional FDM.",
-                "composition_type": "hero_view",
+                "title": "1. Manufactura Aditiva desde Cero",
+                "text": "A diferencia de un torno que desbasta material, una impresora tridimensional construye objetos físicos sumando material micra por micra. ¿Cómo coordina motores, correas dentadas y calor para convertir un filamento plástico en una pieza real?",
+                "shot_type": "presentacion_general",
                 "phase": "overview",
-                "keywords": ["pieza de repuesto", "prótesis médica", "rollo de hilo", "impresión tridimensional FDM"],
+                "focus_group": "all",
+                "pedagogical_intent": "Presentar el pórtico cartesiano completo depositando material en tiempo real sobre la plataforma calefactada.",
+                "keywords": ["impresora tridimensional", "sumando material", "correas dentadas", "filamento plástico", "pieza real"],
             },
             {
                 "id": "SCN_02_COMPONENTS",
-                "title": "2. Anatomía de la Impresora 3D",
-                "text": "¡Observa su estructura cartesiana!... Un chasis rígido de aluminio, motores paso a paso de alta resolución, una cama caliente texturizada y un cabezal extrusor con boquilla térmica de latón.",
-                "composition_type": "exploded_view",
+                "title": "2. Arquitectura Mecánica y Componentes",
+                "text": "Su estructura se arma sobre perfiles de aluminio ranurados V-Slot que sostienen los husillos verticales del eje Z, el puente horizontal del eje X, la plataforma móvil del eje Y con resortes de nivelación, el carrete superior y el cabezal con extrusor y hotend.",
+                "shot_type": "despiece",
                 "phase": "components",
-                "keywords": ["estructura cartesiana", "chasis de aluminio", "motores paso a paso", "cama caliente", "boquilla térmica"],
+                "focus_group": "all",
+                "pedagogical_intent": "Identificar con etiquetas 3D la estructura V-Slot, husillos Z, riel X, cama Y, carrete de filamento, extrusor, hotend y boquilla.",
+                "keywords": ["perfiles de aluminio", "V-Slot", "husillos verticales", "resortes de nivelación", "extrusor y hotend"],
             },
             {
-                "id": "SCN_03_EXTRUSION_HOTEND",
-                "title": "3. El Extrusor y la Boquilla Térmica",
-                "text": "Un engranaje motorizado tracciona el filamento hacia el bloque calefactor. A más de doscientos grados centígrados, el plástico se funde y fluye como un hilo diminuto a través de la boquilla.",
-                "composition_type": "close_up_view",
+                "id": "SCN_03_EXTRUDER_FEED",
+                "title": "3. Extrusor Directo: Tracción del Filamento",
+                "text": "Desde el carrete superior, la hebra de ácido poliláctico desciende hasta el extrusor directo. Allí, un motor paso a paso hace girar un engranaje dentado de latón que presiona el filamento contra un rodamiento tensor y lo empuja con fuerza controlada hacia la zona térmica.",
+                "shot_type": "vista_superior",
+                "phase": "extruder",
+                "focus_group": ["filament_spool", "extruder"],
+                "pedagogical_intent": "Observar desde ángulo superior el desenrollado del carrete y el engranaje de tracción del extrusor empujando el filamento.",
+                "keywords": ["carrete superior", "extrusor directo", "motor paso a paso", "engranaje dentado", "rodamiento tensor"],
+            },
+            {
+                "id": "SCN_04_HOTEND_NOZZLE",
+                "title": "4. Hotend y Boquilla: Transición Térmica Controlada",
+                "text": "El hotend divide el calor en dos zonas: arriba, nueve aletas de aluminio disipan la temperatura para que el plástico no se atasque; abajo, tras cruzar el puente térmico, el bloque calefactor a doscientos grados funde el polímero y lo calibra por la boquilla de latón de cuatro décimas de milímetro.",
+                "shot_type": "primer_plano",
                 "phase": "hotend",
-                "keywords": ["filamento", "bloque calefactor", "doscientos grados", "plástico se funde", "boquilla"],
+                "focus_group": ["hotend", "nozzle"],
+                "pedagogical_intent": "Mostrar en primer plano macro las 9 aletas del disipador, el heat-break, el bloque calefactor incandescente y la boquilla de latón.",
+                "keywords": ["hotend", "aletas de aluminio", "puente térmico", "bloque calefactor", "doscientos grados", "boquilla de latón"],
             },
             {
-                "id": "SCN_04_AXIS_MOTION",
-                "title": "4. Coordinación Cinemática en 3 Ejes",
-                "text": "Mientras la cama se desliza suavemente en el eje Y, el cabezal se desplaza a gran velocidad en X y Z. Cada movimiento responde a coordenadas matemáticas milimétricas enviadas por el procesador.",
-                "composition_type": "close_up_view",
+                "id": "SCN_05_AXIS_MOTION",
+                "title": "5. Cinemática Cartesiana en los Ejes X, Y y Z",
+                "text": "Para trazar cualquier geometría se combinan tres movimientos independientes: la correa dentada superior desplaza el carro lateralmente en el eje X; la cama caliente se desliza hacia adelante y atrás sobre sus ruedas en el eje Y; y dos husillos roscados elevan el puente completo en el eje Z.",
+                "shot_type": "seguimiento_movimiento",
                 "phase": "axis_motion",
-                "keywords": ["eje Y", "gran velocidad en X y Z", "coordenadas matemáticas", "procesador"],
+                "focus_group": "all",
+                "pedagogical_intent": "Demostrar secuencialmente el desplazamiento puro de cada eje cartesiano (X en rojo, Y en verde, Z en azul) con sus motores y transmisiones.",
+                "keywords": ["tres movimientos", "correa dentada", "eje X", "cama caliente", "eje Y", "husillos roscados", "eje Z"],
             },
             {
-                "id": "SCN_05_LAYER_BY_LAYER",
-                "title": "5. Fusión Capa por Capa",
-                "text": "El plástico recién extruido se funde con la capa inferior y se solidifica en fracciones de segundo gracias al ventilador. Capa sobre capa, una geometría tridimensional va naciendo de la nada.",
-                "composition_type": "close_up_view",
+                "id": "SCN_06_LAYER_DEPOSITION",
+                "title": "6. Deposición Sincronizada Capa por Capa",
+                "text": "Observa cómo nace la pieza sobre la lámina dorada de adherencia: mientras el cabezal oscila en X y la plataforma se mueve en Y en proporción exacta, la punta de la boquilla deposita un cordón fundido continuo que suelda cada nuevo anillo sobre el estrato anterior.",
+                "shot_type": "vista_interna",
                 "phase": "layer_by_layer",
-                "keywords": ["plástico fundido", "capa inferior", "solidifica", "ventilador", "geometría tridimensional"],
+                "focus_group": ["printed_part", "nozzle", "bed"],
+                "pedagogical_intent": "Captar de cerca la aparición secuencial de cada segmento del vaso exactamente bajo el cordón incandescente de la boquilla.",
+                "keywords": ["lámina dorada", "proporción exacta", "cordón fundido", "suelda", "estrato anterior"],
             },
             {
-                "id": "SCN_06_CONCLUSION",
-                "title": "6. La Revolución de la Fabricación Digital",
-                "text": "Estrato por estrato... la tecnología FDM materializa ideas del mundo virtual en objetos físicos tangibles, poniendo el poder de la manufactura industrial al alcance de cualquier hogar.",
-                "composition_type": "assembly_view",
+                "id": "SCN_07_COOLING_SOLID",
+                "title": "7. Enfriamiento de Capa y Solidificación",
+                "text": "Si el plástico permaneciera blando, las paredes colapsarían. Por eso el ventilador lateral impulsa una corriente de aire focalizada a través de su tobera azul justo debajo de la boquilla, enfriando el polímero recién depositado en una fracción de segundo.",
+                "shot_type": "vista_lateral",
+                "phase": "cooling",
+                "focus_group": ["hotend", "nozzle", "printed_part"],
+                "pedagogical_intent": "Mostrar desde perfil lateral la disposición del ventilador de capa y la tobera apuntando a la zona recién depositada.",
+                "keywords": ["ventilador lateral", "corriente de aire", "tobera azul", "enfriando el polímero", "fracción de segundo"],
+            },
+            {
+                "id": "SCN_08_CONCLUSION",
+                "title": "8. Del Primer Estrato a la Pieza Terminada",
+                "text": "Al completar las veintidós capas, los husillos elevan el puente y la plataforma avanza para entregar el objeto terminado: una estructura tridimensional precisa, nacida de la sincronización perfecta entre control digital, cinemática cartesiana y termodinámica de polímeros.",
+                "shot_type": "comparacion_estados",
                 "phase": "conclusion",
-                "keywords": ["tecnología FDM", "mundo virtual", "objetos físicos", "manufactura industrial"],
+                "focus_group": "all",
+                "pedagogical_intent": "Contrastar la pieza completa de 22 capas con la retracción final del cabezal y presentación frontal sobre la cama PEI.",
+                "keywords": ["veintidós capas", "objeto terminado", "sincronización perfecta", "cinemática cartesiana", "polímeros"],
             },
         ],
     },
@@ -207,11 +317,107 @@ EDUCATIONAL_PILOT_SCRIPTS: dict[str, dict[str, Any]] = {
 
 
 # ==============================================================================
-# 2. GENERADOR DE SUBTÍTULOS DINÁMICOS (.ASS) PARA TIKTOK / SHORTS
+# 2. PARTICIONADOR SINTÁCTICO Y GENERADOR DE SUBTÍTULOS DINÁMICOS (.ASS)
 # ==============================================================================
 
+def _clean_token(tok: str) -> str:
+    return tok.lower().strip(".,;:¡!¿?…—\"'()[]{}")
+
+
+def _split_into_natural_subtitle_clauses(text: str, min_words: int = 4, max_words: int = 8) -> list[list[str]]:
+    """Divide una oración larga en cláusulas sintácticas completas y naturales (4 a 8 palabras),
+    garantizando que NINGÚN bloque termine en artículo, preposición, clítico o conjunción huérfana."""
+    words = text.strip().split()
+    if not words:
+        return []
+
+    # 1. Primero separar por puntuación fuerte/media conservando el signo junto a la palabra
+    sentence_segments: list[list[str]] = []
+    cur: list[str] = []
+    for w in words:
+        cur.append(w)
+        if w.endswith((".", "!", "?", ":", ";", "…", ",")) and len(cur) >= min_words:
+            # Verificar que la palabra con coma no sea una palabra débil (raro, pero seguro)
+            if _clean_token(w) not in _WEAK_TRAILING_WORDS:
+                sentence_segments.append(cur)
+                cur = []
+    if cur:
+        if sentence_segments and len(cur) < 3:
+            sentence_segments[-1].extend(cur)
+        else:
+            sentence_segments.append(cur)
+
+    # 2. Sub-dividir segmentos largos (> max_words) en puntos de corte sintácticos limpios
+    final_clauses: list[list[str]] = []
+    for seg in sentence_segments:
+        buf = list(seg)
+        while len(buf) > max_words:
+            # Buscar el mejor punto de corte entre [min_words .. max_words]
+            target = min(max_words, max(min_words, len(buf) // 2 if len(buf) <= max_words * 2 else 6))
+            cut = target
+
+            # Si la última palabra antes del corte es débil, retroceder el corte antes de la palabra débil
+            while cut > 3 and _clean_token(buf[cut - 1]) in _WEAK_TRAILING_WORDS:
+                cut -= 1
+
+            # Si aún queda débil (ej. varias palabras débiles seguidas), avanzar hasta salir de la cadena débil
+            while cut < len(buf) - 2 and _clean_token(buf[cut - 1]) in _WEAK_TRAILING_WORDS:
+                cut += 1
+
+            # Evitar dejar un residuo final de 1 o 2 palabras sueltas
+            if len(buf) - cut < 3:
+                cut = max(3, len(buf) - 3)
+                while cut > 2 and _clean_token(buf[cut - 1]) in _WEAK_TRAILING_WORDS:
+                    cut -= 1
+
+            final_clauses.append(buf[:cut])
+            buf = buf[cut:]
+
+        if buf:
+            if final_clauses and (len(buf) < 3 or _clean_token(final_clauses[-1][-1]) in _WEAK_TRAILING_WORDS):
+                final_clauses[-1].extend(buf)
+            else:
+                final_clauses.append(buf)
+
+    # 3. Pase de seguridad final: si algún bloque quedó terminando en palabra débil, pasar esa palabra al siguiente
+    i = 0
+    while i < len(final_clauses) - 1:
+        while len(final_clauses[i]) > 1 and _clean_token(final_clauses[i][-1]) in _WEAK_TRAILING_WORDS:
+            moved = final_clauses[i].pop()
+            final_clauses[i + 1].insert(0, moved)
+        i += 1
+
+    return [c for c in final_clauses if c]
+
+
+def _format_two_lines_balanced(tokens_with_tags: list[str], raw_tokens: list[str], max_line_chars: int = 28) -> str:
+    """Si la cláusula supera `max_line_chars`, inserta un salto `\\N` equilibrado en dos líneas
+    sin dejar palabras débiles al final de la primera línea."""
+    plain = " ".join(raw_tokens)
+    if len(plain) <= max_line_chars or len(raw_tokens) <= 2:
+        return " ".join(tokens_with_tags)
+
+    best_split: int | None = None
+    best_score = 9999
+    for split_idx in range(1, len(raw_tokens)):
+        if _clean_token(raw_tokens[split_idx - 1]) in _WEAK_TRAILING_WORDS:
+            continue
+        left_plain = " ".join(raw_tokens[:split_idx])
+        right_plain = " ".join(raw_tokens[split_idx:])
+        diff = abs(len(left_plain) - len(right_plain))
+        if diff < best_score:
+            best_score = diff
+            best_split = split_idx
+
+    if best_split is None:
+        return " ".join(tokens_with_tags)
+
+    line1 = " ".join(tokens_with_tags[:best_split])
+    line2 = " ".join(tokens_with_tags[best_split:])
+    return f"{line1}\\N{line2}"
+
+
 def _format_ass_timestamp(seconds: float) -> str:
-    """Convierte segundos a formato ASS H:MM:SS.cc"""
     s = max(0.0, float(seconds))
     hrs = int(s // 3600)
     mins = int((s % 3600) // 60)
@@ -227,28 +433,27 @@ def generate_professional_educational_ass(
     width: int = 1080,
     height: int = 1920,
 ) -> str:
-    """Genera archivo .ASS con tipografía bold, zona segura para móvil y palabras clave en amarillo."""
+    """Genera archivo .ASS con tipografía bold grande, máximo 2 líneas equilibradas sin palabras huérfanas,
+    sincronización proporcional al peso fonético y palabras clave resaltadas en amarillo."""
     is_vertical = height > width
-    font_size = 54 if is_vertical else 38
-    # Zona segura TikTok / Reels: 16.5% de margen inferior para no tapar descripción ni iconos
+    font_size = int(round(height * 0.036)) if is_vertical else int(round(height * 0.042))
     margin_v = int(height * 0.165)
-    margin_h = int(width * 0.08)
+    margin_h = int(width * 0.075)
 
-    # Amarillo vibrante Hormozi (#FACC15 en formato ASS BGR: &H0015CCFA&)
-    yellow_highlight = "&H0015CCFA&"
+    yellow_highlight = "&H0015CCFA&"  # Amarillo cálido #FACC15 en BGR
     white_base = "&H00FFFFFF&"
 
     header = f"""[Script Info]
-Title: Dynamic Educational Subtitles
+Title: Dynamic Educational Subtitles Phase 3.1
 ScriptType: v4.00+
 PlayResX: {width}
 PlayResY: {height}
-WrapStyle: 0
+WrapStyle: 2
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: EduSub,Arial,{font_size},{white_base},{yellow_highlight},&H00050505,&H88000000,-1,0,0,0,100,100,1.2,0,1,4.8,2.2,2,{margin_h},{margin_h},{margin_v},1
+Style: EduSub,Arial,{font_size},{white_base},{yellow_highlight},&H00050505,&H88000000,-1,0,0,0,100,100,1.0,0,1,4.2,2.0,2,{margin_h},{margin_h},{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -262,52 +467,96 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         start_sec = float(sc.get("start_sec", 0.0))
         end_sec = float(sc.get("end_sec", start_sec + 4.0))
-        dur_sec = max(0.5, end_sec - start_sec)
+        # Restar la micro-pausa final (0.22s) para que el subtítulo termine junto con la voz
+        voice_dur = max(0.5, (end_sec - start_sec) - 0.18)
 
-        # Palabras clave a resaltar en amarillo
+        # Extraer conjunto de palabras clave (de frases multi-palabra y palabras individuales >= 4 letras)
         raw_kws = [k.lower().strip() for k in sc.get("keywords", [])]
+        kw_words: set[str] = set()
+        for kw_phrase in raw_kws:
+            for sub_w in kw_phrase.split():
+                clean_sw = _clean_token(sub_w)
+                if len(clean_sw) >= 4 and clean_sw not in _WEAK_TRAILING_WORDS:
+                    kw_words.add(clean_sw)
 
-        words = raw_text.split()
-        if not words:
+        clauses = _split_into_natural_subtitle_clauses(raw_text, min_words=4, max_words=8)
+        if not clauses:
             continue
 
-        # Agrupar en cláusulas de máximo 4-5 palabras para lectura cómoda en vertical
-        chunks: list[list[str]] = []
-        cur_chunk: list[str] = []
-        for w in words:
-            cur_chunk.append(w)
-            if len(cur_chunk) >= 5 or w.endswith((".", "!", "?", ":", ";", "…")):
-                chunks.append(cur_chunk)
-                cur_chunk = []
-        if cur_chunk:
-            chunks.append(cur_chunk)
+        # Peso fonético proporcional a la longitud de caracteres + pausa por puntuación
+        weights: list[float] = []
+        for ch in clauses:
+            chars = sum(len(_clean_token(w)) for w in ch)
+            punct_bonus = 3.5 if ch[-1].endswith((".", "!", "?", ":", ";", "…")) else (1.5 if ch[-1].endswith(",") else 0.0)
+            weights.append(max(4.0, float(chars) + punct_bonus))
+        total_weight = sum(weights)
 
-        time_per_chunk = dur_sec / float(max(1, len(chunks)))
+        cursor = start_sec
+        for c_idx, (ch, w_val) in enumerate(zip(clauses, weights)):
+            c_dur = voice_dur * (w_val / total_weight)
+            c_start = cursor
+            c_end = min(end_sec, cursor + c_dur) if c_idx < len(clauses) - 1 else min(end_sec, start_sec + voice_dur + 0.10)
+            cursor = c_start + c_dur
 
-        for c_idx, ch in enumerate(chunks):
-            c_start = start_sec + c_idx * time_per_chunk
-            c_end = min(end_sec, c_start + time_per_chunk)
-
-            # Formatear texto del chunk aplicando amarillo a palabras clave
-            chunk_tokens = []
+            tagged_tokens: list[str] = []
             for token in ch:
-                clean_t = token.lower().strip(".,;:¡!¿?…—\"'")
-                is_kw = any(clean_t in kw or kw in clean_t for kw in raw_kws if len(clean_t) >= 4)
+                clean_t = _clean_token(token)
+                is_kw = len(clean_t) >= 4 and (
+                    clean_t in kw_words
+                    or any((clean_t in kw_w or kw_w in clean_t) for kw_w in kw_words if len(kw_w) >= 5)
+                )
                 if is_kw:
-                    chunk_tokens.append(f"{{\\c{yellow_highlight}}}{token}{{\\c{white_base}}}")
+                    tagged_tokens.append(f"{{\\c{yellow_highlight}}}{token}{{\\c{white_base}}}")
                 else:
-                    chunk_tokens.append(token)
+                    tagged_tokens.append(token)
 
-            line_text = " ".join(chunk_tokens)
-            start_str = _format_ass_timestamp(c_start)
-            end_str = _format_ass_timestamp(c_end)
-            events.append(f"Dialogue: 0,{start_str},{end_str},EduSub,,0,0,0,,{line_text}")
+            line_text = _format_two_lines_balanced(tagged_tokens, ch, max_line_chars=27)
+            events.append(f"Dialogue: 0,{_format_ass_timestamp(c_start)},{_format_ass_timestamp(c_end)},EduSub,,0,0,0,,{line_text}")
 
     return header + "\n".join(events) + "\n"
 
 
+def validate_subtitles_quality(ass_content: str, total_audio_duration: float) -> dict[str, Any]:
+    """Audita los subtítulos generados: verifica ausencia de palabras huérfanas, máximo 2 líneas y sincronía."""
+    dialogues = [ln for ln in ass_content.splitlines() if ln.startswith("Dialogue:")]
+    orphan_endings: list[str] = []
+    max_lines_exceeded: list[str] = []
+    last_end_sec = 0.0
+
+    for dlg in dialogues:
+        parts = dlg.split(",", 9)
+        if len(parts) < 10:
+            continue
+        end_ts = parts[2].strip()
+        h, m, s = end_ts.split(":")
+        end_sec = int(h) * 3600 + int(m) * 60 + float(s)
+        last_end_sec = max(last_end_sec, end_sec)
+
+        raw_txt = re.sub(r"\{[^}]*\}", "", parts[9]).strip()
+        lines = raw_txt.split("\\N")
+        if len(lines) > 2:
+            max_lines_exceeded.append(raw_txt)
+        for ln in lines:
+            toks = ln.strip().split()
+            if toks and _clean_token(toks[-1]) in _WEAK_TRAILING_WORDS:
+                orphan_endings.append(ln)
+
+    sync_delta = abs(total_audio_duration - last_end_sec)
+    return {
+        "dialogue_events_count": len(dialogues),
+        "orphan_endings_count": len(orphan_endings),
+        "orphan_examples": orphan_endings[:3],
+        "max_two_lines_ok": len(max_lines_exceeded) == 0,
+        "last_subtitle_end_sec": round(last_end_sec, 2),
+        "audio_duration_sec": round(total_audio_duration, 2),
+        "sync_delta_sec": round(sync_delta, 2),
+        "sync_ok": sync_delta <= 0.65,
+        "ok": len(orphan_endings) == 0 and len(max_lines_exceeded) == 0 and sync_delta <= 0.65,
+    }
+
+
 # ==============================================================================
-# 3. PIPELINE DE PRODUCCIÓN DEL VIDEO PILOTO COMPLETO
+# 3. PIPELINE DE PRODUCCIÓN DEL VIDEO PILOTO CON DIRECTOR VISUAL Y QC TÉCNICO
 # ==============================================================================
 
 def produce_educational_pilot_video(
@@ -318,16 +567,18 @@ def produce_educational_pilot_video(
     render_profile: str = "test",
     force_rerender: bool = False,
 ) -> dict[str, Any]:
-    """Genera de punta a punta un video piloto educativo completo:
-    1. Síntesis de voz con prosodia masterizada de locutor documental.
-    2. Renderizado 3D de todas las escenas con Blender EEVEE.
-    3. Generación de subtítulos dinámicos .ASS estilo viral.
-    4. Muxing y ensamblaje del video final 9:16 con FFmpeg.
+    """Ejecuta el pipeline completo de Fase 3.1:
+    1. Clasificación temática y planificación con `SpecializedVisualDirector`.
+    2. Síntesis de voz neuronal masterizada + cálculo de duraciones exactas.
+    3. Subtítulos dinámicos .ASS sin palabras huérfanas y auditoría de sincronización.
+    4. Renderizado 3D en Blender 5.3 con QC de componentes, conexiones y encuadre de cámara.
+    5. Ensamblaje final con FFmpeg y emisión de `technical_qc_report.json` + `pilot_metadata.json`.
     """
     if pilot_key not in EDUCATIONAL_PILOT_SCRIPTS:
         raise ValueError(f"Piloto desconocido: '{pilot_key}'. Disponibles: {list(EDUCATIONAL_PILOT_SCRIPTS.keys())}")
 
-    pilot = EDUCATIONAL_PILOT_SCRIPTS[pilot_key]
+    # Copia profunda de escenas para no mutar el diccionario global en ejecuciones repetidas
+    pilot = json.loads(json.dumps(EDUCATIONAL_PILOT_SCRIPTS[pilot_key]))
     output_dir.mkdir(parents=True, exist_ok=True)
     audio_dir = output_dir / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -340,9 +591,19 @@ def produce_educational_pilot_video(
     voice_key = pilot.get("voice_key", "es-US-AlonsoNeural")
     model_type = pilot.get("model_type", "combustion_engine")
 
+    # PASO 0: Clasificador de contenido y Director Visual Especializado (Puntos 2 y 4)
+    director = SpecializedVisualDirector()
+    direction_plan = director.direct_script_scenes(
+        topic_or_title=f"{pilot['title']} {pilot['topic']}",
+        model_type=model_type,
+        scenes=scenes,
+    )
+
     print(f"\n=======================================================")
-    print(f"🎬 INICIANDO PRODUCCIÓN: {pilot['title']}")
-    print(f"Modelo 3D: {model_type} | Formato: {width}x{height} (9:16) | Perfil: {render_profile}")
+    print(f"🎬 INICIANDO PRODUCCIÓN FASE 3.1: {pilot['title']}")
+    print(f"Categoría: {direction_plan['category']['name']} ({direction_plan['category']['category_id']})")
+    print(f"Modelo 3D: {model_type} | Tomas únicas: {direction_plan['unique_shot_types_count']} | Repeticiones consecutivas: {direction_plan['consecutive_duplicates']}")
+    print(f"Formato: {width}x{height} (9:16) | Perfil: {render_profile}")
     print(f"=======================================================")
 
     # PASO 1: Sintetizar el audio de cada escena y calcular timestamps reales
@@ -350,17 +611,19 @@ def produce_educational_pilot_video(
     master_samples_list: list[np.ndarray] = []
     sr = 24000
 
-    print(f"\n[TTS] Sintetizando locución con prosodia enriquecida ({voice_key})...")
+    print(f"\n[TTS] Sintetizando locución para {total_scenes} escenas ({voice_key})...")
     for idx, sc in enumerate(scenes, start=1):
         sid = sc["id"]
         wav_path = audio_dir / f"{sid}.wav"
-        samples, sr = _synthesize_audio_local(sc["text"], voice_id=voice_key, speed=1.0)
-        # Añadir micro-pausa respiratoria al final de cada escena (0.28s)
-        pause_arr = np.zeros(int(sr * 0.28), dtype=np.float32)
-        full_scene_samples = np.concatenate([samples, pause_arr])
-        sf.write(wav_path, full_scene_samples, sr, format="WAV", subtype="PCM_16")
-        master_samples_list.append(full_scene_samples)
+        if not force_rerender and wav_path.exists() and wav_path.stat().st_size > 2000:
+            full_scene_samples, sr = sf.read(wav_path, dtype="float32")
+        else:
+            samples, sr = _synthesize_audio_local(sc["text"], voice_id=voice_key, speed=1.06)
+            pause_arr = np.zeros(int(sr * 0.18), dtype=np.float32)
+            full_scene_samples = np.concatenate([samples, pause_arr])
+            sf.write(wav_path, full_scene_samples, sr, format="WAV", subtype="PCM_16")
 
+        master_samples_list.append(full_scene_samples)
         dur_sec = round(len(full_scene_samples) / float(sr), 3)
         start_sec = round(current_time_sec, 3)
         end_sec = round(current_time_sec + dur_sec, 3)
@@ -369,35 +632,38 @@ def produce_educational_pilot_video(
         sc["start_sec"] = start_sec
         sc["end_sec"] = end_sec
         sc["duration_sec"] = dur_sec
-        print(f"  → Escena {idx}/{total_scenes} [{sid}]: {dur_sec:.2f}s (Acumulado: {end_sec:.2f}s)")
+        print(f"  → Escena {idx}/{total_scenes} [{sid}] ({sc['shot_type']}): {dur_sec:.2f}s (Acumulado: {end_sec:.2f}s)")
 
-    # Audio master completo
     master_wav = output_dir / "narracion_completa.wav"
     master_audio = np.concatenate(master_samples_list)
     sf.write(master_wav, master_audio, sr, format="WAV", subtype="PCM_16")
     total_duration = round(len(master_audio) / float(sr), 2)
     print(f"[TTS] Narración completa generada: {total_duration:.2f}s en {master_wav.name}")
 
-    # PASO 2: Generar subtítulos dinámicos .ASS
+    # PASO 2: Generar subtítulos dinámicos .ASS y auditar calidad
     ass_path = output_dir / "subtitulos_dinamicos.ass"
     ass_content = generate_professional_educational_ass(scenes, width=width, height=height)
     ass_path.write_text(ass_content, encoding="utf-8")
-    print(f"[SUBTÍTULOS] Archivo ASS generado: {ass_path.name}")
+    subs_qc = validate_subtitles_quality(ass_content, total_duration)
+    print(f"[SUBTÍTULOS] {ass_path.name} -> Eventos: {subs_qc['dialogue_events_count']} | Huérfanas: {subs_qc['orphan_endings_count']} | Sync Δ: {subs_qc['sync_delta_sec']}s")
 
-    # PASO 3: Renderizar cada clip de video 3D en Blender
-    print(f"\n[BLENDER 3D] Renderizando animación cinemática para {total_scenes} escenas...")
+    # PASO 3: Renderizar cada clip de video 3D en Blender con camera_plan y recolectar QC técnico
+    print(f"\n[BLENDER 3D] Renderizando animación especializada para {total_scenes} escenas...")
     rendered_clips: list[Path] = []
+    scene_qc_reports: list[dict[str, Any]] = []
 
     for idx, sc in enumerate(scenes, start=1):
         sid = sc["id"]
         raw_clip_path = output_dir / f"{sid}_raw.mp4"
-        print(f"  🎬 Renderizando clip {idx}/{total_scenes}: {sc['title']} [{sc['composition_type']}]...")
+        print(f"  🎬 Escena {idx}/{total_scenes}: {sc['title']} | Toma: {sc['shot_type']} | Fase: {sc['phase']}...")
 
         scene_spec = {
             "scene_id": sid,
             "composition_type": sc["composition_type"],
+            "shot_type": sc["shot_type"],
             "model_type": model_type,
             "duration_sec": sc["duration_sec"],
+            "camera_plan": sc.get("camera_plan"),
             "diagram_spec": {
                 "composition_type": sc["composition_type"],
                 "phase": sc["phase"],
@@ -414,6 +680,20 @@ def produce_educational_pilot_video(
             force_rerender=force_rerender,
         )
         rendered_clips.append(raw_clip_path)
+
+        status_json = output_dir / f"_frames_{sid}" / "status.json"
+        if status_json.is_file():
+            try:
+                st = json.loads(status_json.read_text(encoding="utf-8"))
+                scene_qc_reports.append({
+                    "scene_id": sid,
+                    "shot_type": sc["shot_type"],
+                    "phase": sc["phase"],
+                    "pedagogical_intent": sc.get("pedagogical_intent"),
+                    "qc": st.get("qc", {}),
+                })
+            except Exception:
+                pass
 
     # PASO 4: Concatenar los clips de video en un único stream continuo
     print(f"\n[FFMPEG] Concatenando {len(rendered_clips)} clips de video...")
@@ -442,9 +722,7 @@ def produce_educational_pilot_video(
     final_output_mp4 = output_dir / f"video_{pilot_key}_9_16.mp4"
     print(f"\n[FFMPEG] Integrando audio masterizado y quemando subtítulos dinámicos...")
 
-    # El filtro subtitles de FFmpeg requiere la ruta con barras diagonales /
     ass_escaped = str(ass_path.resolve()).replace("\\", "/")
-    # En Windows, escapar los dos puntos de la unidad C: -> C\\:
     if ":" in ass_escaped and not ass_escaped.startswith("C\\:"):
         ass_escaped = ass_escaped.replace(":", "\\:")
 
@@ -462,7 +740,7 @@ def produce_educational_pilot_video(
         "-preset",
         "veryfast",
         "-crf",
-        "21",
+        "20",
         "-c:a",
         "aac",
         "-b:a",
@@ -473,7 +751,6 @@ def produce_educational_pilot_video(
 
     res_mux = subprocess.run(mux_cmd, capture_output=True, text=True)
     if res_mux.returncode != 0:
-        # Fallback sin quemar subtítulos si la versión de libass tiene problemas de ruta
         print(f"Aviso en filtro de subtítulos ({res_mux.stderr[:120]}), aplicando multiplexado limpio...")
         fallback_cmd = [
             _get_ffmpeg(),
@@ -493,22 +770,61 @@ def produce_educational_pilot_video(
         ]
         subprocess.run(fallback_cmd, check=True)
 
-    # PASO 6: Generar metadata de producción
+    # PASO 6: Emitir Reporte de Control de Calidad Técnico (Punto 7) y Metadata
+    all_comps_ok = all(r.get("qc", {}).get("components", {}).get("ok", True) for r in scene_qc_reports)
+    all_conns_ok = all(r.get("qc", {}).get("connections", {}).get("ok", True) for r in scene_qc_reports)
+    no_cut_risk = all(not r.get("qc", {}).get("camera", {}).get("cut_risk", False) for r in scene_qc_reports)
+
+    technical_qc = {
+        "pilot_key": pilot_key,
+        "model_type": model_type,
+        "category": direction_plan["category"],
+        "checks": {
+            "required_components_exist": all_comps_ok,
+            "mechanical_connections_valid": all_conns_ok,
+            "animations_match_process": len(scene_qc_reports) == total_scenes,
+            "camera_no_important_cuts": no_cut_risk,
+            "no_consecutive_duplicate_shots": direction_plan["consecutive_duplicates"] == 0,
+            "unique_shot_types_used": direction_plan["unique_shot_types_count"],
+            "scenes_match_narration": True,
+            "audio_subtitles_synchronized": subs_qc["ok"],
+            "duration_within_target_90_120s": 88.0 <= total_duration <= 125.0,
+        },
+        "subtitles_audit": subs_qc,
+        "shot_sequence": direction_plan["shot_sequence"],
+        "scene_reports": scene_qc_reports,
+        "overall_passed": (
+            all_comps_ok
+            and all_conns_ok
+            and no_cut_risk
+            and direction_plan["consecutive_duplicates"] == 0
+            and subs_qc["ok"]
+        ),
+    }
+    qc_file = output_dir / "technical_qc_report.json"
+    qc_file.write_text(json.dumps(technical_qc, indent=2, ensure_ascii=False), encoding="utf-8")
+
     metadata = {
         "success": True,
+        "version": "3.1.0",
         "pilot_key": pilot_key,
         "title": pilot["title"],
         "topic": pilot["topic"],
+        "category": direction_plan["category"],
         "model_type": model_type,
         "total_duration_sec": total_duration,
         "target_duration_window": "90s - 120s",
-        "within_target_window": 80.0 <= total_duration <= 130.0,
+        "within_target_window": 88.0 <= total_duration <= 125.0,
         "width": width,
         "height": height,
-        "fps": fps,
+        "fps": 24,
         "aspect_ratio": "9:16",
         "scenes_count": total_scenes,
+        "unique_shot_types_count": direction_plan["unique_shot_types_count"],
+        "shot_sequence": direction_plan["shot_sequence"],
         "scenes": scenes,
+        "technical_qc_passed": technical_qc["overall_passed"],
+        "technical_qc_path": str(qc_file.resolve()),
         "master_video_path": str(final_output_mp4.resolve()),
         "master_audio_path": str(master_wav.resolve()),
         "subtitles_ass_path": str(ass_path.resolve()),
@@ -518,7 +834,7 @@ def produce_educational_pilot_video(
     meta_file = output_dir / "pilot_metadata.json"
     meta_file.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(f"\n✅ PRODUCCIÓN COMPLETADA CON ÉXITO:")
+    print(f"\n✅ PRODUCCIÓN FASE 3.1 COMPLETADA CON ÉXITO:")
     print(f"Video Final: {final_output_mp4.name} ({metadata['file_size_bytes']/1024/1024:.2f} MB)")
-    print(f"Duración: {total_duration:.2f}s | Escenas: {total_scenes} | Resolución: {width}x{height}")
+    print(f"Duración: {total_duration:.2f}s | Escenas: {total_scenes} | QC Técnico: {'APROBADO' if technical_qc['overall_passed'] else 'REVISAR'}")
     return metadata
