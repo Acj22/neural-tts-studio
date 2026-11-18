@@ -289,15 +289,15 @@ def create_refrigerator_cycle_3d(center_z: float = 2.2) -> dict[str, Any]:
             o["role"] = "label"
         labels[key] = (t, ln)
 
-    label("compressor", "COMPRESOR", (-0.2, -0.95, Z(-0.35)), (0.45, -0.05, Z(0.5)))
+    label("compressor", "COMPRESOR", (-1.15, -0.95, Z(-0.32)), (0.45, -0.05, Z(0.5)))
     label("condenser", "CONDENSADOR", (2.1, -0.6, Z(4.35)), (2.0, 0.1, cond_ztop + 0.05))
-    label("expansion", "TUBO CAPILAR", (0.35, -0.95, Z(-0.35)), (0.35, -0.2, Z(0.32)))
+    label("expansion", "TUBO CAPILAR", (0.20, -0.95, Z(-0.68)), (0.35, -0.2, Z(0.32)))
     label("evaporator", "EVAPORADOR", (-1.9, -0.6, Z(4.45)), (-0.7, 0.38, Z(3.78)))
-    label("dryer", "FILTRO", (1.55, -0.95, Z(-0.35)), (1.17, -0.2, Z(0.30)))
+    label("dryer", "FILTRO", (1.65, -0.95, Z(-0.32)), (1.17, -0.2, Z(0.30)))
     ptxt = {
         "high": C.make_text("Txt_HighPressure", "ALTA PRESIÓN · CALIENTE", (1.75, -0.7, Z(-0.05)), 0.2,
                             C.emissive_material("Mat_TxtRed", (1.0, 0.25, 0.15), 3.0)),
-        "low": C.make_text("Txt_LowPressure", "BAJA PRESIÓN · FRÍO", (-1.0, -0.7, Z(4.75)), 0.2,
+        "low": C.make_text("Txt_LowPressure", "BAJA PRESIÓN · FRÍO", (0.0, -0.7, Z(4.55)), 0.2,
                            C.emissive_material("Mat_TxtBlue", (0.35, 0.75, 1.0), 3.0)),
         "drop": C.make_text("Txt_PressureDrop", "¡LA PRESIÓN CAE!", (0.35, -0.7, Z(-0.0)), 0.22,
                             C.emissive_material("Mat_TxtYellow", (1.0, 0.85, 0.1), 3.0)),

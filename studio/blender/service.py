@@ -71,6 +71,7 @@ def render_scene_3d_video(
         "highlight_component": scene.get("highlight_component") or (scene.get("diagram_spec") or {}).get("highlight_component"),
         "render_profile": render_profile,
         "camera_plan": scene.get("camera_plan"),
+        "audiovisual_beats": scene.get("audiovisual_beats"),
         "output_dir": str(temp_frames_dir.resolve()),
         "single_frame_only": False,
     }
@@ -162,6 +163,228 @@ def _synthesize_audio_local(
         samples, sr = sf.read(io.BytesIO(raw_bytes), dtype="float32")
         mastered = apply_studio_voice_mastering(samples, sr)
         return mastered, sr
+
+
+def align_text_to_waveform_locally(
+    text: str,
+    samples: Any,
+    sr: int = 24000,
+) -> list[dict[str, Any]]:
+    """Alineador acústico local por envolvente RMS y pausas de energía (Fase 3.2 - Punto 3.1).
+    Sirve como respaldo 100% local y determinista cuando no hay marcas WordBoundary del sintetizador.
+    Detecta islas de voz activa en la forma de onda real y distribuye las palabras según su peso fonético
+    dentro de cada isla acústica real."""
+    import numpy as np
+    import re
+
+    arr = np.asarray(samples, dtype=np.float32)
+    if arr.ndim > 1:
+        arr = arr.mean(axis=1)
+    total_dur = max(0.05, len(arr) / float(sr))
+
+    raw_words = [w for w in text.strip().split() if w.strip()]
+    if not raw_words:
+        return []
+
+    # Calcular envolvente RMS en ventanas de 20 ms
+    win = max(1, int(sr * 0.02))
+    n_frames = max(1, len(arr) // win)
+    trimmed = arr[: n_frames * win].reshape(n_frames, win)
+    rms = np.sqrt(np.mean(trimmed * trimmed, axis=1) + 1e-12)
+    thr = max(0.004, float(np.percentile(rms, 22)) * 1.15)
+    voiced = rms > thr
+
+    # Rellenar micro-huecos (< 120 ms = 6 ventanas) correspondientes a oclusivas sordas (p, t, k)
+    gap_run = 0
+    for idx in range(len(voiced)):
+        if not voiced[idx]:
+            gap_run += 1
+        else:
+            if 0 < gap_run <= 6 and idx - gap_run > 0:
+                voiced[idx - gap_run : idx] = True
+            gap_run = 0
+
+    # Extraer islas de habla activa [(t_start, t_end), ...]
+    islands: list[tuple[float, float]] = []
+    in_island = False
+    i_start = 0
+    for idx, is_v in enumerate(voiced):
+        if is_v and not in_island:
+            in_island = True
+            i_start = idx
+        elif not is_v and in_island:
+            in_island = False
+            dur_i = (idx - i_start) * 0.02
+            if dur_i >= 0.08:
+                islands.append((i_start * 0.02, min(total_dur, idx * 0.02)))
+    if in_island:
+        islands.append((i_start * 0.02, total_dur))
+
+    if not islands:
+        islands = [(0.0, total_dur)]
+
+    # Dividir las palabras en grupos por signos de puntuación para mapearlos a las islas acústicas
+    punct_groups: list[list[str]] = []
+    cur_g: list[str] = []
+    for w in raw_words:
+        cur_g.append(w)
+        if w.endswith((".", "!", "?", ":", ";", "…", ",")):
+            punct_groups.append(cur_g)
+            cur_g = []
+    if cur_g:
+        punct_groups.append(cur_g)
+
+    # Si el número de grupos coincide o se aproxima a las islas, alinear grupo a isla; si no, usar línea continua activa
+    total_voiced_time = sum(e - s for s, e in islands)
+    word_weights = []
+    for w in raw_words:
+        clean = re.sub(r"[^\wáéíóúüñÁÉÍÓÚÜÑ]", "", w)
+        vowels = len(re.findall(r"[aeiouáéíóúüAEIOUÁÉÍÓÚÜ]", clean))
+        w_weight = max(1.5, len(clean) * 0.65 + vowels * 0.85)
+        if w.endswith((".", "!", "?", ":", ";", "…")):
+            w_weight += 1.6
+        elif w.endswith(","):
+            w_weight += 0.8
+        word_weights.append(w_weight)
+    total_w = sum(word_weights) or 1.0
+
+    # Mapear acumulativamente sobre el tiempo activo de las islas acústicas
+    results: list[dict[str, Any]] = []
+    acc_voiced = 0.0
+
+    def _voiced_time_to_real(v_time: float) -> float:
+        rem = max(0.0, min(total_voiced_time, v_time))
+        for s_i, e_i in islands:
+            seg = e_i - s_i
+            if rem <= seg + 1e-6:
+                return s_i + rem
+            rem -= seg
+        return islands[-1][1]
+
+    for w, ww in zip(raw_words, word_weights):
+        v_dur = total_voiced_time * (ww / total_w)
+        t_s = _voiced_time_to_real(acc_voiced)
+        t_e = _voiced_time_to_real(acc_voiced + v_dur)
+        if t_e <= t_s:
+            t_e = min(total_dur, t_s + 0.08)
+        clean_w = re.sub(r"[^\wáéíóúüñÁÉÍÓÚÜÑ-]", "", w).lower()
+        results.append({
+            "word": w,
+            "clean": clean_w,
+            "start_sec": round(float(t_s), 3),
+            "end_sec": round(float(t_e), 3),
+            "duration_sec": round(float(t_e - t_s), 3),
+            "source": "acoustic_waveform_aligner",
+        })
+        acc_voiced += v_dur
+
+    return results
+
+
+def synthesize_audio_with_word_timestamps(
+    text: str,
+    voice_id: str = "es-US-AlonsoNeural",
+    speed: float = 1.06,
+    pitch_hz: int = 1,
+    expressive: bool = True,
+) -> tuple[Any, int, list[dict[str, Any]]]:
+    """Sintetiza locución neuronal capturando marcas temporales reales por palabra (WordBoundary)
+    compensadas exactamente con el recorte de silencio inicial de `apply_studio_voice_mastering`.
+    Si el motor neuronal no emite marcas (o entra el respaldo local), aplica `align_text_to_waveform_locally`."""
+    import asyncio
+    import io
+    import re
+    import numpy as np
+    import soundfile as sf
+
+    try:
+        import edge_tts
+        from app import enhance_spanish_prosody_for_youtube, apply_studio_voice_mastering
+
+        clean_text = enhance_spanish_prosody_for_youtube(text, expressive_mode=expressive)
+        rate_pct = int(round((float(speed) - 1.0) * 100)) + (3 if expressive else 0)
+        rate_str = f"{rate_pct:+d}%"
+        pitch_str = f"{pitch_hz:+d}Hz"
+
+        raw_boundaries: list[dict[str, Any]] = []
+
+        async def _edge_gen_with_bounds() -> bytes:
+            comm = edge_tts.Communicate(
+                clean_text,
+                voice_id,
+                rate=rate_str,
+                pitch=pitch_str,
+                volume="+15%",
+                boundary="WordBoundary",
+            )
+            buf = bytearray()
+            async for chunk in comm.stream():
+                ctype = chunk.get("type")
+                if ctype == "audio":
+                    buf.extend(chunk["data"])
+                elif ctype == "WordBoundary":
+                    w_txt = str(chunk.get("text", "")).strip()
+                    if w_txt:
+                        off_s = float(chunk.get("offset", 0)) / 1e7
+                        dur_s = float(chunk.get("duration", 0)) / 1e7
+                        raw_boundaries.append({
+                            "word": w_txt,
+                            "clean": re.sub(r"[^\wáéíóúüñÁÉÍÓÚÜÑ-]", "", w_txt).lower(),
+                            "raw_start_sec": off_s,
+                            "raw_end_sec": off_s + max(0.04, dur_s),
+                        })
+            return bytes(buf)
+
+        raw_bytes = asyncio.run(_edge_gen_with_bounds())
+        raw_samples, sr = sf.read(io.BytesIO(raw_bytes), dtype="float32")
+        arr = np.asarray(raw_samples, dtype=np.float32)
+        if arr.ndim > 1:
+            arr = arr.mean(axis=1)
+
+        # Medir exactamente cuánto silencio inicial recorta apply_studio_voice_mastering
+        trim_start_sec = 0.0
+        abs_arr = np.abs(arr)
+        active_idx = np.where(abs_arr > 0.0035)[0]
+        if len(active_idx) > 100:
+            pad = int(sr * 0.03)
+            start_i = max(0, int(active_idx[0]) - pad)
+            trim_start_sec = start_i / float(sr)
+
+        mastered = apply_studio_voice_mastering(raw_samples, sr)
+        mastered_dur = len(mastered) / float(sr)
+
+        if raw_boundaries:
+            # Mapear los tokens del texto original con puntuación a las marcas WordBoundary reales
+            orig_tokens = [w for w in text.strip().split() if w.strip()]
+            word_timestamps: list[dict[str, Any]] = []
+            for idx, b in enumerate(raw_boundaries):
+                s_sec = max(0.0, b["raw_start_sec"] - trim_start_sec)
+                e_sec = min(mastered_dur, max(s_sec + 0.04, b["raw_end_sec"] - trim_start_sec))
+                display_word = orig_tokens[idx] if idx < len(orig_tokens) else b["word"]
+                word_timestamps.append({
+                    "word": display_word,
+                    "clean": b["clean"],
+                    "start_sec": round(s_sec, 3),
+                    "end_sec": round(e_sec, 3),
+                    "duration_sec": round(e_sec - s_sec, 3),
+                    "source": "edge_neural_word_boundary",
+                })
+            return mastered, sr, word_timestamps
+
+        # Fallback si no vinieron WordBoundaries
+        aligned = align_text_to_waveform_locally(text, mastered, sr)
+        return mastered, sr, aligned
+
+    except Exception:
+        samples, sr = _synthesize_audio_local(
+            text=text,
+            voice_id=voice_id,
+            speed=speed,
+            pitch_hz=pitch_hz,
+            expressive=expressive,
+        )
+        aligned = align_text_to_waveform_locally(text, samples, sr)
+        return samples, sr, aligned
 
 
 def render_scene_3d_still(

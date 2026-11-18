@@ -78,3 +78,37 @@ def check_connections(data: dict[str, Any], frame: int | None = None) -> dict[st
         g = _gap(ba, bb)
         results.append({"pair": label, "gap": round(g, 4), "tolerance": tol, "ok": g <= tol})
     return {"checks": results, "ok": all(r["ok"] for r in results)}
+
+
+def check_animation_motion(f0: int = 1, f1: int = 48) -> dict[str, Any]:
+    """Verifica que la escena tenga movimiento funcional real entre f0 y f1 (Puntos 3.4 y 10)."""
+    scene = bpy.context.scene
+    objs = [
+        o for o in scene.objects
+        if o.type in ("MESH", "EMPTY", "CURVE") and not o.name.startswith(("Studio_", "Director_"))
+    ]
+    scene.frame_set(f0)
+    bpy.context.view_layer.update()
+    snap0 = {o.name: (o.matrix_world.translation.copy(), o.matrix_world.to_euler()) for o in objs}
+
+    mid = max(f0 + 1, (f0 + f1) // 2)
+    moving: set[str] = set()
+    for fr in (mid, f1):
+        scene.frame_set(fr)
+        bpy.context.view_layer.update()
+        for o in objs:
+            t0, r0 = snap0[o.name]
+            t1 = o.matrix_world.translation
+            r1 = o.matrix_world.to_euler()
+            dt = (t1 - t0).length
+            dr = abs(r1.x - r0.x) + abs(r1.y - r0.y) + abs(r1.z - r0.z)
+            if dt > 1e-3 or dr > 1e-3:
+                moving.add(o.name)
+
+    scene.frame_set(f0)
+    return {
+        "has_functional_motion": len(moving) > 0,
+        "moving_objects_count": len(moving),
+        "sample_moving_objects": sorted(list(moving))[:8],
+        "ok": len(moving) > 0,
+    }
