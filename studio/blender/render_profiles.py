@@ -13,18 +13,18 @@ from __future__ import annotations
 from typing import Any
 
 RENDER_PROFILES: dict[str, dict[str, Any]] = {
-    # Perfil Oficial de Prueba (Punto 7)
+    # Perfil Oficial de Prueba (Fase 3: Multi-modelo acelerado para Iris Xe)
     "test": {
         "id": "test",
-        "name": "⚡ Prueba Rápida (720×1280, 24 FPS, 8 Samples)",
+        "name": "⚡ Prueba Rápida (720×1280, 12 FPS render -> 24 FPS video, 2 Samples)",
         "width": 720,
         "height": 1280,
-        "fps": 24,
-        "samples": 8,
+        "fps": 12,
+        "samples": 2,
         "resolution_scale": 100,
         "shadow_quality": "LOW",
         "use_soft_shadows": True,
-        "desc": "Ultra optimizado para previsualización inmediata en Iris Xe (~0.25s/frame).",
+        "desc": "Ultra optimizado para producción ágil en Intel Iris Xe (~0.3s/frame).",
     },
     # Perfil Oficial de Producción (Punto 7)
     "production": {

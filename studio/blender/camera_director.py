@@ -28,23 +28,8 @@ def setup_studio_lighting() -> dict[str, Any]:
 
     scene = bpy.context.scene
 
-    # Configuración Freestyle para trazo técnico refinado CAD
-    scene.render.use_freestyle = True
-    if scene.view_layers:
-        vl = scene.view_layers[0]
-        fs = vl.freestyle_settings
-        fs.crease_angle = math.radians(130)
-        # Limpiar o reutilizar linesets
-        while len(fs.linesets) > 0:
-            fs.linesets.remove(fs.linesets[0])
-        lineset = fs.linesets.new("CAD_Technical_Ink")
-        lineset.select_silhouette = True
-        lineset.select_border = True
-        lineset.select_crease = True
-        linestyle = bpy.data.linestyles.new("CAD_Ink_Style")
-        linestyle.thickness = 1.3
-        linestyle.color = (0.08, 0.10, 0.12)
-        lineset.linestyle = linestyle
+    # Configuración Freestyle (desactivada por defecto para máxima velocidad de render en Iris Xe)
+    scene.render.use_freestyle = False
 
     lights_col = bpy.data.collections.new("Studio_Lighting")
     bpy.context.scene.collection.children.link(lights_col)

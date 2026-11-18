@@ -28,6 +28,18 @@ except ImportError:
 
 from studio.blender.materials import setup_engine_materials
 from studio.blender.models_library.combustion_engine import create_combustion_engine_3d
+from studio.blender.models_library.automatic_transmission import (
+    create_automatic_transmission_3d,
+    build_transmission_keyframes,
+)
+from studio.blender.models_library.refrigerator_cycle import (
+    create_refrigerator_cycle_3d,
+    build_refrigerator_keyframes,
+)
+from studio.blender.models_library.printer_3d_fdm import (
+    create_printer_3d_3d,
+    build_printer_3d_keyframes,
+)
 from studio.blender.animation_controller import build_4_stroke_cycle_keyframes
 from studio.blender.camera_director import setup_studio_lighting, setup_camera_for_shot
 from studio.blender.render_profiles import get_render_profile
@@ -84,36 +96,68 @@ def run_blender_render(spec: dict) -> None:
 
     # EEVEE Next sampling, trazado de rayos y sombras suaves
     if hasattr(scene, "eevee"):
+        samples_val = int(profile.get("samples", 16))
         if hasattr(scene.eevee, "taa_render_samples"):
-            scene.eevee.taa_render_samples = int(profile.get("samples", 16))
+            scene.eevee.taa_render_samples = samples_val
         if hasattr(scene.eevee, "use_shadows"):
             scene.eevee.use_shadows = True
+        # En perfiles rápidos de preview desactivamos trazado pesado de rayos para acelerar x10 en Iris Xe
+        is_fast_preview = profile_key in ("test", "draft") or samples_val <= 8
         if hasattr(scene.eevee, "use_raytracing"):
-            scene.eevee.use_raytracing = True
+            scene.eevee.use_raytracing = not is_fast_preview
         if hasattr(scene.eevee, "use_fast_gi"):
             scene.eevee.use_fast_gi = True
 
     # 2. Iluminación de Estudio y Fondo
     setup_studio_lighting()
 
-    # 3. Construcción del Modelo 3D (Motor de 4 Tiempos) — parámetros Fase 2.1
-    engine_data = create_combustion_engine_3d(
-        crank_radius=1.0,
-        rod_length=3.6,        # era 3.5 → biela más larga, mejor proporción
-        cylinder_radius=1.30,  # era 1.35 → cilindro más esbelto
-        piston_height=1.40,    # era 1.25 → pistón más alto / realista
-        crank_center_z=0.0,    # era sin especificar (default 0.4) → cigüeñal en origen
-    )
-
-    # 4. Cinemática de Animación y Resaltado Narrativo
+    # 3. Construcción del Modelo 3D según el tema especificado (Fase 3 Multi-Modelo)
+    model_type = spec.get("model_type", "combustion_engine")
     highlight_comp = spec.get("highlight_component")
-    build_4_stroke_cycle_keyframes(
-        engine_data=engine_data,
-        start_frame=1,
-        end_frame=total_frames,
-        cycle_phase=cycle_phase,
-        highlight_component=highlight_comp,
-    )
+
+    if model_type == "automatic_transmission":
+        trans_data = create_automatic_transmission_3d(center_z=2.0)
+        build_transmission_keyframes(
+            trans_data=trans_data,
+            start_frame=1,
+            end_frame=total_frames,
+            scene_phase=cycle_phase,
+            highlight_component=highlight_comp,
+        )
+    elif model_type == "refrigerator_cycle":
+        fridge_data = create_refrigerator_cycle_3d(center_z=2.2)
+        build_refrigerator_keyframes(
+            fridge_data=fridge_data,
+            start_frame=1,
+            end_frame=total_frames,
+            scene_phase=cycle_phase,
+            highlight_component=highlight_comp,
+        )
+    elif model_type == "printer_3d_fdm":
+        printer_data = create_printer_3d_3d(center_z=2.0)
+        build_printer_3d_keyframes(
+            printer_data=printer_data,
+            start_frame=1,
+            end_frame=total_frames,
+            scene_phase=cycle_phase,
+            highlight_component=highlight_comp,
+        )
+    else:
+        # Default: Motor de 4 Tiempos (Fase 2.1 & 2.3)
+        engine_data = create_combustion_engine_3d(
+            crank_radius=1.0,
+            rod_length=3.6,
+            cylinder_radius=1.30,
+            piston_height=1.40,
+            crank_center_z=0.0,
+        )
+        build_4_stroke_cycle_keyframes(
+            engine_data=engine_data,
+            start_frame=1,
+            end_frame=total_frames,
+            cycle_phase=cycle_phase,
+            highlight_component=highlight_comp,
+        )
 
     # 5. Cámara Cinemática Inteligente
     setup_camera_for_shot(

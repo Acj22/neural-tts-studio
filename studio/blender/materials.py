@@ -343,4 +343,93 @@ def setup_engine_materials() -> dict[str, Any]:
             emission_color=(1.0, 0.90, 0.30, 1.0),
             emission_strength=4.0,
         ),
+
+        # 9. Materiales Especiales para Transmisión Automática, Refrigerador e Impresora 3D (Fase 3)
+        "brass_gold": get_or_create_material(
+            "Mat_BrassGold",
+            base_color=hex_to_rgba("#F59E0B"),  # Latón dorado pulido
+            roughness=0.18,
+            metallic=0.92,
+        ),
+        "ring_gear_blue": get_or_create_material(
+            "Mat_RingGearBlue",
+            base_color=hex_to_rgba("#2563EB"),  # Corona exterior azul anodizado
+            roughness=0.25,
+            metallic=0.85,
+        ),
+        "fluid_atf": get_or_create_material(
+            "Mat_FluidATF",
+            base_color=hex_to_rgba("#DC2626", alpha=0.65),  # Fluido ATF rojo rubí
+            roughness=0.15,
+            metallic=0.10,
+            alpha=0.65,
+            emission_color=(0.85, 0.15, 0.15, 1.0),
+            emission_strength=1.5,
+        ),
+        "clutch_plate": get_or_create_material(
+            "Mat_ClutchPlate",
+            base_color=hex_to_rgba("#475569"),  # Discos de fricción en acero templado
+            roughness=0.35,
+            metallic=0.75,
+        ),
+        "copper_coil": get_or_create_material(
+            "Mat_CopperCoil",
+            base_color=hex_to_rgba("#EA580C"),  # Cobre brillante para serpentines
+            roughness=0.18,
+            metallic=0.92,
+        ),
+        "white_cabinet": get_or_create_material(
+            "Mat_WhiteCabinet",
+            base_color=hex_to_rgba("#E2E8F0"),  # Gabinete exterior blanco perla
+            roughness=0.30,
+            metallic=0.15,
+        ),
+        "compressor_black": get_or_create_material(
+            "Mat_CompressorBlack",
+            base_color=hex_to_rgba("#0F172A"),  # Esmalte negro brillante del compresor
+            roughness=0.20,
+            metallic=0.80,
+        ),
+        "frost_blue": get_or_create_material(
+            "Mat_FrostBlue",
+            base_color=hex_to_rgba("#38BDF8"),  # Zona fría / hielo congelador
+            roughness=0.45,
+            metallic=0.10,
+            emission_color=(0.20, 0.75, 1.0, 1.0),
+            emission_strength=2.5,
+        ),
+        "heat_red": get_or_create_material(
+            "Mat_HeatRed",
+            base_color=hex_to_rgba("#EF4444"),  # Calor disipado por condensador
+            roughness=0.30,
+            metallic=0.10,
+            emission_color=(1.0, 0.25, 0.10, 1.0),
+            emission_strength=3.0,
+        ),
+        "vslot_black": get_or_create_material(
+            "Mat_VSlotBlack",
+            base_color=hex_to_rgba("#111827"),  # Perfil de aluminio V-Slot negro
+            roughness=0.45,
+            metallic=0.50,
+        ),
+        "filament_orange": get_or_create_material(
+            "Mat_FilamentOrange",
+            base_color=hex_to_rgba("#F97316"),  # Filamento PLA naranja neón
+            roughness=0.25,
+            metallic=0.05,
+        ),
+        "extrusion_glow": get_or_create_material(
+            "Mat_ExtrusionGlow",
+            base_color=hex_to_rgba("#FDBA74"),  # Plástico fundido incandescente
+            roughness=0.10,
+            metallic=0.0,
+            emission_color=(1.0, 0.60, 0.20, 1.0),
+            emission_strength=8.0,
+        ),
+        "pei_bed": get_or_create_material(
+            "Mat_PeiBed",
+            base_color=hex_to_rgba("#D97706"),  # Placa PEI dorada texturizada
+            roughness=0.55,
+            metallic=0.65,
+        ),
     }
