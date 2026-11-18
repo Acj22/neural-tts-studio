@@ -147,8 +147,7 @@ def apply_engine_pose_at_frame(
     piston.keyframe_insert(data_path="location", frame=frame)
 
     # -------------------------------------------------------------------
-    # 4. VÁLVULA DE ADMISIÓN — Desplaza en −Z cuando se abre
-    # Las válvulas están en head_z; al abrirse descienden intake_lift * 0.46
+    # 4. VÁLVULA DE ADMISIÓN Y RESORTE — Desplaza y comprime en −Z
     # -------------------------------------------------------------------
     v_in = engine_data["valve_intake"]
     intake_base_z = head_z + 0.06
@@ -159,8 +158,17 @@ def apply_engine_pose_at_frame(
     )
     v_in.keyframe_insert(data_path="location", frame=frame)
 
+    if "spring_intake" in engine_data:
+        s_in = engine_data["spring_intake"]
+        # El resorte se comprime físicamente cuando la válvula abre (lift > 0)
+        s_in_comp = max(0.40, (0.82 - intake_lift) / 0.82)
+        s_in.scale = (1.0, 1.0, s_in_comp)
+        s_in.location = (-0.58, 0.0, head_z + 0.32 + 2.4 * exploded_factor)
+        s_in.keyframe_insert(data_path="scale", frame=frame)
+        s_in.keyframe_insert(data_path="location", frame=frame)
+
     # -------------------------------------------------------------------
-    # 5. VÁLVULA DE ESCAPE — Desplaza en −Z cuando se abre
+    # 5. VÁLVULA DE ESCAPE Y RESORTE — Desplaza y comprime en −Z
     # -------------------------------------------------------------------
     v_ex = engine_data["valve_exhaust"]
     v_ex.location = (
@@ -169,6 +177,14 @@ def apply_engine_pose_at_frame(
         intake_base_z - exhaust_lift + 2.6 * exploded_factor,
     )
     v_ex.keyframe_insert(data_path="location", frame=frame)
+
+    if "spring_exhaust" in engine_data:
+        s_ex = engine_data["spring_exhaust"]
+        s_ex_comp = max(0.40, (0.82 - exhaust_lift) / 0.82)
+        s_ex.scale = (1.0, 1.0, s_ex_comp)
+        s_ex.location = (0.58, 0.0, head_z + 0.32 + 2.4 * exploded_factor)
+        s_ex.keyframe_insert(data_path="scale", frame=frame)
+        s_ex.keyframe_insert(data_path="location", frame=frame)
 
     # -------------------------------------------------------------------
     # 6. BUJÍA — Sube en despiece axial
@@ -186,7 +202,7 @@ def apply_engine_pose_at_frame(
         c_head.keyframe_insert(data_path="location", frame=frame)
 
     # -------------------------------------------------------------------
-    # 8. EFECTOS VISUALES
+    # 8. EFECTOS VISUALES Y LUZ DE COMBUSTIÓN
     # -------------------------------------------------------------------
     # Chispa
     fx_sp = engine_data["fx_spark"]
@@ -199,6 +215,12 @@ def apply_engine_pose_at_frame(
     fl_sc = max(0.001, flame_scale)
     fx_fl.scale = (fl_sc, fl_sc, fl_sc)
     fx_fl.keyframe_insert(data_path="scale", frame=frame)
+
+    # Luz puntual dinámica interior de combustión
+    if "light_combustion" in engine_data:
+        l_comb = engine_data["light_combustion"]
+        l_comb.data.energy = 280.0 * flame_scale
+        l_comb.data.keyframe_insert(data_path="energy", frame=frame)
 
     # Flujo de admisión (cian)
     if "fx_intake" in engine_data:

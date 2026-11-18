@@ -82,12 +82,16 @@ def run_blender_render(spec: dict) -> None:
     scene.frame_start = 1
     scene.frame_end = total_frames
 
-    # EEVEE Next sampling y sombras suaves (Punto 3 y 7)
+    # EEVEE Next sampling, trazado de rayos y sombras suaves
     if hasattr(scene, "eevee"):
         if hasattr(scene.eevee, "taa_render_samples"):
             scene.eevee.taa_render_samples = int(profile.get("samples", 16))
         if hasattr(scene.eevee, "use_shadows"):
             scene.eevee.use_shadows = True
+        if hasattr(scene.eevee, "use_raytracing"):
+            scene.eevee.use_raytracing = True
+        if hasattr(scene.eevee, "use_fast_gi"):
+            scene.eevee.use_fast_gi = True
 
     # 2. Iluminación de Estudio y Fondo
     setup_studio_lighting()

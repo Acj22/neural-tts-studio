@@ -108,7 +108,17 @@ def setup_studio_lighting() -> dict[str, Any]:
     if front_light.name in scene.collection.objects:
         scene.collection.objects.unlink(front_light)
 
-    # 5. Entorno Suave
+    # 5. Top Downlight (Luz Cenital de Alta Definición para Válvulas y Bujía)
+    bpy.ops.object.light_add(type="AREA", radius=3.0, location=(0.0, -1.5, 9.5))
+    top_light = bpy.context.active_object
+    top_light.name = "Light_Top_Studio"
+    top_light.data.energy = 300.0
+    top_light.data.color = (1.0, 0.98, 0.96)
+    lights_col.objects.link(top_light)
+    if top_light.name in scene.collection.objects:
+        scene.collection.objects.unlink(top_light)
+
+    # 6. Entorno Suave
     world = bpy.context.scene.world
     if not world:
         world = bpy.data.worlds.new("StudioWorld_Light")
@@ -124,6 +134,7 @@ def setup_studio_lighting() -> dict[str, Any]:
         "fill": fill_light,
         "rim": rim_light,
         "front": front_light,
+        "top": top_light,
     }
 
 

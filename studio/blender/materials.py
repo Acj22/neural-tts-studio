@@ -1,11 +1,13 @@
-"""Biblioteca de materiales estilizados tipo Maqueta Educativa (Clay / Educational Model).
+"""Biblioteca de materiales PBR hiperrealistas para Motor 3D en Blender 5.3 (Fase 2.1 - Alto Realismo CAD).
 
-Fase 2 - Perfeccionamiento:
-- Paleta de colores suaves y armoniosos con acabado mate cerámico/plástico.
-- Fondo de estudio claro (beige suave / gris claro neutro).
-- Metales satinados sin brillos cegadores.
-- Diferenciación cromática nítida de cada componente mecánico.
-- Emisión estilizada suave para chispa e ignición de combustión.
+Estilo de Ilustración Mecánica Técnica (Coverfox / Precision Engineering):
+- Metales maquinados con anisotropía y micro-rugosidad (camisa rectificada, pistón de aluminio forjado, cigüeñal rectificado a espejo).
+- Fundición granular de bloque con sutil relieve procedural (cast iron bump).
+- Bujía con porcelana esmaltada de alto brillo (clearcoat).
+- Aros de bronce nitrurado y casquillos dorados pulidos.
+- Resortes helicoidales de acero de alta tensión.
+- Explosión de combustión multicapa estilo Coverfox (núcleo blanco incandescente, cuerpo naranja ardiente, llamas exteriores carmesí).
+- Fondo de estudio cream cálido neutro libre de sombras sucias.
 """
 
 from __future__ import annotations
@@ -32,57 +34,73 @@ def hex_to_rgba(hex_str: str, alpha: float = 1.0) -> tuple[float, float, float, 
 def get_or_create_material(
     name: str,
     base_color: tuple[float, float, float, float],
-    roughness: float = 0.55,
+    roughness: float = 0.35,
     metallic: float = 0.0,
     alpha: float = 1.0,
+    anisotropic: float = 0.0,
+    coat_weight: float = 0.0,
+    coat_roughness: float = 0.05,
     emission_color: tuple[float, float, float, float] | None = None,
     emission_strength: float = 0.0,
+    use_cast_bump: bool = False,
 ) -> Any:
-    """Crea o reutiliza un material Principled BSDF estilizado en Blender."""
+    """Crea o actualiza un material Principled BSDF PBR avanzado en Blender 5.3."""
     if bpy is None:
         return None
 
     if name in bpy.data.materials:
         mat = bpy.data.materials[name]
-        # Actualizar valores
-        if mat.node_tree:
-            bsdf = mat.node_tree.nodes.get("Principled BSDF")
-            if bsdf:
-                if "Base Color" in bsdf.inputs:
-                    bsdf.inputs["Base Color"].default_value = base_color
-                if "Roughness" in bsdf.inputs:
-                    bsdf.inputs["Roughness"].default_value = roughness
-                if "Metallic" in bsdf.inputs:
-                    bsdf.inputs["Metallic"].default_value = metallic
-                if "Alpha" in bsdf.inputs:
-                    bsdf.inputs["Alpha"].default_value = alpha
-                if emission_color and emission_strength > 0:
-                    if "Emission Color" in bsdf.inputs:
-                        bsdf.inputs["Emission Color"].default_value = emission_color
-                    if "Emission Strength" in bsdf.inputs:
-                        bsdf.inputs["Emission Strength"].default_value = emission_strength
-        return mat
+    else:
+        mat = bpy.data.materials.new(name=name)
 
-    mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     tree = mat.node_tree
-    bsdf = tree.nodes.get("Principled BSDF")
+    nodes = tree.nodes
+    links = tree.links
+    bsdf = nodes.get("Principled BSDF")
 
-    if bsdf:
-        if "Base Color" in bsdf.inputs:
-            bsdf.inputs["Base Color"].default_value = base_color
-        if "Roughness" in bsdf.inputs:
-            bsdf.inputs["Roughness"].default_value = roughness
-        if "Metallic" in bsdf.inputs:
-            bsdf.inputs["Metallic"].default_value = metallic
-        if "Alpha" in bsdf.inputs:
-            bsdf.inputs["Alpha"].default_value = alpha
+    if not bsdf:
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
 
-        if emission_color and emission_strength > 0:
-            if "Emission Color" in bsdf.inputs:
-                bsdf.inputs["Emission Color"].default_value = emission_color
-            if "Emission Strength" in bsdf.inputs:
-                bsdf.inputs["Emission Strength"].default_value = emission_strength
+    # Propiedades estándar del Principled BSDF
+    if "Base Color" in bsdf.inputs:
+        bsdf.inputs["Base Color"].default_value = base_color
+    if "Roughness" in bsdf.inputs:
+        bsdf.inputs["Roughness"].default_value = roughness
+    if "Metallic" in bsdf.inputs:
+        bsdf.inputs["Metallic"].default_value = metallic
+    if "Alpha" in bsdf.inputs:
+        bsdf.inputs["Alpha"].default_value = alpha
+    if "Anisotropic" in bsdf.inputs and anisotropic > 0.0:
+        bsdf.inputs["Anisotropic"].default_value = anisotropic
+    if "Coat Weight" in bsdf.inputs and coat_weight > 0.0:
+        bsdf.inputs["Coat Weight"].default_value = coat_weight
+    if "Coat Roughness" in bsdf.inputs and coat_weight > 0.0:
+        bsdf.inputs["Coat Roughness"].default_value = coat_roughness
+
+    if emission_color and emission_strength > 0.0:
+        if "Emission Color" in bsdf.inputs:
+            bsdf.inputs["Emission Color"].default_value = emission_color
+        if "Emission Strength" in bsdf.inputs:
+            bsdf.inputs["Emission Strength"].default_value = emission_strength
+
+    # Relieve procedural sutil para piezas de fundición granular (Cast Iron)
+    if use_cast_bump:
+        bump_node = nodes.get("Procedural_Cast_Bump")
+        noise_node = nodes.get("Procedural_Cast_Noise")
+        if not bump_node:
+            bump_node = nodes.new("ShaderNodeBump")
+            bump_node.name = "Procedural_Cast_Bump"
+            bump_node.inputs["Strength"].default_value = 0.07
+            bump_node.inputs["Distance"].default_value = 0.10
+        if not noise_node:
+            noise_node = nodes.new("ShaderNodeTexNoise")
+            noise_node.name = "Procedural_Cast_Noise"
+            noise_node.inputs["Scale"].default_value = 45.0
+            noise_node.inputs["Detail"].default_value = 3.5
+            noise_node.inputs["Roughness"].default_value = 0.70
+        links.new(noise_node.outputs["Fac"], bump_node.inputs["Height"])
+        links.new(bump_node.outputs["Normal"], bsdf.inputs["Normal"])
 
     # Configuración de transparencia para EEVEE
     if alpha < 0.99:
@@ -95,204 +113,228 @@ def get_or_create_material(
 
 
 def setup_engine_materials() -> dict[str, Any]:
-    """Instancia y devuelve la paleta estilizada completa de maqueta técnica educativa."""
+    """Instancia y devuelve la biblioteca completa de materiales PBR de alto realismo."""
     return {
-        # 1. Estudio de Maqueta (Fondo Cream Técnico Libre de Sombras Sucias)
+        # 1. Estudio de Maqueta (Fondo Cream Cálido Técnico estilo Coverfox)
         "studio_floor": get_or_create_material(
             "Mat_StudioFloor",
-            base_color=hex_to_rgba("#FAF5EC"),  # Cream cálido tipo ilustración Coverfox
+            base_color=hex_to_rgba("#F6F1E8"),  # Cream cálido exacto de catálogo técnico
             roughness=0.90,
             metallic=0.0,
-            emission_color=hex_to_rgba("#FAF5EC"),
+            emission_color=hex_to_rgba("#F6F1E8"),
             emission_strength=0.95,
         ),
         "studio_backdrop": get_or_create_material(
             "Mat_StudioBackdrop",
-            base_color=hex_to_rgba("#FAF5EC"),  # Fondo cálido nítido
+            base_color=hex_to_rgba("#F6F1E8"),
             roughness=0.95,
             metallic=0.0,
-            emission_color=hex_to_rgba("#FAF5EC"),
+            emission_color=hex_to_rgba("#F6F1E8"),
             emission_strength=0.95,
         ),
 
-        # 2. Bloque del Motor y Estructura
+        # 2. Bloque del Motor y Estructura Mecánica
         "engine_block": get_or_create_material(
             "Mat_EngineBlock",
-            base_color=hex_to_rgba("#24282D"),  # Fundición gris grafito oscuro de alto contraste
-            roughness=0.60,
-            metallic=0.15,
+            base_color=hex_to_rgba("#20252B"),  # Fundición grafito carbón oscuro de alto contraste
+            roughness=0.62,
+            metallic=0.20,
+            use_cast_bump=True,
         ),
         "cutaway_rim": get_or_create_material(
             "Mat_CutawayRim",
-            base_color=hex_to_rgba("#475569"),  # Borde biselado de sección técnica
-            roughness=0.40,
-            metallic=0.55,
+            base_color=hex_to_rgba("#4B5563"),  # Cara de corte seccionada: acero mecanizado pulido
+            roughness=0.32,
+            metallic=0.70,
+            anisotropic=0.30,
+        ),
+        "oil_pan": get_or_create_material(
+            "Mat_OilPan",
+            base_color=hex_to_rgba("#181B20"),  # Chapa de cárter estampada oscura
+            roughness=0.45,
+            metallic=0.50,
         ),
         "cylinder_liner": get_or_create_material(
             "Mat_CylinderLiner",
-            base_color=hex_to_rgba("#CAD4DE"),  # Acero cromado satinado de camisa
-            roughness=0.22,
-            metallic=0.85,
+            base_color=hex_to_rgba("#CAD4DE"),  # Camisa de acero rectificado con brillo satinado
+            roughness=0.18,
+            metallic=0.90,
+            anisotropic=0.40,
         ),
 
-        # 3. Pistón y Conjunto Móvil Superior
+        # 3. Conjunto Pistón de Precisión
         "piston": get_or_create_material(
             "Mat_Piston",
-            base_color=hex_to_rgba("#D2D9E0"),  # Aleación de aluminio satinado de pistón
-            roughness=0.28,
-            metallic=0.60,
+            base_color=hex_to_rgba("#D8DFE7"),  # Aleación ligera de aluminio mecanizado
+            roughness=0.20,
+            metallic=0.78,
+            anisotropic=0.45,
         ),
         "piston_rings": get_or_create_material(
             "Mat_PistonRings",
-            base_color=hex_to_rgba("#D97706"),  # Aros de bronce nitrurado dorado
-            roughness=0.22,
-            metallic=0.85,
+            base_color=hex_to_rgba("#D97706"),  # Aros de bronce nitrurado dorado de fricción
+            roughness=0.18,
+            metallic=0.92,
         ),
         "wrist_pin": get_or_create_material(
             "Mat_WristPin",
-            base_color=hex_to_rgba("#1E242B"),  # Bulón de acero templado oscuro de alta dureza
-            roughness=0.18,
-            metallic=0.90,
+            base_color=hex_to_rgba("#1A2027"),  # Bulón de acero templado y rectificado a espejo
+            roughness=0.12,
+            metallic=0.95,
         ),
 
         # 4. Biela Forjada y Cojinetes
         "connecting_rod": get_or_create_material(
             "Mat_ConnectingRod",
-            base_color=hex_to_rgba("#687684"),  # Acero forjado mecanizado
-            roughness=0.32,
-            metallic=0.65,
+            base_color=hex_to_rgba("#687684"),  # Bridas exteriores de acero mecanizado
+            roughness=0.28,
+            metallic=0.70,
         ),
         "rod_recess": get_or_create_material(
             "Mat_RodRecess",
-            base_color=hex_to_rgba("#485460"),  # Canal en I forjado
-            roughness=0.45,
-            metallic=0.50,
+            base_color=hex_to_rgba("#3B444C"),  # Canal en I forjado oscuro
+            roughness=0.48,
+            metallic=0.55,
         ),
         "rod_bearings": get_or_create_material(
             "Mat_RodBearings",
-            base_color=hex_to_rgba("#D97706"),  # Bronce de fricción dorado pulido
-            roughness=0.25,
-            metallic=0.85,
+            base_color=hex_to_rgba("#F59E0B"),  # Bronce fosforoso de cojinetes pulido
+            roughness=0.16,
+            metallic=0.95,
         ),
         "rod_bolts": get_or_create_material(
             "Mat_RodBolts",
-            base_color=hex_to_rgba("#1E242B"),  # Tornillos de biela pavonados
-            roughness=0.20,
-            metallic=0.85,
+            base_color=hex_to_rgba("#15181C"),  # Tornillos de biela pavonados de alta resistencia
+            roughness=0.18,
+            metallic=0.90,
         ),
 
-        # 5. Cigüeñal y Volante (Acero técnico mecanizado)
+        # 5. Cigüeñal y Volante
         "crankshaft": get_or_create_material(
             "Mat_Crankshaft",
-            base_color=hex_to_rgba("#363E46"),  # Acero templado mecanizado
-            roughness=0.38,
-            metallic=0.70,
+            base_color=hex_to_rgba("#4B5563"),  # Muñequilla y muñones rectificados
+            roughness=0.14,
+            metallic=0.95,
         ),
         "counterweights": get_or_create_material(
             "Mat_Counterweights",
-            base_color=hex_to_rgba("#262B30"),  # Forja oscura contrastada para contrapesos
+            base_color=hex_to_rgba("#23282E"),  # Contrapesos en forja oscura
             roughness=0.45,
-            metallic=0.60,
+            metallic=0.65,
         ),
         "flywheel": get_or_create_material(
             "Mat_Flywheel",
-            base_color=hex_to_rgba("#363E46"),  # Volante de inercia
-            roughness=0.40,
-            metallic=0.65,
+            base_color=hex_to_rgba("#333B42"),  # Volante de inercia macizo
+            roughness=0.35,
+            metallic=0.75,
         ),
 
-        # 6. Distribución (Válvulas y Resortes)
+        # 6. Válvulas y Resortes Helicoidales
         "valve_intake": get_or_create_material(
             "Mat_ValveIntake",
-            base_color=hex_to_rgba("#06B6D4"),  # Cian cielo pastel
-            roughness=0.42,
-            metallic=0.22,
+            base_color=hex_to_rgba("#0EA5E9"),  # Válvula de admisión en aleación cian satinada
+            roughness=0.25,
+            metallic=0.55,
         ),
         "valve_exhaust": get_or_create_material(
             "Mat_ValveExhaust",
-            base_color=hex_to_rgba("#F97316"),  # Naranja coral pastel
-            roughness=0.42,
-            metallic=0.22,
+            base_color=hex_to_rgba("#EA580C"),  # Válvula de escape en acero térmico naranja
+            roughness=0.25,
+            metallic=0.55,
         ),
         "valve_spring": get_or_create_material(
             "Mat_ValveSpring",
-            base_color=hex_to_rgba("#CBD5E1"),  # Acero de muelle helicoidal
-            roughness=0.30,
-            metallic=0.65,
+            base_color=hex_to_rgba("#CAD4E0"),  # Alambre de acero de resorte de alta tensión
+            roughness=0.18,
+            metallic=0.92,
         ),
-        "valve_guide": get_or_create_material(
-            "Mat_ValveGuide",
-            base_color=hex_to_rgba("#64748B"),  # Guía de válvula
-            roughness=0.40,
-            metallic=0.50,
+        "valve_retainer": get_or_create_material(
+            "Mat_ValveRetainer",
+            base_color=hex_to_rgba("#1E242B"),  # Platillo retenedor de válvula pavonado
+            roughness=0.22,
+            metallic=0.88,
         ),
 
-        # 7. Bujía
+        # 7. Bujía de Alta Precisión
         "spark_ceramic": get_or_create_material(
             "Mat_SparkCeramic",
-            base_color=hex_to_rgba("#FFFFFF"),  # Porcelana blanca mate pura
-            roughness=0.18,
+            base_color=hex_to_rgba("#FFFFFF"),  # Porcelana blanca pura vidriada
+            roughness=0.06,
             metallic=0.0,
+            coat_weight=1.0,
+            coat_roughness=0.04,
         ),
         "spark_metal": get_or_create_material(
             "Mat_SparkMetal",
-            base_color=hex_to_rgba("#64748B"),  # Acero de rosca y tuerca
-            roughness=0.32,
-            metallic=0.70,
+            base_color=hex_to_rgba("#64748B"),  # Acero cincado de rosca y tuerca
+            roughness=0.25,
+            metallic=0.85,
+        ),
+        "spark_copper": get_or_create_material(
+            "Mat_SparkCopper",
+            base_color=hex_to_rgba("#B45309"),  # Junta de cobre de estanqueidad
+            roughness=0.20,
+            metallic=0.90,
         ),
 
-        # 8. Efectos Volumétricos e Indicadores Explicativos
+        # 8. Efectos Volumétricos y Fuego Coverfox
         "electric_spark": get_or_create_material(
             "Mat_ElectricSpark",
-            base_color=(0.3, 0.8, 1.0, 1.0),
-            roughness=0.1,
+            base_color=(0.4, 0.85, 1.0, 1.0),
+            roughness=0.05,
             metallic=0.0,
-            emission_color=(0.22, 0.75, 1.0, 1.0),
-            emission_strength=35.0,
+            emission_color=(0.35, 0.85, 1.0, 1.0),
+            emission_strength=45.0,
         ),
-        "flame_combustion": get_or_create_material(
-            "Mat_FlameCombustion",
-            base_color=(1.0, 0.35, 0.05, 0.95),
+        "flame_outer": get_or_create_material(
+            "Mat_FlameOuter",
+            base_color=(0.95, 0.15, 0.05, 0.98),
             roughness=0.15,
             metallic=0.0,
-            alpha=0.95,
-            emission_color=(1.0, 0.50, 0.05, 1.0),
-            emission_strength=25.0,
+            emission_color=(1.0, 0.20, 0.05, 1.0),
+            emission_strength=30.0,
+        ),
+        "flame_mid": get_or_create_material(
+            "Mat_FlameMid",
+            base_color=(1.0, 0.50, 0.05, 1.0),
+            roughness=0.10,
+            metallic=0.0,
+            emission_color=(1.0, 0.55, 0.05, 1.0),
+            emission_strength=42.0,
         ),
         "flame_core": get_or_create_material(
             "Mat_FlameCore",
-            base_color=(1.0, 0.95, 0.85, 1.0),
-            roughness=0.1,
+            base_color=(1.0, 0.98, 0.85, 1.0),
+            roughness=0.05,
             metallic=0.0,
-            alpha=1.0,
-            emission_color=(1.0, 0.95, 0.80, 1.0),
-            emission_strength=45.0,
+            emission_color=(1.0, 0.98, 0.80, 1.0),
+            emission_strength=60.0,
         ),
         "intake_flow": get_or_create_material(
             "Mat_IntakeFlow",
-            base_color=hex_to_rgba("#38BDF8", alpha=0.55),
-            roughness=0.2,
+            base_color=hex_to_rgba("#38BDF8", alpha=0.60),
+            roughness=0.20,
             metallic=0.0,
-            alpha=0.55,
-            emission_color=(0.2, 0.7, 1.0, 1.0),
-            emission_strength=3.0,
+            alpha=0.60,
+            emission_color=(0.20, 0.75, 1.0, 1.0),
+            emission_strength=4.0,
         ),
         "exhaust_flow": get_or_create_material(
             "Mat_ExhaustFlow",
-            base_color=hex_to_rgba("#FB923C", alpha=0.55),
-            roughness=0.2,
+            base_color=hex_to_rgba("#F97316", alpha=0.60),
+            roughness=0.20,
             metallic=0.0,
-            alpha=0.55,
-            emission_color=(1.0, 0.5, 0.1, 1.0),
-            emission_strength=3.0,
+            alpha=0.60,
+            emission_color=(1.0, 0.55, 0.15, 1.0),
+            emission_strength=4.0,
         ),
         "compression_gas": get_or_create_material(
             "Mat_CompressionGas",
-            base_color=hex_to_rgba("#FEF08A", alpha=0.45),
-            roughness=0.3,
+            base_color=hex_to_rgba("#FDE047", alpha=0.50),
+            roughness=0.25,
             metallic=0.0,
-            alpha=0.45,
-            emission_color=(1.0, 0.9, 0.25, 1.0),
-            emission_strength=3.5,
+            alpha=0.50,
+            emission_color=(1.0, 0.90, 0.30, 1.0),
+            emission_strength=4.0,
         ),
     }
