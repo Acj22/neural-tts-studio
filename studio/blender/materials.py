@@ -97,98 +97,108 @@ def get_or_create_material(
 def setup_engine_materials() -> dict[str, Any]:
     """Instancia y devuelve la paleta estilizada completa de maqueta técnica educativa."""
     return {
-        # 1. Estudio de Maqueta (Fondo y Mesa Clara)
+        # 1. Estudio de Maqueta (Fondo Cream Técnico Libre de Sombras Sucias)
         "studio_floor": get_or_create_material(
             "Mat_StudioFloor",
-            base_color=hex_to_rgba("#E8ECEF"),  # Gris claro neutro cálido de estudio
+            base_color=hex_to_rgba("#FAF5EC"),  # Cream cálido tipo ilustración Coverfox
             roughness=0.90,
             metallic=0.0,
+            emission_color=hex_to_rgba("#FAF5EC"),
+            emission_strength=0.95,
         ),
         "studio_backdrop": get_or_create_material(
             "Mat_StudioBackdrop",
-            base_color=hex_to_rgba("#F1F5F9"),  # Fondo suave
+            base_color=hex_to_rgba("#FAF5EC"),  # Fondo cálido nítido
             roughness=0.95,
             metallic=0.0,
+            emission_color=hex_to_rgba("#FAF5EC"),
+            emission_strength=0.95,
         ),
 
         # 2. Bloque del Motor y Estructura
         "engine_block": get_or_create_material(
             "Mat_EngineBlock",
-            base_color=hex_to_rgba("#475569"),  # Grafito mate suave
-            roughness=0.65,
-            metallic=0.08,
+            base_color=hex_to_rgba("#24282D"),  # Fundición gris grafito oscuro de alto contraste
+            roughness=0.60,
+            metallic=0.15,
         ),
         "cutaway_rim": get_or_create_material(
             "Mat_CutawayRim",
-            base_color=hex_to_rgba("#CBD5E1"),  # Borde biselado de sección técnica
-            roughness=0.35,
-            metallic=0.45,
+            base_color=hex_to_rgba("#475569"),  # Borde biselado de sección técnica
+            roughness=0.40,
+            metallic=0.55,
         ),
         "cylinder_liner": get_or_create_material(
             "Mat_CylinderLiner",
-            base_color=hex_to_rgba("#94A3B8"),  # Acero satinado de camisa
-            roughness=0.40,
-            metallic=0.55,
+            base_color=hex_to_rgba("#CAD4DE"),  # Acero cromado satinado de camisa
+            roughness=0.22,
+            metallic=0.85,
         ),
 
         # 3. Pistón y Conjunto Móvil Superior
         "piston": get_or_create_material(
             "Mat_Piston",
-            base_color=hex_to_rgba("#F8FAFC"),  # Aluminio satinado muy claro
-            roughness=0.42,
-            metallic=0.30,
+            base_color=hex_to_rgba("#D2D9E0"),  # Aleación de aluminio satinado de pistón
+            roughness=0.28,
+            metallic=0.60,
         ),
         "piston_rings": get_or_create_material(
             "Mat_PistonRings",
-            base_color=hex_to_rgba("#D97706"),  # Cobre/bronce satinado
-            roughness=0.32,
-            metallic=0.65,
+            base_color=hex_to_rgba("#D97706"),  # Aros de bronce nitrurado dorado
+            roughness=0.22,
+            metallic=0.85,
         ),
         "wrist_pin": get_or_create_material(
             "Mat_WristPin",
-            base_color=hex_to_rgba("#64748B"),  # Bulón de acero templado
-            roughness=0.25,
-            metallic=0.75,
+            base_color=hex_to_rgba("#1E242B"),  # Bulón de acero templado oscuro de alta dureza
+            roughness=0.18,
+            metallic=0.90,
         ),
 
         # 4. Biela Forjada y Cojinetes
         "connecting_rod": get_or_create_material(
             "Mat_ConnectingRod",
-            base_color=hex_to_rgba("#475569"),  # Acero forjado satinado mate
+            base_color=hex_to_rgba("#687684"),  # Acero forjado mecanizado
+            roughness=0.32,
+            metallic=0.65,
+        ),
+        "rod_recess": get_or_create_material(
+            "Mat_RodRecess",
+            base_color=hex_to_rgba("#485460"),  # Canal en I forjado
             roughness=0.45,
-            metallic=0.40,
+            metallic=0.50,
         ),
         "rod_bearings": get_or_create_material(
             "Mat_RodBearings",
             base_color=hex_to_rgba("#D97706"),  # Bronce de fricción dorado pulido
-            roughness=0.28,
-            metallic=0.75,
+            roughness=0.25,
+            metallic=0.85,
         ),
         "rod_bolts": get_or_create_material(
             "Mat_RodBolts",
-            base_color=hex_to_rgba("#E2E8F0"),  # Tornillos de biela nítidos
-            roughness=0.25,
-            metallic=0.80,
+            base_color=hex_to_rgba("#1E242B"),  # Tornillos de biela pavonados
+            roughness=0.20,
+            metallic=0.85,
         ),
 
-        # 5. Cigüeñal y Volante (Acero técnico mecanizado, no plástico)
+        # 5. Cigüeñal y Volante (Acero técnico mecanizado)
         "crankshaft": get_or_create_material(
             "Mat_Crankshaft",
-            base_color=hex_to_rgba("#64748B"),  # Acero templado mecanizado
-            roughness=0.35,
-            metallic=0.60,
+            base_color=hex_to_rgba("#363E46"),  # Acero templado mecanizado
+            roughness=0.38,
+            metallic=0.70,
         ),
         "counterweights": get_or_create_material(
             "Mat_Counterweights",
-            base_color=hex_to_rgba("#334155"),  # Forja oscura contrastada para contrapesos
-            roughness=0.50,
-            metallic=0.45,
+            base_color=hex_to_rgba("#262B30"),  # Forja oscura contrastada para contrapesos
+            roughness=0.45,
+            metallic=0.60,
         ),
         "flywheel": get_or_create_material(
             "Mat_Flywheel",
-            base_color=hex_to_rgba("#475569"),  # Volante de inercia
-            roughness=0.45,
-            metallic=0.40,
+            base_color=hex_to_rgba("#363E46"),  # Volante de inercia
+            roughness=0.40,
+            metallic=0.65,
         ),
 
         # 6. Distribución (Válvulas y Resortes)
@@ -238,16 +248,25 @@ def setup_engine_materials() -> dict[str, Any]:
             roughness=0.1,
             metallic=0.0,
             emission_color=(0.22, 0.75, 1.0, 1.0),
-            emission_strength=25.0,
+            emission_strength=35.0,
         ),
         "flame_combustion": get_or_create_material(
             "Mat_FlameCombustion",
-            base_color=(1.0, 0.65, 0.1, 0.90),
-            roughness=0.2,
+            base_color=(1.0, 0.35, 0.05, 0.95),
+            roughness=0.15,
             metallic=0.0,
-            alpha=0.88,
-            emission_color=(1.0, 0.55, 0.05, 1.0),
-            emission_strength=12.0,
+            alpha=0.95,
+            emission_color=(1.0, 0.50, 0.05, 1.0),
+            emission_strength=25.0,
+        ),
+        "flame_core": get_or_create_material(
+            "Mat_FlameCore",
+            base_color=(1.0, 0.95, 0.85, 1.0),
+            roughness=0.1,
+            metallic=0.0,
+            alpha=1.0,
+            emission_color=(1.0, 0.95, 0.80, 1.0),
+            emission_strength=45.0,
         ),
         "intake_flow": get_or_create_material(
             "Mat_IntakeFlow",

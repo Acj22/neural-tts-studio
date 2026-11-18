@@ -22,42 +22,93 @@ except ImportError:
 
 
 def setup_studio_lighting() -> dict[str, Any]:
-    """Crea una iluminación de estudio profesional de 4 fuentes en entorno de maqueta clara."""
+    """Crea una iluminación de estudio profesional de 4 fuentes en entorno de maqueta clara con Freestyle."""
     if bpy is None:
         return {}
+
+    scene = bpy.context.scene
+
+    # Configuración Freestyle para trazo técnico refinado CAD
+    scene.render.use_freestyle = True
+    if scene.view_layers:
+        vl = scene.view_layers[0]
+        fs = vl.freestyle_settings
+        fs.crease_angle = math.radians(130)
+        # Limpiar o reutilizar linesets
+        while len(fs.linesets) > 0:
+            fs.linesets.remove(fs.linesets[0])
+        lineset = fs.linesets.new("CAD_Technical_Ink")
+        lineset.select_silhouette = True
+        lineset.select_border = True
+        lineset.select_crease = True
+        linestyle = bpy.data.linestyles.new("CAD_Ink_Style")
+        linestyle.thickness = 1.3
+        linestyle.color = (0.08, 0.10, 0.12)
+        lineset.linestyle = linestyle
 
     lights_col = bpy.data.collections.new("Studio_Lighting")
     bpy.context.scene.collection.children.link(lights_col)
 
-    # 1. Key Light (Luz Principal Cálida Difusa - Frente Derecha con radio amplio para sombras de maqueta sedosas)
-    bpy.ops.object.light_add(type="AREA", radius=6.5, location=(5.5, -8.0, 7.5))
+    # 0. Telón de fondo Cream Cálido Emisivo (sin sombras proyectadas sucias)
+    mat_bg = bpy.data.materials.get("Mat_StudioBackdrop")
+    if not mat_bg:
+        mat_bg = bpy.data.materials.new("Mat_StudioBackdrop")
+        b_bg = mat_bg.node_tree.nodes.get("Principled BSDF")
+        if b_bg:
+            b_bg.inputs["Base Color"].default_value = (0.96, 0.94, 0.91, 1.0)
+            b_bg.inputs["Emission Color"].default_value = (0.96, 0.94, 0.91, 1.0)
+            b_bg.inputs["Emission Strength"].default_value = 0.95
+
+    bpy.ops.mesh.primitive_plane_add(size=60.0, location=(0, 12.0, 3.0))
+    bg_plane = bpy.context.active_object
+    bg_plane.name = "Studio_Backdrop_Plane"
+    bg_plane.rotation_euler = (math.radians(90), 0, 0)
+    bg_plane.data.materials.append(mat_bg)
+    lights_col.objects.link(bg_plane)
+    if bg_plane.name in scene.collection.objects:
+        scene.collection.objects.unlink(bg_plane)
+
+    # 1. Key Light (Luz Principal Cálida Difusa con sombras definidas)
+    bpy.ops.object.light_add(type="AREA", radius=5.0, location=(6.0, -10.0, 8.0))
     key_light = bpy.context.active_object
     key_light.name = "Light_Key_Studio"
-    key_light.data.energy = 850.0
-    key_light.data.color = (1.0, 0.98, 0.95)  # Blanco cálido suave
+    key_light.data.energy = 650.0
+    key_light.data.color = (1.0, 0.98, 0.95)
+    lights_col.objects.link(key_light)
+    if key_light.name in scene.collection.objects:
+        scene.collection.objects.unlink(key_light)
 
-    # 2. Fill Light (Luz de Relleno Suave - Frente Izquierda para aclarar sombras)
-    bpy.ops.object.light_add(type="AREA", radius=5.5, location=(-6.5, -6.5, 5.5))
+    # 2. Fill Light (Luz de Relleno Suave)
+    bpy.ops.object.light_add(type="AREA", radius=6.0, location=(-6.0, -8.0, 5.0))
     fill_light = bpy.context.active_object
     fill_light.name = "Light_Fill_Studio"
-    fill_light.data.energy = 380.0
-    fill_light.data.color = (0.92, 0.95, 1.0)  # Cielo fresco suave
+    fill_light.data.energy = 300.0
+    fill_light.data.color = (0.88, 0.93, 1.0)
+    lights_col.objects.link(fill_light)
+    if fill_light.name in scene.collection.objects:
+        scene.collection.objects.unlink(fill_light)
 
-    # 3. Rim Light (Luz de Contorno Trasera Elevada para recortar bordes con nitidez)
-    bpy.ops.object.light_add(type="AREA", radius=3.5, location=(0.0, 6.5, 6.0))
+    # 3. Rim Light (Luz de Contorno Trasera para recortar aristas metálicas)
+    bpy.ops.object.light_add(type="AREA", radius=4.0, location=(0.0, 7.0, 7.0))
     rim_light = bpy.context.active_object
     rim_light.name = "Light_Rim_Studio"
-    rim_light.data.energy = 480.0
+    rim_light.data.energy = 450.0
     rim_light.data.color = (1.0, 1.0, 1.0)
+    lights_col.objects.link(rim_light)
+    if rim_light.name in scene.collection.objects:
+        scene.collection.objects.unlink(rim_light)
 
-    # 4. Bounce Light (Luz de Rebote Inferior para iluminar cárter y cigüeñal sin oscuridad profunda)
-    bpy.ops.object.light_add(type="AREA", radius=4.0, location=(0.0, -4.5, -1.8))
-    bounce_light = bpy.context.active_object
-    bounce_light.name = "Light_Bounce_Studio"
-    bounce_light.data.energy = 220.0
-    bounce_light.data.color = (0.95, 0.94, 0.92)  # Rebote cálido de mesa
+    # 4. Front Fill (Luz Frontal Suave de Detalle)
+    bpy.ops.object.light_add(type="AREA", radius=3.5, location=(0.0, -8.0, 2.0))
+    front_light = bpy.context.active_object
+    front_light.name = "Light_Front_Studio"
+    front_light.data.energy = 200.0
+    front_light.data.color = (1.0, 0.97, 0.93)
+    lights_col.objects.link(front_light)
+    if front_light.name in scene.collection.objects:
+        scene.collection.objects.unlink(front_light)
 
-    # 5. Entorno Mundial Claro de Estudio (Fondo Beige/Gris Claro Neutro - Punto 2 y 3)
+    # 5. Entorno Suave
     world = bpy.context.scene.world
     if not world:
         world = bpy.data.worlds.new("StudioWorld_Light")
@@ -65,15 +116,14 @@ def setup_studio_lighting() -> dict[str, Any]:
     world.use_nodes = True
     bg_node = world.node_tree.nodes.get("Background")
     if bg_node:
-        # Fondo gris claro neutro suave (#E8ECEF / #F1F5F9)
-        bg_node.inputs["Color"].default_value = (0.88, 0.89, 0.91, 1.0)
-        bg_node.inputs["Strength"].default_value = 0.95
+        bg_node.inputs["Color"].default_value = (0.96, 0.94, 0.91, 1.0)
+        bg_node.inputs["Strength"].default_value = 0.40
 
     return {
         "key": key_light,
         "fill": fill_light,
         "rim": rim_light,
-        "bounce": bounce_light,
+        "front": front_light,
     }
 
 

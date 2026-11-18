@@ -38,6 +38,7 @@ def render_scene_3d_video(
     height: int = 1920,
     fps: int = 30,
     render_profile: str = "standard",
+    force_rerender: bool = False,
 ) -> Path:
     """Renderiza una escena completa en video MP4 mediante Blender 5.3 + FFmpeg local."""
     exe = detect_blender_executable()
@@ -45,7 +46,7 @@ def render_scene_3d_video(
         raise RuntimeError("Blender no está instalado en el sistema.")
 
     output_mp4.parent.mkdir(parents=True, exist_ok=True)
-    if output_mp4.exists() and output_mp4.stat().st_size > 5000:
+    if not force_rerender and output_mp4.exists() and output_mp4.stat().st_size > 5000:
         logger.info("Clip MP4 %s ya existe en disco. Reutilizando caché...", output_mp4.name)
         return output_mp4
 
@@ -309,6 +310,7 @@ def run_combustion_engine_prototype_benchmark(
             height=height,
             fps=fps,
             render_profile=render_profile,
+            force_rerender=force_rerender,
         )
 
         # C. Muxing de Audio y Subtitulado Dinámico por Cláusulas
