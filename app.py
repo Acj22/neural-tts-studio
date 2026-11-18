@@ -666,7 +666,7 @@ class YouTubeProjectRequest(BaseModel):
     speed: float = Field(1.0, ge=0.5, le=2.0)
     sentence_pause: float = Field(0.25, ge=0.0, le=1.5)
     noise_scale: float = Field(0.667, ge=0.1, le=1.5)
-    pitch_hz: int = Field(-2, ge=-15, le=15, description="Ajuste de tono en Hz para voz de locutor (ej. -2Hz o -4Hz)")
+    pitch_hz: int = Field(1, ge=-15, le=15, description="Ajuste de tono en Hz para voz de locutor (ej. +1Hz o 0Hz)")
     studio_mastering: bool = Field(True, description="Aplicar ecualización cálida de estudio, de-esser y prosodia natural")
     scene_mode: str = Field("auto", description="'auto', 'paragraph', o 'sentence'")
     style: str = Field("cinematic", description="Estilo visual base para las imágenes")
@@ -695,7 +695,7 @@ class YouTubeVoicePreviewRequest(BaseModel):
     speed: float = Field(1.0, ge=0.5, le=2.0)
     sentence_pause: float = Field(0.25, ge=0.0, le=1.5)
     noise_scale: float = Field(0.667, ge=0.1, le=1.5)
-    pitch_hz: int = Field(-2, ge=-15, le=15)
+    pitch_hz: int = Field(1, ge=-15, le=15)
     studio_mastering: bool = Field(True)
 
 
@@ -706,7 +706,7 @@ class UpdateProjectVoiceRequest(BaseModel):
     speed: float = Field(1.0, ge=0.5, le=2.0)
     sentence_pause: float = Field(0.25, ge=0.0, le=1.5)
     noise_scale: float = Field(0.667, ge=0.1, le=1.5)
-    pitch_hz: int = Field(-2, ge=-15, le=15)
+    pitch_hz: int = Field(1, ge=-15, le=15)
     studio_mastering: bool = Field(True)
 
 
@@ -761,9 +761,9 @@ def analyze_style_image_endpoint(req: AnalyzeImageRequest):
         raise HTTPException(status_code=400, detail=f"No se pudo analizar la imagen de referencia: {exc}") from exc
 
 
-def enhance_spanish_prosody_for_youtube(text: str, for_local_onnx: bool = False) -> str:
-    """Pre-procesa el guion de YouTube en español para que las pausas respiratorias,
-    números, símbolos y conectores suenen con cadencia de locutor humano."""
+def enhance_spanish_prosody_for_youtube(text: str, for_local_onnx: bool = False, expressive_mode: bool = True) -> str:
+    """Pre-procesa el guion en español para que las pausas respiratorias,
+    inflexiones, números, conectores y énfasis suenen con expresividad y cadencia humana."""
     t = text.strip()
     if not t:
         return t
@@ -775,8 +775,28 @@ def enhance_spanish_prosody_for_youtube(text: str, for_local_onnx: bool = False)
     t = re.sub(r"\bSra\.\s*", "Señora ", t)
     t = re.sub(r"\bDr\.\s*", "Doctor ", t)
     t = re.sub(r"\bDra\.\s*", "Doctora ", t)
+
+    if expressive_mode:
+        # Pausas respiratorias naturales en conectores y transiciones narrativas
+        t = re.sub(
+            r"\b(Sin embargo|Por ejemplo|No obstante|En realidad|De hecho|Por eso|Además|Por lo tanto|En consecuencia)\s+(?!,)",
+            r"\1, ",
+            t,
+            flags=re.IGNORECASE,
+        )
+        # Inflexión de atención en marcadores de énfasis documental
+        t = re.sub(
+            r"\b(Observa|Fíjate|Increíblemente|Sorprendentemente|Mira cómo|Presta atención a|Nota cómo)\s+(?!:|,|\.)",
+            r"\1... ",
+            t,
+            flags=re.IGNORECASE,
+        )
+        # Separación respiratoria en enumeraciones de tiempos y partes
+        t = re.sub(r"\b(Tiempo uno|Tiempo dos|Tiempo tres|Tiempo cuatro):?\s*", r"¡\1!... ", t, flags=re.IGNORECASE)
+        t = re.sub(r"\b(Primer tiempo|Segundo tiempo|Tercer tiempo|Cuarto tiempo):?\s*", r"¡\1!... ", t, flags=re.IGNORECASE)
+
     if for_local_onnx:
-        # En Kokoro y Piper (espeak-ng), añadir micro-pausa en conectores largos mejora mucho la cadencia
+        # En Kokoro y Piper (espeak-ng), micro-pausa adicional en conectores
         t = re.sub(
             r"\b(Sin embargo|Por ejemplo|No obstante|En realidad|De hecho|Por eso|Además)\s+(?!,)",
             r"\1, ",
@@ -853,25 +873,27 @@ def _synthesize_with_edge_neural(
     text: str,
     voice_id: str,
     speed: float = 1.0,
-    pitch_hz: int = -2,
+    pitch_hz: int = 1,
+    volume: str = "+15%",
 ) -> tuple[np.ndarray, int]:
-    """Sintetiza voz ultra-natural con Microsoft Edge Neural HD (100% gratis, sin API key)."""
+    """Sintetiza voz ultra-natural y expresiva con Microsoft Edge Neural HD."""
     import asyncio
     import edge_tts
 
     target_voice = voice_id if voice_id in EDGE_NEURAL_VOICE_CATALOG else "es-MX-JorgeNeural"
-    rate_pct = int(round((float(speed) - 1.0) * 100))
+    # Añadir un sutil impulso de cadencia (+3%) para que suene ágil, dinámico y no monótono
+    rate_pct = int(round((float(speed) - 1.0) * 100)) + 3
     rate_str = f"{rate_pct:+d}%"
     pitch_val = int(round(float(pitch_hz)))
     pitch_str = f"{pitch_val:+d}Hz"
 
-    clean_text = enhance_spanish_prosody_for_youtube(text, for_local_onnx=False)
+    clean_text = enhance_spanish_prosody_for_youtube(text, for_local_onnx=False, expressive_mode=True)
 
     async def _run_edge() -> bytes:
         last_err: Optional[Exception] = None
         for attempt in range(1, 6):
             try:
-                comm = edge_tts.Communicate(clean_text, target_voice, rate=rate_str, pitch=pitch_str)
+                comm = edge_tts.Communicate(clean_text, target_voice, rate=rate_str, pitch=pitch_str, volume=volume)
                 audio_buf = bytearray()
                 async for chunk in comm.stream():
                     if chunk.get("type") == "audio":
@@ -912,14 +934,14 @@ def _synthesize_with_edge_neural(
 
 def _synthesize_segment_samples(
     text: str,
-    engine: str,
-    voice_id: str,
-    lang: Optional[str],
-    speed: float,
-    sentence_pause: float,
-    noise_scale: float,
-    pitch_hz: int = 0,
-    studio_mastering: bool = False,
+    engine: str = "edge",
+    voice_id: str = "es-MX-JorgeNeural",
+    lang: Optional[str] = None,
+    speed: float = 1.0,
+    sentence_pause: float = 0.15,
+    noise_scale: float = 0.667,
+    pitch_hz: int = 1,
+    studio_mastering: bool = True,
 ) -> tuple[np.ndarray, int]:
     if engine == "edge":
         try:

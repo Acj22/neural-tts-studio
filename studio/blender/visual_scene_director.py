@@ -144,13 +144,13 @@ class VisualSceneDirector:
 
     @classmethod
     def get_canonical_12_scenes_sequence(cls) -> list[dict[str, Any]]:
-        """Devuelve la secuencia oficial obligatoria de 12 escenas de la Fase 2.3."""
+        """Devuelve la secuencia oficial obligatoria de 12 escenas de la Fase 2.3 con prosodia ultra-expresiva."""
         return [
             # 1. Presentación del motor completo
             {
                 "id": "SCN_01_HERO",
                 "title": "1. Presentación del Motor Completo",
-                "text": "El motor de cuatro tiempos es la cúspide de la ingeniería automotriz moderna.",
+                "text": "¡Observa!... El motor de cuatro tiempos es la cúspide indiscutible de la ingeniería automotriz moderna.",
                 "concept": "overview",
                 "target_component": "engine_complete",
                 "action": "overview",
@@ -163,7 +163,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_02_ORBIT",
                 "title": "2. Exploración Orbital 360°",
-                "text": "Su arquitectura compacta integra cárter, bloque y culata en perfecta simetría.",
+                "text": "Fíjate en su arquitectura compacta: cárter, bloque y culata se integran... en una perfecta y rigurosa simetría.",
                 "concept": "3d_volume",
                 "target_component": "engine_complete",
                 "action": "orbit",
@@ -176,7 +176,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_03_EXPLODED",
                 "title": "3. Despiece Axial de Componentes",
-                "text": "Cada componente mecánico soporta presiones colosales y fricción extrema.",
+                "text": "¡Mira cómo se separan sus piezas!... Cada componente mecánico soporta presiones colosales y fricción extrema.",
                 "concept": "exploded_mechanics",
                 "target_component": "engine_complete",
                 "action": "explode_parts",
@@ -189,7 +189,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_04_PISTON",
                 "title": "4. Pistón y Aros de Compresión",
-                "text": "El pistón de aluminio anodizado recibe el impacto de los gases mediante sus aros selladores.",
+                "text": "Aquí tenemos al pistón de aluminio anodizado: recibe directamente el impacto de los gases mediante sus aros selladores.",
                 "concept": "piston_mechanics",
                 "target_component": "piston",
                 "highlight_component": "piston",
@@ -203,7 +203,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_05_ROD_TRACK",
                 "title": "5. Seguimiento Cinemático de la Biela",
-                "text": "La biela forjada en viga I transforma la oscilación lineal en fuerza rotativa.",
+                "text": "La biela forjada en viga I... transforma sin descanso la oscilación lineal en fuerza rotativa continua.",
                 "concept": "rod_kinematics",
                 "target_component": "connecting_rod",
                 "highlight_component": "connecting_rod",
@@ -217,7 +217,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_06_CRANK",
                 "title": "6. Cigüeñal y Muñequilla a Espejo",
-                "text": "El cigüeñal canaliza el par motor asistido por contrapesos que absorben vibraciones.",
+                "text": "Observa el cigüeñal: canaliza todo el par motor asistido por contrapesos... que absorben cualquier vibración.",
                 "concept": "crank_torque",
                 "target_component": "crankshaft",
                 "highlight_component": "crankshaft",
@@ -231,7 +231,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_07_VALVES_TOP",
                 "title": "7. Distribución y Resortes Helicoidales",
-                "text": "En la culata, las válvulas abren y cierran con resortes helicoidales de alta tensión.",
+                "text": "En la culata superior, las válvulas abren y cierran con precisión gracias a resortes helicoidales de alta tensión.",
                 "concept": "valves_timing",
                 "target_component": "valves",
                 "highlight_component": "valves",
@@ -245,7 +245,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_08_INTAKE",
                 "title": "8. Primer Tiempo: Admisión",
-                "text": "Tiempo uno: Admisión. La válvula izquierda desciende y el pistón aspira mezcla fresca.",
+                "text": "¡Primer tiempo: Admisión!... La válvula izquierda se abre, y el pistón desciende aspirando con fuerza la mezcla fresca.",
                 "concept": "stroke_intake",
                 "target_component": "combustion_chamber",
                 "action": "open_intake_flow",
@@ -259,7 +259,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_09_COMPRESSION",
                 "title": "9. Segundo Tiempo: Compresión",
-                "text": "Tiempo dos: Compresión. Con ambas válvulas herméticamente cerradas, la mezcla se comprime.",
+                "text": "¡Segundo tiempo: Compresión!... Con ambas válvulas herméticamente cerradas, el pistón sube y comprime la mezcla al máximo.",
                 "concept": "stroke_compression",
                 "target_component": "combustion_chamber",
                 "action": "compress_gas",
@@ -273,7 +273,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_10_COMBUSTION",
                 "title": "10. Tercer Tiempo: Expansión y Combustión",
-                "text": "Tiempo tres: Expansión. La bujía detona la chispa y el estallido impulsa al pistón.",
+                "text": "¡Tercer tiempo: Expansión!... La bujía detona una chispa ardiente, ¡y la tremenda explosión empuja el pistón con potencia pura!",
                 "concept": "stroke_expansion",
                 "target_component": "combustion_chamber",
                 "action": "ignite_combustion",
@@ -287,7 +287,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_11_EXHAUST",
                 "title": "11. Cuarto Tiempo: Escape",
-                "text": "Tiempo cuatro: Escape. La válvula derecha abre y el pistón expulsa los gases quemados.",
+                "text": "¡Cuarto tiempo: Escape!... La válvula derecha se abre de golpe, y el pistón expulsa todos los gases residuales quemados.",
                 "concept": "stroke_exhaust",
                 "target_component": "combustion_chamber",
                 "action": "open_exhaust_flow",
@@ -301,7 +301,7 @@ class VisualSceneDirector:
             {
                 "id": "SCN_12_ASSEMBLY_CYCLE",
                 "title": "12. Ciclo Continuo y Conclusión",
-                "text": "Los cuatro tiempos se repiten miles de veces por minuto, impulsando al mundo con precisión.",
+                "text": "De este modo... los cuatro tiempos se repiten miles de veces por minuto, impulsando al mundo con absoluta precisión.",
                 "concept": "full_cycle_assembly",
                 "target_component": "engine_complete",
                 "action": "assemble_parts",

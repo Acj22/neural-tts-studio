@@ -116,20 +116,38 @@ def render_scene_3d_video(
     return output_mp4
 
 
-def _synthesize_audio_local(text: str, voice_id: str = "es-MX-DaliaNeural", speed: float = 1.0) -> tuple[Any, int]:
-    """Sintetiza voz neuronal de alta fidelidad 100% gratuita usando Edge-TTS local."""
-    import numpy as np
-    import soundfile as sf
+def _synthesize_audio_local(
+    text: str,
+    voice_id: str = "es-US-AlonsoNeural",
+    speed: float = 1.0,
+    pitch_hz: int = 1,
+    expressive: bool = True,
+) -> tuple[Any, int]:
+    """Sintetiza voz neuronal ultra-expresiva con prosodia humana y masterización DSP de estudio."""
     try:
         from app import _synthesize_segment_samples
-        return _synthesize_segment_samples(text=text, voice_id=voice_id, speed=speed)
+        return _synthesize_segment_samples(
+            text=text,
+            engine="edge",
+            voice_id=voice_id,
+            speed=speed,
+            pitch_hz=pitch_hz,
+            studio_mastering=True,
+        )
     except Exception:
         import asyncio
-        import edge_tts
         import io
+        import soundfile as sf
+        import edge_tts
+        from app import enhance_spanish_prosody_for_youtube, apply_studio_voice_mastering
+
+        clean_text = enhance_spanish_prosody_for_youtube(text, expressive_mode=expressive)
+        rate_pct = int(round((float(speed) - 1.0) * 100)) + (3 if expressive else 0)
+        rate_str = f"{rate_pct:+d}%"
+        pitch_str = f"{pitch_hz:+d}Hz"
 
         async def _edge_gen() -> bytes:
-            comm = edge_tts.Communicate(text, voice_id)
+            comm = edge_tts.Communicate(clean_text, voice_id, rate=rate_str, pitch=pitch_str, volume="+15%")
             buf = bytearray()
             async for chunk in comm.stream():
                 if chunk.get("type") == "audio":
@@ -138,7 +156,8 @@ def _synthesize_audio_local(text: str, voice_id: str = "es-MX-DaliaNeural", spee
 
         raw_bytes = asyncio.run(_edge_gen())
         samples, sr = sf.read(io.BytesIO(raw_bytes), dtype="float32")
-        return samples, sr
+        mastered = apply_studio_voice_mastering(samples, sr)
+        return mastered, sr
 
 
 def render_scene_3d_still(
