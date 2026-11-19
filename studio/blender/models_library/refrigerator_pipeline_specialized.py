@@ -39,7 +39,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "1. Gancho y extracción de calor",
         "time_range": (0.0, 19.5),
         "frame_range": (1, 468),
-        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
         "active_labels": [],  # Ninguna etiqueta al inicio para mantener plano limpio
         "description": "Plano general completo del refrigerador en corte 3/4. Reconocible de inmediato.",
     },
@@ -48,7 +48,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "2. Presentación de los 5 componentes",
         "time_range": (19.5, 30.5),
         "frame_range": (469, 732),
-        "camera": {"az": 26.0, "el": 11.0, "dist": 9.6, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 26.0, "el": 11.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
         "active_labels": [
             "overview_compressor",
             "overview_condenser",
@@ -63,7 +63,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "3. Compresor hermético",
         "time_range": (30.5, 47.5),
         "frame_range": (733, 1140),
-        "camera": {"az": 18.0, "el": 12.0, "dist": 3.4, "tz": 0.42, "lens": 56.0},
+        "camera": {"az": 18.0, "el": 12.0, "dist": 3.2, "tx": 0.0, "ty": 0.05, "tz": 0.38, "lens": 56.0},
         "active_labels": ["close_compressor"],  # ÚNICAMENTE compresor
         "description": "Acercamiento a la base, animación de bombeo mecánico y compresión.",
     },
@@ -72,8 +72,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "4. Condensador trasero",
         "time_range": (47.5, 65.5),
         "frame_range": (1141, 1572),
-        # Giro dinámico hacia la parte posterior para encuadrar el serpentín trasero y flechas térmicas
-        "camera": {"az": 148.0, "el": 12.0, "dist": 4.6, "tz": 2.30, "lens": 54.0},
+        "camera": {"az": 148.0, "el": 12.0, "dist": 4.6, "tx": 0.0, "ty": 0.68, "tz": 2.35, "lens": 54.0},
         "active_labels": ["close_condenser"],  # ÚNICAMENTE condensador
         "description": "Reencuadre a la rejilla trasera, disipación de calor al ambiente exterior.",
     },
@@ -82,7 +81,8 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "5. Filtro secador y tubo capilar",
         "time_range": (65.5, 81.5),
         "frame_range": (1573, 1956),
-        "camera": {"az": 38.0, "el": 12.0, "dist": 2.9, "tz": 0.95, "lens": 58.0},
+        # Encuadre dedicado directo a la esquina donde están el filtro y el capilar (X=0.65, Y=0.30)
+        "camera": {"az": 28.0, "el": 14.0, "dist": 2.4, "tx": 0.65, "ty": 0.30, "tz": 0.92, "lens": 54.0},
         "active_labels": ["close_capillary", "close_dryer"],  # Separadas sin cruzarse ni tocar bordes
         "description": "Filtro deshidratador a la derecha y capilar a la izquierda, caída de presión.",
     },
@@ -91,8 +91,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "6. Evaporador interior",
         "time_range": (81.5, 96.5),
         "frame_range": (1957, 2316),
-        # Transición rápida y fluida al compartimento superior del congelador
-        "camera": {"az": 16.0, "el": 14.0, "dist": 3.6, "tz": 3.15, "lens": 54.0},
+        "camera": {"az": 16.0, "el": 14.0, "dist": 3.4, "tx": 0.0, "ty": 0.25, "tz": 3.20, "lens": 54.0},
         "active_labels": ["close_evaporator"],  # ÚNICAMENTE evaporador
         "description": "Interior del congelador, serpentín gélido y absorción de calor de los alimentos.",
     },
@@ -101,7 +100,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "7. Retorno y cierre del ciclo",
         "time_range": (96.5, 105.0),
         "frame_range": (2317, 2520),
-        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
         "active_labels": [],  # Cierre limpio sin etiquetas que obstruyan la animación
         "description": "Pull-back al plano general mostrando el ciclo termodinámico continuo.",
     },
@@ -223,7 +222,8 @@ def build_specialized_refrigerator_model(
         "piston": piston,
         "piston_base_x": 0.0,
     }
-    data["anchors_3d"]["compressor"] = Vector((0.0, -0.32, Z(0.35)))
+    # Anclaje exacto en la cúpula superior del compresor
+    data["anchors_3d"]["compressor"] = Vector((0.0, 0.05, Z(0.53)))
 
     # 3. Serpentín del Condensador (Rejilla montada en la parte trasera exterior)
     cond_x0, cond_x1 = -0.62, 0.62
@@ -250,18 +250,20 @@ def build_specialized_refrigerator_model(
     support_r = C.cylinder("Cond_Support_R", 0.012, cond_ztop - cond_zbot + 0.20, (0.35, cond_y - 0.01, (cond_ztop + cond_zbot) / 2), "Z", m_dark_metal, 12)
     grp("condenser", tube_cond, support_l, support_r)
 
-    # Anclaje para etiqueta del condensador (trasera derecha)
-    data["anchors_3d"]["condenser"] = Vector((0.45, cond_y + 0.12, Z(2.40)))
+    # Anclaje exacto sobre la tubería del condensador trasero
+    data["anchors_3d"]["condenser"] = Vector((0.35, cond_y, Z(2.45)))
 
     # 4. Filtro Deshidratador y Tubo Capilar (Ubicados en la base lateral)
     dryer = C.cylinder("Filter_Dryer", 0.042, 0.24, (0.65, 0.45, Z(0.85)), "Z", m_copper, 20)
     grp("dryer", dryer)
-    data["anchors_3d"]["dryer"] = Vector((0.65, 0.25, Z(0.85)))
+    # Anclaje exacto en el extremo superior de cobre del filtro secador
+    data["anchors_3d"]["dryer"] = Vector((0.65, 0.45, Z(0.97)))
 
     cap_path = C.helix_path((0.65, 0.15, Z(0.82)), "Z", 0.42, 0.038, turns=8.0, pts_per_turn=12)
     tube_capillary = C.tube_from_path("Pipe_capillary", cap_path, 0.009, m_copper)
     grp("capillary", tube_capillary)
-    data["anchors_3d"]["capillary"] = Vector((0.65, -0.05, Z(0.95)))
+    # Anclaje exacto en la espiral de cobre del tubo capilar
+    data["anchors_3d"]["capillary"] = Vector((0.65, 0.15, Z(0.92)))
 
     # 5. Evaporador (Serpentín gélido en el congelador interior)
     evap_pts = _serpentine_pts(-0.55, 0.55, Z(3.60), Z(2.80), 6, 0.25, True)
@@ -269,7 +271,8 @@ def build_specialized_refrigerator_model(
     tube_evap = C.tube_from_path("Pipe_evaporator", poly_evap, 0.020, m_frost)
     frost_panel = C.box("Frost_Panel", (1.20, 0.04, 0.95), (0.0, 0.42, Z(3.20)), m_frost, bev=0.01)
     grp("evaporator", tube_evap, frost_panel)
-    data["anchors_3d"]["evaporator"] = Vector((0.0, -0.10, Z(3.20)))
+    # Anclaje exacto en el serpentín frontal del evaporador
+    data["anchors_3d"]["evaporator"] = Vector((0.0, 0.23, Z(3.20)))
 
     # 6. Tuberías del Circuito Cerrado
     p_disc = C.rounded_polyline([
@@ -385,19 +388,20 @@ def generate_refrigerator_adaptive_labels(
             created_labels[f"overview_{key}"] = (txt_obj, line_obj)
 
     # 2. Conjunto Macro por Etapa Individual (con encuadres de cámara dedicados)
+    cond_y = 0.68
     close_specs = [
-        # (etiqueta_key, comp_key, texto, target_u, target_v, az_deg, el_deg, dist, tz, lens)
-        ("close_compressor", "compressor", "COMPRESOR", 0.34, 0.68, 18.0, 12.0, 3.4, 0.42, 56.0),
-        ("close_condenser",  "condenser",  "CONDENSADOR", 0.70, 0.66, 148.0, 12.0, 4.6, 2.30, 54.0),
-        ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.32, 0.40, 38.0, 12.0, 2.9, 0.95, 58.0),
-        ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.70, 0.62, 38.0, 12.0, 2.9, 0.95, 58.0),
-        ("close_evaporator", "evaporator", "EVAPORADOR", 0.32, 0.70, 16.0, 14.0, 3.6, 3.15, 54.0),
+        # (etiqueta_key, comp_key, texto, target_u, target_v, az_deg, el_deg, dist, tx, ty, tz, lens)
+        ("close_compressor", "compressor", "COMPRESOR", 0.32, 0.70, 18.0, 12.0, 3.2, 0.0, 0.05, 0.38, 56.0),
+        ("close_condenser",  "condenser",  "CONDENSADOR", 0.70, 0.68, 148.0, 12.0, 4.6, 0.0, cond_y, 2.35, 54.0),
+        ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.28, 0.36, 28.0, 14.0, 2.4, 0.65, 0.30, 0.92, 54.0),
+        ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.70, 0.68, 28.0, 14.0, 2.4, 0.65, 0.30, 0.92, 54.0),
+        ("close_evaporator", "evaporator", "EVAPORADOR", 0.30, 0.72, 16.0, 14.0, 3.4, 0.0, 0.25, 3.20, 54.0),
     ]
 
-    for lbl_id, comp_k, txt_str, tu, tv, az_d, el_d, dist_val, tz_val, lens_val in close_specs:
+    for lbl_id, comp_k, txt_str, tu, tv, az_d, el_d, dist_val, tx_val, ty_val, tz_val, lens_val in close_specs:
         az = math.radians(az_d)
         el = math.radians(el_d)
-        c_target = Vector((0.0, 0.0, tz_val))
+        c_target = Vector((tx_val, ty_val, tz_val))
         d_vec = Vector((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))
         c_pos = c_target + d_vec * dist_val
 
@@ -456,10 +460,12 @@ def animate_refrigerator_vertical_showcase(
         az = math.radians(cam_info["az"])
         el = math.radians(cam_info["el"])
         dist = cam_info["dist"]
-        tz = cam_info["tz"]
+        tx = cam_info.get("tx", 0.0)
+        ty = cam_info.get("ty", 0.0)
+        tz = cam_info.get("tz", 1.95)
         lens = cam_info["lens"]
 
-        target = Vector((0.0, 0.0, tz))
+        target = Vector((tx, ty, tz))
         d_vec = Vector((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))
         pos = target + d_vec * dist
 

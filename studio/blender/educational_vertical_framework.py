@@ -131,17 +131,17 @@ class EeveeLightingConfig:
 @dataclass
 class LabelStyleConfig:
     """Estilo tipográfico y geométrico de etiquetas 3D y líneas de anclaje."""
-    font_size: float = 0.074          # Tamaño óptimo para legibilidad sin desbordamiento en 9:16
-    extrude: float = 0.010           # Grosor 3D del texto
-    bevel_depth: float = 0.002       # Biselado sutil para destellos sin engrosar la tipografía
+    font_size: float = 0.050          # Calibrado para legibilidad perfecta sin desbordar márgenes 9:16
+    extrude: float = 0.008           # Grosor 3D sutil para legibilidad
+    bevel_depth: float = 0.0015      # Biselado fino anti-aliased
     text_color_rgb: Tuple[float, float, float] = (1.0, 1.0, 1.0)
-    text_emission_strength: float = 3.4  # Emisión alta para máxima legibilidad contra fondo
-    leader_line_radius: float = 0.006    # Radio fino y estilizado del tubo conductor
-    leader_line_color_rgb: Tuple[float, float, float] = (0.90, 0.95, 1.0)
-    leader_line_emission: float = 2.2
-    anchor_sphere_radius: float = 0.020  # Esfera de anclaje sobre el componente
-    anti_collision_min_u_dist: float = 0.22  # Distancia horizontal mínima entre etiquetas en pantalla
-    anti_collision_min_v_dist: float = 0.095 # Distancia vertical mínima entre etiquetas en pantalla
+    text_emission_strength: float = 3.6  # Emisión alta para contraste técnico
+    leader_line_radius: float = 0.0045   # Radio fino estilizado del tubo directriz
+    leader_line_color_rgb: Tuple[float, float, float] = (0.92, 0.96, 1.0)
+    leader_line_emission: float = 2.4
+    anchor_sphere_radius: float = 0.018  # Esfera de anclaje discreta sobre el componente
+    anti_collision_min_u_dist: float = 0.20  # Distancia horizontal mínima entre etiquetas en pantalla
+    anti_collision_min_v_dist: float = 0.085 # Distancia vertical mínima entre etiquetas en pantalla
 
 
 # ==============================================================================
@@ -545,6 +545,8 @@ def create_adaptive_3d_label(
     txt_obj.rotation_euler = billboard_mat.to_euler()
     txt_obj["role"] = "label"
     txt_obj.data.materials.append(mat_lbl)
+    # Desactivar sombras de la etiqueta para evitar textos fantasma o sombras proyectadas
+    txt_obj.visible_shadow = False
     col.objects.link(txt_obj)
 
     # 2. Línea Directriz y Punto de Anclaje
@@ -568,26 +570,22 @@ def create_adaptive_3d_label(
     dot_obj = bpy.context.active_object
     dot_obj.name = f"Dot_{name}"
     dot_obj["role"] = "label"
+    dot_obj.visible_shadow = False
     dot_obj.data.materials.append(mat_line)
     col.objects.link(dot_obj)
     if dot_obj.name in bpy.context.scene.collection.objects and col != bpy.context.scene.collection:
         bpy.context.scene.collection.objects.unlink(dot_obj)
 
-    # Punto de conexión exacto al borde del texto (hacia el centro de la pantalla)
-    half_text_w = len(text) * config.labels.font_size * 0.28
-    if target_screen_u < 0.5:
-        # Texto en columna izquierda: línea conecta en el borde derecho del texto
-        text_anchor = text_pos_3d + right_cam * (half_text_w + 0.04)
+    # Conexión exacta al extremo correspondiente de la palabra:
+    # Si la etiqueta está en la mitad derecha (u >= 0.5), la línea arranca en el extremo izquierdo.
+    # Si está en la mitad izquierda (u < 0.5), la línea arranca en el extremo derecho.
+    half_text_w = len(text) * config.labels.font_size * 0.31
+    if target_screen_u >= 0.5:
+        text_anchor = text_pos_3d - right_cam * (half_text_w + 0.02)
+        shoulder_pt = text_anchor - right_cam * 0.07
     else:
-        # Texto en columna derecha: línea conecta en el borde izquierdo del texto
-        text_anchor = text_pos_3d - right_cam * (half_text_w + 0.04)
-
-    # Codo limpio a 90/45 grados
-    mid_pt = Vector((
-        (anchor_3d.x * 0.35 + text_anchor.x * 0.65),
-        (anchor_3d.y * 0.35 + text_anchor.y * 0.65),
-        (anchor_3d.z * 0.40 + text_anchor.z * 0.60),
-    ))
+        text_anchor = text_pos_3d + right_cam * (half_text_w + 0.02)
+        shoulder_pt = text_anchor + right_cam * 0.07
 
     curve_line = bpy.data.curves.new(f"{name}_leader_curve", type="CURVE")
     curve_line.dimensions = "3D"
@@ -597,15 +595,17 @@ def create_adaptive_3d_label(
 
     spline = curve_line.splines.new("BEZIER")
     spline.bezier_points.add(2)
-    pts = [anchor_3d, mid_pt, text_anchor]
+    # Trazado técnico recto: texto -> repisa horizontal -> punto en la pieza
+    pts = [text_anchor, shoulder_pt, anchor_3d]
     for i, p in enumerate(pts):
         bp = spline.bezier_points[i]
         bp.co = p
-        bp.handle_left_type = "AUTO"
-        bp.handle_right_type = "AUTO"
+        bp.handle_left_type = "VECTOR"
+        bp.handle_right_type = "VECTOR"
 
     line_obj = bpy.data.objects.new(f"Leader_{name}", curve_line)
     line_obj["role"] = "label"
+    line_obj.visible_shadow = False
     line_obj.data.materials.append(mat_line)
     col.objects.link(line_obj)
 
