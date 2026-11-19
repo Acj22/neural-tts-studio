@@ -81,8 +81,8 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "5. Filtro secador y tubo capilar",
         "time_range": (65.5, 81.5),
         "frame_range": (1573, 1956),
-        # Encuadre frontal limpio directo al filtro y capilar sin interferencia de paredes laterales
-        "camera": {"az": 16.0, "el": 12.0, "dist": 2.2, "tx": 0.55, "ty": 0.28, "tz": 0.95, "lens": 54.0},
+        # Encuadre frontal limpio directo al filtro y capilar en la bahía de máquinas
+        "camera": {"az": 14.0, "el": 8.0, "dist": 1.95, "tx": 0.36, "ty": -0.08, "tz": 0.38, "lens": 54.0},
         "active_labels": ["close_capillary", "close_dryer"],  # Separadas sin cruzarse ni tocar bordes
         "description": "Filtro deshidratador a la derecha y capilar a la izquierda, caída de presión.",
     },
@@ -250,20 +250,20 @@ def build_specialized_refrigerator_model(
     support_r = C.cylinder("Cond_Support_R", 0.012, cond_ztop - cond_zbot + 0.20, (0.35, cond_y - 0.01, (cond_ztop + cond_zbot) / 2), "Z", m_dark_metal, 12)
     grp("condenser", tube_cond, support_l, support_r)
 
-    # Anclaje exacto sobre la tubería del condensador trasero
-    data["anchors_3d"]["condenser"] = Vector((0.35, cond_y, Z(2.45)))
+    # Anclaje exacto sobre la tubería del condensador trasero (borde exterior derecho visible en 3/4)
+    data["anchors_3d"]["condenser"] = Vector((0.62, cond_y, Z(2.45)))
 
-    # 4. Filtro Deshidratador y Tubo Capilar (Ubicados en la base lateral)
-    dryer = C.cylinder("Filter_Dryer", 0.042, 0.24, (0.65, 0.45, Z(0.85)), "Z", m_copper, 20)
+    # 4. Filtro Deshidratador y Tubo Capilar (Ubicados en la bahía de máquinas inferior abierta)
+    dryer = C.cylinder("Filter_Dryer", 0.038, 0.22, (0.40, -0.05, Z(0.38)), "Z", m_copper, 20)
     grp("dryer", dryer)
     # Anclaje exacto en el extremo superior de cobre del filtro secador
-    data["anchors_3d"]["dryer"] = Vector((0.65, 0.45, Z(0.97)))
+    data["anchors_3d"]["dryer"] = Vector((0.40, -0.05, Z(0.49)))
 
-    cap_path = C.helix_path((0.65, 0.15, Z(0.82)), "Z", 0.42, 0.038, turns=8.0, pts_per_turn=12)
+    cap_path = C.helix_path((0.40, -0.22, Z(0.24)), "Z", 0.26, 0.036, turns=7.0, pts_per_turn=12)
     tube_capillary = C.tube_from_path("Pipe_capillary", cap_path, 0.009, m_copper)
     grp("capillary", tube_capillary)
     # Anclaje exacto en la espiral de cobre del tubo capilar
-    data["anchors_3d"]["capillary"] = Vector((0.65, 0.15, Z(0.92)))
+    data["anchors_3d"]["capillary"] = Vector((0.40, -0.22, Z(0.38)))
 
     # 5. Evaporador (Serpentín gélido en el congelador interior)
     evap_pts = _serpentine_pts(-0.55, 0.55, Z(3.60), Z(2.80), 6, 0.25, True)
@@ -285,15 +285,15 @@ def build_specialized_refrigerator_model(
 
     p_to_dryer = C.rounded_polyline([
         Vector(cond_pts[-1]),
-        Vector((0.65, cond_y, Z(1.05))),
-        Vector((0.65, 0.45, Z(0.98)))
+        Vector((0.40, cond_y, Z(0.55))),
+        Vector((0.40, -0.05, Z(0.50)))
     ], 0.03)
     tube_to_dryer = C.tube_from_path("Pipe_to_dryer", p_to_dryer, 0.014, m_copper)
 
     p_cap_to_evap = C.rounded_polyline([
-        Vector((0.65, 0.15, Z(1.24))),
-        Vector((0.65, 0.35, Z(1.40))),
-        Vector((0.65, 0.35, Z(2.70))),
+        Vector((0.40, -0.22, Z(0.50))),
+        Vector((0.40, 0.25, Z(0.60))),
+        Vector((0.40, 0.35, Z(2.70))),
         Vector(evap_pts[0])
     ], 0.04)
     tube_cap_to_evap = C.tube_from_path("Pipe_cap_to_evap", p_cap_to_evap, 0.011, m_copper)
@@ -407,8 +407,8 @@ def generate_refrigerator_adaptive_labels(
         # (etiqueta_key, comp_key, texto, target_u, target_v, az_deg, el_deg, dist, tx, ty, tz, lens)
         ("close_compressor", "compressor", "COMPRESOR", 0.30, 0.72, 18.0, 12.0, 3.2, 0.0, 0.05, 0.38, 56.0),
         ("close_condenser",  "condenser",  "CONDENSADOR", 0.72, 0.72, 148.0, 12.0, 4.6, 0.0, cond_y, 2.35, 54.0),
-        ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.28, 0.36, 16.0, 12.0, 2.2, 0.55, 0.28, 0.95, 54.0),
-        ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.72, 0.70, 16.0, 12.0, 2.2, 0.55, 0.28, 0.95, 54.0),
+        ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.28, 0.36, 14.0, 8.0, 1.95, 0.36, -0.08, 0.38, 54.0),
+        ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.72, 0.70, 14.0, 8.0, 1.95, 0.36, -0.08, 0.38, 54.0),
         ("close_evaporator", "evaporator", "EVAPORADOR", 0.30, 0.74, 16.0, 14.0, 3.4, 0.0, 0.25, 3.20, 54.0),
     ]
 
