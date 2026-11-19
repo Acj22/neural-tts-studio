@@ -1336,6 +1336,33 @@ def get_latest_project_endpoint():
     return json.loads(candidates[0].read_text(encoding="utf-8"))
 
 
+class YouTubeScriptSearchRequest(BaseModel):
+    category: str = Field("historia_mexico", description="historia_mexico | misterio | terror | lugares_mundo")
+    query: str = Field("", max_length=500, description="Tema específico a buscar o vacío para descubrir un tema viral")
+    duration_mode: str = Field("youtube_4_6m", description="'shorts' (60-90s 9:16) o 'youtube_4_6m' (4-6 min 16:9)")
+
+
+@app.get("/api/youtube/script-search-catalog")
+def get_youtube_script_search_catalog():
+    """Devuelve las categorías de búsqueda de guiones (Historia de México, Misterio, Terror, Lugares del Mundo) y sus temas sugeridos."""
+    from studio.youtube_script_searcher import YOUTUBE_SEARCH_CATEGORIES
+    return {"categories": YOUTUBE_SEARCH_CATEGORIES}
+
+
+@app.post("/api/youtube/search-script")
+def search_youtube_script_endpoint(req: YouTubeScriptSearchRequest):
+    """Investiga en tiempo real el tema o categoría elegida y genera el guion + mejor título + alternativas para Shorts/TikTok o YouTube 4-6 min."""
+    from studio.youtube_script_searcher import search_and_generate_youtube_script
+    try:
+        return search_and_generate_youtube_script(
+            category=req.category,
+            query=req.query,
+            duration_mode=req.duration_mode,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error al buscar y generar el guion: {exc}") from exc
+
+
 @app.get("/api/project/{project_id}")
 def get_project_endpoint(project_id: str):
     meta_file = PROJECTS_DIR / project_id / "project.json"

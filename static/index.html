@@ -859,6 +859,141 @@
             </div>
           </div>
 
+          <!-- 🔍 NUEVO: Buscador y Generador Inteligente de Guiones + Mejor Título Viral -->
+          <div class="p-4 rounded-xl bg-gradient-to-br from-indigo-950/60 via-slate-900/90 to-purple-950/40 border border-indigo-500/40 space-y-3.5 shadow-lg">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                  🔍 Buscador y Generador Automático de Guiones + Mejor Título Viral
+                </h3>
+                <p class="text-[11px] text-slate-300">
+                  Elige una categoría (Historia de México, Misterio, Terror o Lugares del Mundo), selecciona si será para <strong>Shorts/TikTok (9:16)</strong> o <strong>Video de 4 a 6 Minutos de YouTube (16:9)</strong> y genera el guion investigado con su mejor título de alto CTR.
+                </p>
+              </div>
+              <span id="ytScriptDurationEstimateBadge" class="hidden px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold mono"></span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end">
+              <!-- Categoría Temática -->
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-200 mb-1">
+                  1. Categoría del Tema
+                </label>
+                <select
+                  id="ytSearchCategory"
+                  onchange="onYTSearchCategoryChange()"
+                  class="w-full rounded-xl bg-slate-950 border border-indigo-500/50 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                >
+                  <option value="historia_mexico" selected>🇲🇽 Dato Histórico de México</option>
+                  <option value="misterio">🕵️ Suceso de Misterio y Enigmas</option>
+                  <option value="terror">👻 Terror, Casos Oscuros y Lugares Malditos</option>
+                  <option value="lugares_mundo">🌍 Lugares Asombrosos del Mundo</option>
+                </select>
+              </div>
+
+              <!-- Duración / Plataforma Destino -->
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-200 mb-1">
+                  2. Formato y Duración del Guion ★
+                </label>
+                <select
+                  id="ytSearchDurationMode"
+                  class="w-full rounded-xl bg-slate-950 border border-amber-500/50 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                >
+                  <option value="youtube_4_6m" selected>📺 Video YouTube 4 a 6 Minutos (16:9 · Documental)</option>
+                  <option value="shorts">📱 Shorts / TikTok / Reels (60-90 seg · 9:16 Vertical)</option>
+                </select>
+              </div>
+
+              <!-- Tema específico o aleatorio -->
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                  3. Tema a Buscar (o déjalo vacío para sugerencia)
+                </label>
+                <input
+                  id="ytSearchQueryInput"
+                  type="text"
+                  placeholder="Ej: Río de mercurio en Teotihuacán, Isla de las Muñecas..."
+                  class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                />
+              </div>
+            </div>
+
+            <!-- Píldoras de Temas Sugeridos por Categoría -->
+            <div class="space-y-1.5">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                ⚡ Ideas documentadas recomendadas (clic para seleccionar o presiona "Descubrir Tema Aleatorio"):
+              </div>
+              <div id="ytSuggestedTopicsPills" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <!-- Botones de Búsqueda y Generación -->
+            <div class="flex flex-wrap items-center gap-2.5 pt-1">
+              <button
+                id="btnYTSearchScript"
+                type="button"
+                onclick="searchAndGenerateYTScript(false)"
+                class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5"
+              >
+                <span>🔍 Buscar y Generar Guion + Mejor Título</span>
+              </button>
+              <button
+                id="btnYTRandomScript"
+                type="button"
+                onclick="searchAndGenerateYTScript(true)"
+                class="px-3.5 py-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 font-semibold text-xs transition flex items-center gap-1.5"
+              >
+                <span>🎲 Descubrir Tema Viral Aleatorio de esta Categoría</span>
+              </button>
+            </div>
+
+            <!-- Tarjeta de Resultado: Mejor Título a Usar + Títulos Alternativos + Texto de Miniatura -->
+            <div id="ytGeneratedTitleBox" class="hidden p-3.5 rounded-xl bg-slate-950/95 border border-amber-500/40 space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="space-y-0.5">
+                  <div class="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <span>🏆 MEJOR TÍTULO RECOMENDADO PARA USAR (ALTO CTR):</span>
+                    <span id="ytTitleFormatBadge" class="px-2 py-0.5 rounded bg-indigo-500/25 text-indigo-200 text-[10px]"></span>
+                  </div>
+                  <input
+                    id="ytBestTitleInput"
+                    type="text"
+                    readonly
+                    class="w-full bg-transparent text-sm sm:text-base font-bold text-white focus:outline-none"
+                  />
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onclick="copyYTSelectedTitle()"
+                    id="btnCopyYTTitle"
+                    class="px-3 py-1.5 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-500/40 text-amber-200 text-xs font-semibold transition"
+                  >
+                    📋 Copiar Título
+                  </button>
+                </div>
+              </div>
+
+              <!-- Títulos Alternativos Clicables -->
+              <div class="space-y-1.5 pt-2 border-t border-slate-800/90">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  🔥 Otras opciones de título (haz clic en cualquiera para elegirlo como principal):
+                </div>
+                <div id="ytAltTitlesList" class="flex flex-col gap-1.5"></div>
+              </div>
+
+              <!-- Texto de Miniatura, Hashtags y Fuentes -->
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/90 text-[11px]">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-slate-400">🖼️ Texto en Miniatura:</span>
+                  <span id="ytThumbHookBadge" class="px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-200 font-bold"></span>
+                  <span id="ytHashtagsText" class="text-indigo-300 mono"></span>
+                </div>
+                <div id="ytSourcesLinks" class="flex flex-wrap items-center gap-2 text-slate-400"></div>
+              </div>
+            </div>
+          </div>
+
           <textarea
             id="ytScriptInput"
             rows="7"
@@ -2246,6 +2381,203 @@ A más de once mil metros bajo la superficie, la presión es mil veces superior 
 
 Los científicos creen que explorar estos abismos podría revelarnos cómo surgió la vida en nuestro planeta y cómo podría existir en las lunas heladas de Júpiter.`;
     }
+
+    const YT_SEARCH_SUGGESTIONS = {
+      historia_mexico: [
+        "El río de mercurio líquido bajo la Pirámide de Teotihuacán",
+        "El Tesoro Perdido de Moctezuma en la Noche Triste",
+        "Los túneles secretos bajo el Centro Histórico de la CDMX",
+        "El Batallón de San Patricio en México",
+        "Hallazgos ocultos al excavar el Metro de la CDMX",
+        "El Castillo de Chapultepec: único castillo real de América"
+      ],
+      misterio: [
+        "El incidente del Paso Dyatlov en los Montes Urales",
+        "La desaparición de los tres fareros de las Islas Flannan",
+        "El Manuscrito Voynich: el código indescifrable",
+        "La Zona del Silencio en Durango, México",
+        "El barco fantasma Mary Celeste en el Atlántico"
+      ],
+      terror: [
+        "La verdadera historia de la Isla de las Muñecas en Xochimilco",
+        "El Hospital Psiquiátrico La Castañeda en México",
+        "El barco fantasma SS Ourang Medan y su mensaje SOS",
+        "La Casa de los Tubos en Monterrey",
+        "El Sanatorio Durán entre la niebla del volcán"
+      ],
+      lugares_mundo: [
+        "La Cueva de los Cristales Gigantes de Naica en Chihuahua",
+        "Derinkuyu: la ciudad subterránea de 18 pisos en Turquía",
+        "La Puerta al Infierno de Darvaza",
+        "La Isla Sentinel del Norte: territorio prohibido",
+        "El Punto Nemo: el lugar más solitario del océano"
+      ]
+    };
+
+    function onYTSearchCategoryChange() {
+      const catEl = document.getElementById("ytSearchCategory");
+      const pillsBox = document.getElementById("ytSuggestedTopicsPills");
+      if (!catEl || !pillsBox) return;
+      const cat = catEl.value || "historia_mexico";
+      const list = YT_SEARCH_SUGGESTIONS[cat] || YT_SEARCH_SUGGESTIONS.historia_mexico;
+      pillsBox.innerHTML = "";
+      list.forEach((topic) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-400 text-[11px] text-slate-200 transition";
+        btn.textContent = topic;
+        btn.onclick = () => {
+          document.getElementById("ytSearchQueryInput").value = topic;
+          searchAndGenerateYTScript(false);
+        };
+        pillsBox.appendChild(btn);
+      });
+    }
+
+    function copyYTSelectedTitle() {
+      const input = document.getElementById("ytBestTitleInput");
+      const btn = document.getElementById("btnCopyYTTitle");
+      if (!input || !input.value) return;
+      navigator.clipboard.writeText(input.value).catch(() => {});
+      if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = "✅ ¡Título Copiado!";
+        setTimeout(() => { btn.textContent = prev; }, 1800);
+      }
+    }
+
+    async function searchAndGenerateYTScript(useRandomTopic = false) {
+      const catEl = document.getElementById("ytSearchCategory");
+      const durEl = document.getElementById("ytSearchDurationMode");
+      const queryEl = document.getElementById("ytSearchQueryInput");
+      const btnSearch = document.getElementById("btnYTSearchScript");
+      const btnRandom = document.getElementById("btnYTRandomScript");
+      const errBox = document.getElementById("ytErrorAlert");
+      if (errBox) errBox.classList.add("hidden");
+
+      const category = catEl ? catEl.value : "historia_mexico";
+      const durationMode = durEl ? durEl.value : "youtube_4_6m";
+      let query = queryEl ? queryEl.value.trim() : "";
+
+      if (useRandomTopic) {
+        const pool = YT_SEARCH_SUGGESTIONS[category] || [];
+        query = pool.length ? pool[Math.floor(Math.random() * pool.length)] : "";
+        if (queryEl) queryEl.value = query;
+      }
+
+      if (btnSearch) {
+        btnSearch.disabled = true;
+        btnSearch.innerHTML = "<span>⏳ Investigando y redactando guion...</span>";
+      }
+      if (btnRandom) btnRandom.disabled = true;
+
+      try {
+        const res = await fetch("/api/youtube/search-script", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category,
+            query,
+            duration_mode: durationMode
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(parseErrorDetail(errData, res.status));
+        }
+        const data = await res.json();
+
+        // 1. Insertar el guion generado en el área de texto principal
+        const scriptBox = document.getElementById("ytScriptInput");
+        if (scriptBox && data.script) {
+          scriptBox.value = data.script;
+        }
+
+        // 2. Mostrar el Mejor Título Recomendado + Títulos Alternativos + Miniatura + Fuentes
+        const titleBox = document.getElementById("ytGeneratedTitleBox");
+        const bestTitleInput = document.getElementById("ytBestTitleInput");
+        const fmtBadge = document.getElementById("ytTitleFormatBadge");
+        const durBadge = document.getElementById("ytScriptDurationEstimateBadge");
+        const altList = document.getElementById("ytAltTitlesList");
+        const thumbBadge = document.getElementById("ytThumbHookBadge");
+        const tagsText = document.getElementById("ytHashtagsText");
+        const sourcesLinks = document.getElementById("ytSourcesLinks");
+
+        if (bestTitleInput) bestTitleInput.value = data.best_title || "";
+        if (fmtBadge) {
+          fmtBadge.textContent = data.duration_mode === "shorts"
+            ? "📱 Shorts / TikTok (9:16)"
+            : "📺 YouTube 4-6 Min (16:9)";
+        }
+        if (durBadge) {
+          durBadge.textContent = `⏱️ ${data.estimated_duration_label || ""}`;
+          durBadge.classList.remove("hidden");
+        }
+        if (thumbBadge) thumbBadge.textContent = data.thumbnail_hook || "CASO REAL";
+        if (tagsText) tagsText.textContent = (data.hashtags || []).join(" ");
+
+        if (altList) {
+          altList.innerHTML = "";
+          (data.alternative_titles || []).forEach((alt) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "text-left px-2.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-amber-500/20 border border-slate-800 hover:border-amber-500/40 text-xs text-slate-200 hover:text-amber-200 transition flex items-center justify-between gap-2";
+            btn.innerHTML = `<span class="truncate">• ${alt}</span><span class="text-[10px] text-amber-300 shrink-0 font-semibold">Usar este ↑</span>`;
+            btn.onclick = () => {
+              if (bestTitleInput) bestTitleInput.value = alt;
+            };
+            altList.appendChild(btn);
+          });
+        }
+
+        if (sourcesLinks) {
+          sourcesLinks.innerHTML = "";
+          (data.sources || []).forEach((s) => {
+            const a = document.createElement("a");
+            a.href = s.url;
+            a.target = "_blank";
+            a.className = "underline hover:text-indigo-300";
+            a.textContent = `📚 ${s.title}`;
+            sourcesLinks.appendChild(a);
+          });
+        }
+
+        if (titleBox) titleBox.classList.remove("hidden");
+
+        // 3. Ajustar automáticamente el formato (9:16 para Shorts/TikTok o 16:9 para YouTube 4-6 min), estilo visual y música sugerida
+        const rec = data.recommended_settings || {};
+        const aspectEl = document.getElementById("ytAspectRatio");
+        if (aspectEl && rec.aspect_ratio) aspectEl.value = rec.aspect_ratio;
+        const sceneModeEl = document.getElementById("ytSceneMode");
+        if (sceneModeEl && rec.scene_mode) sceneModeEl.value = rec.scene_mode;
+        const visStyleEl = document.getElementById("ytVisualStyle");
+        if (visStyleEl && rec.visual_style) visStyleEl.value = rec.visual_style;
+        const bgMusEl = document.getElementById("ytBgMusic");
+        if (bgMusEl && rec.bg_music) {
+          bgMusEl.value = rec.bg_music;
+          if (document.getElementById("ytRenderBgMusic")) {
+            document.getElementById("ytRenderBgMusic").value = rec.bg_music;
+          }
+        }
+        const stylePromptEl = document.getElementById("ytCustomStylePrompt");
+        if (stylePromptEl && rec.style_prompt && !stylePromptEl.value.trim()) {
+          stylePromptEl.value = rec.style_prompt;
+        }
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message;
+          errBox.classList.remove("hidden");
+        }
+      } finally {
+        if (btnSearch) {
+          btnSearch.disabled = false;
+          btnSearch.innerHTML = "<span>🔍 Buscar y Generar Guion + Mejor Título</span>";
+        }
+        if (btnRandom) btnRandom.disabled = false;
+      }
+    }
+
+    setTimeout(() => { onYTSearchCategoryChange(); }, 150);
 
     function setYTProgress(visible, text = "", pct = 0) {
       const box = document.getElementById("ytProgressBox");
