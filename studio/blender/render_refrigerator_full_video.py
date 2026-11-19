@@ -245,8 +245,8 @@ scene_info = setup_educational_scene_base(cfg)
 cam = scene_info['camera']
 m_data = build_specialized_refrigerator_model()
 
-cam_pos = Vector((0.0, -11.0, 2.25))
-cam_target = Vector((0.0, 0.0, 2.25))
+cam_pos = Vector((3.6, -8.2, 1.95))
+cam_target = Vector((0.0, 0.0, 1.95))
 cam.location = cam_pos
 cam.rotation_euler = (cam_target - cam_pos).to_track_quat("-Z", "Y").to_euler()
 bpy.context.view_layer.update()
@@ -261,9 +261,10 @@ scene.frame_start = {frame_start}
 scene.frame_end = {frame_end}
 scene.frame_step = {frame_step}
 
-scene.eevee.taa_render_samples = 1
-scene.eevee.volumetric_samples = 2
-scene.eevee.volumetric_shadow_samples = 2
+# Configuración EEVEE optimizada: sin ruido/grano en superficies metálicas
+scene.eevee.taa_render_samples = 6
+scene.eevee.volumetric_samples = 4
+scene.eevee.volumetric_shadow_samples = 4
 scene.render.image_settings.file_format = 'PNG'
 scene.render.filepath = r"{out_frames_pattern}"
 
@@ -443,6 +444,27 @@ async def run_pipeline(
 
 
 if __name__ == "__main__":
+    import argparse
+    from studio.blender.validate_educational_vertical import run_full_validation
+
+    parser = argparse.ArgumentParser(description="Orquestador de Video Educativo Vertical 9:16 - Refrigerador")
+    parser.add_argument("--preview", action="store_true", help="Renderizar los 7 fotogramas clave de control de calidad en ~20s")
+    parser.add_argument("--clip", action="store_true", help="Renderizar un clip de prueba rapido de 10 segundos")
+    parser.add_argument("--full", action="store_true", help="Renderizar el video completo de 105 segundos")
+    args = parser.parse_args()
+
     out_dir = Path(__file__).resolve().parent.parent.parent / "projects" / "showcase_refrigerator_vertical_9_16"
-    res = asyncio.run(run_pipeline(out_dir, width=720, height=1280, total_frames=2520, frame_step=2))
-    print("PIPELINE RESULT:", json.dumps(res, indent=2))
+
+    if args.preview:
+        print("--> Modo Preview: Generando 7 fotogramas clave de control de calidad...")
+        rep = run_full_validation(out_dir, render_sample_stills=True)
+        print("PREVIEW RESULT:", json.dumps(rep["quality_metrics"], indent=2))
+    elif args.clip:
+        print("--> Modo Clip: Renderizando tramo de prueba de 10 segundos (f469 a f709)...")
+        res = asyncio.run(run_pipeline(out_dir, width=720, height=1280, total_frames=709, frame_step=2))
+        print("CLIP RESULT:", json.dumps(res, indent=2))
+    else:
+        # Por defecto o con --full, ejecutar pipeline completo
+        print("--> Modo Completo: Renderizando video de 105 segundos (2520 frames)...")
+        res = asyncio.run(run_pipeline(out_dir, width=720, height=1280, total_frames=2520, frame_step=2))
+        print("PIPELINE RESULT:", json.dumps(res, indent=2))

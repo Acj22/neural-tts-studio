@@ -61,9 +61,9 @@ def run_full_validation(
     # 3. Construir modelo especializado del refrigerador
     model_data = build_specialized_refrigerator_model()
 
-    # 4. Generar etiquetas adaptativas (calculadas para el encuadre general del modelo)
-    cam_pos = Vector((0.0, -11.0, 2.25))
-    cam_target = Vector((0.0, 0.0, 2.25))
+    # 4. Generar etiquetas adaptativas
+    cam_pos = Vector((3.6, -8.2, 1.95))
+    cam_target = Vector((0.0, 0.0, 1.95))
     cam_obj.location = cam_pos
     cam_obj.rotation_euler = (cam_target - cam_pos).to_track_quat("-Z", "Y").to_euler()
     bpy.context.view_layer.update()
@@ -72,12 +72,12 @@ def run_full_validation(
     # 5. Animar cámara, micro-movimientos y sincronización de etiquetas
     anim_info = animate_refrigerator_vertical_showcase(model_data, cam_obj, cfg, labels_dict=labels_dict)
 
-    # 6. Auditoría de Zonas Seguras y Solapamientos en puntos clave
+    # 6. Auditoría de Zonas Seguras y Solapamientos en los 7 puntos clave narrativos
     safe_u_min, safe_u_max = cfg.safe_zones.get_safe_u_bounds()
     safe_v_min, safe_v_max = cfg.safe_zones.get_safe_v_bounds()
 
-    # Muestrear fotogramas de cada etapa
-    sample_frames = [1, 336, 720, 1152, 1584, 1968, 2352, 2640]
+    # Muestrear fotogramas centrales de cada una de las 7 etapas de la narración
+    sample_frames = [240, 600, 912, 1344, 1752, 2112, 2424]
     frame_audits: List[Dict[str, Any]] = []
     total_safe_violations = 0
     total_label_overlaps = 0
@@ -99,7 +99,8 @@ def run_full_validation(
             if not ev.hide_render:
                 t_pos = ev.matrix_world.translation
                 u, v, depth = engine.project_3d_to_screen_uv(
-                    t_pos, c_pos, c_target, cam_obj.data.lens, cfg.render_width, cfg.render_height
+                    t_pos, c_pos, c_target, cam_obj.data.lens, cfg.render_width, cfg.render_height,
+                    cam_obj=cam_obj, scene=scene
                 )
                 in_safe = cfg.safe_zones.is_in_safe_zone(u, v)
                 if not in_safe:
@@ -146,12 +147,13 @@ def run_full_validation(
         scene.eevee.taa_render_samples = 12
 
         stills_to_render = [
-            (1, "still_f001_hero_overview.png"),
-            (720, "still_f720_architecture_components.png"),
-            (1152, "still_f1152_compressor_closeup.png"),
-            (1584, "still_f1584_condenser_heat_release.png"),
-            (1968, "still_f1968_capillary_expansion.png"),
-            (2352, "still_f2352_evaporator_food.png"),
+            (240, "still_st1_hero_refrigerator_overview.png"),
+            (600, "still_st2_architecture_5_components.png"),
+            (912, "still_st3_compressor_pumping.png"),
+            (1344, "still_st4_condenser_rear_heat.png"),
+            (1752, "still_st5_capillary_dryer_separated.png"),
+            (2112, "still_st6_evaporator_freezer_interior.png"),
+            (2424, "still_st7_continuous_cycle_closing.png"),
         ]
 
         for fr, fname in stills_to_render:
