@@ -173,7 +173,6 @@ async function expLoadProjectById(projectId) {
     expShowError(err.message);
   }
 }
-const expLoadProject = expLoadProjectById;
 window.expLoadProject = expLoadProjectById;
 window.expLoadProjectById = expLoadProjectById;
 
