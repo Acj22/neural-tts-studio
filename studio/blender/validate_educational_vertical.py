@@ -94,7 +94,8 @@ def run_full_validation(
         c_target = c_pos + forward * 8.0
 
         label_projections = {}
-        for l_name, (txt_obj, line_obj) in labels_dict.items():
+        for l_name, label_items in labels_dict.items():
+            txt_obj = label_items[0]
             ev = txt_obj.evaluated_get(dg)
             if not ev.hide_render:
                 t_pos = ev.matrix_world.translation

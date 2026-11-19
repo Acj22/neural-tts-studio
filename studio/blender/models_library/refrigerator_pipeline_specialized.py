@@ -48,7 +48,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "2. Presentación de los 5 componentes",
         "time_range": (19.5, 30.5),
         "frame_range": (469, 732),
-        "camera": {"az": 26.0, "el": 11.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
         "active_labels": [
             "overview_compressor",
             "overview_condenser",
@@ -81,8 +81,8 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "5. Filtro secador y tubo capilar",
         "time_range": (65.5, 81.5),
         "frame_range": (1573, 1956),
-        # Encuadre dedicado directo a la esquina donde están el filtro y el capilar (X=0.65, Y=0.30)
-        "camera": {"az": 28.0, "el": 14.0, "dist": 2.4, "tx": 0.65, "ty": 0.30, "tz": 0.92, "lens": 54.0},
+        # Encuadre frontal limpio directo al filtro y capilar sin interferencia de paredes laterales
+        "camera": {"az": 16.0, "el": 12.0, "dist": 2.2, "tx": 0.55, "ty": 0.28, "tz": 0.95, "lens": 54.0},
         "active_labels": ["close_capillary", "close_dryer"],  # Separadas sin cruzarse ni tocar bordes
         "description": "Filtro deshidratador a la derecha y capilar a la izquierda, caída de presión.",
     },
@@ -364,12 +364,25 @@ def generate_refrigerator_adaptive_labels(
 
     # 1. Conjunto Overview (5 componentes ordenados en 2 columnas laterales seguras)
     overview_specs = {
-        "compressor": ("COMPRESOR", 0.72, 0.28),      # Columna derecha inferior
-        "condenser":  ("CONDENSADOR", 0.72, 0.62),     # Columna derecha superior
-        "dryer":      ("FILTRO SECADOR", 0.72, 0.44),  # Columna derecha media
-        "capillary":  ("TUBO CAPILAR", 0.28, 0.36),    # Columna izquierda inferior
-        "evaporator": ("EVAPORADOR", 0.28, 0.72),      # Columna izquierda superior
+        "condenser":  ("CONDENSADOR", 0.74, 0.68),
+        "dryer":      ("FILTRO SECADOR", 0.74, 0.48),
+        "compressor": ("COMPRESOR", 0.74, 0.28),
+        "evaporator": ("EVAPORADOR", 0.26, 0.70),
+        "capillary":  ("TUBO CAPILAR", 0.26, 0.38),
     }
+
+    # Evaluar cámara para Stage 2 (Overview)
+    az_st2 = math.radians(22.0)
+    el_st2 = math.radians(10.0)
+    c_tgt_st2 = Vector((0.0, 0.0, 1.95))
+    d_st2 = Vector((math.sin(az_st2) * math.cos(el_st2), -math.cos(az_st2) * math.cos(el_st2), math.sin(el_st2)))
+    c_pos_st2 = c_tgt_st2 + d_st2 * 9.6
+
+    if cam_o:
+        cam_o.location = c_pos_st2
+        cam_o.rotation_euler = (c_tgt_st2 - c_pos_st2).to_track_quat("-Z", "Y").to_euler()
+        cam_o.data.lens = 54.0
+        bpy.context.view_layer.update()
 
     for key, (txt_content, tu, tv) in overview_specs.items():
         if key in anchors_3d:
@@ -380,10 +393,11 @@ def generate_refrigerator_adaptive_labels(
                 anchor_3d=anchor_pt,
                 target_screen_u=tu,
                 target_screen_v=tv,
-                cam_pos=cam_pos,
-                cam_target=cam_target,
+                cam_pos=c_pos_st2,
+                cam_target=c_tgt_st2,
                 config=config,
                 collection=lbl_collection,
+                cam_obj=cam_o,
             )
             created_labels[f"overview_{key}"] = (txt_obj, line_obj)
 
@@ -391,11 +405,11 @@ def generate_refrigerator_adaptive_labels(
     cond_y = 0.68
     close_specs = [
         # (etiqueta_key, comp_key, texto, target_u, target_v, az_deg, el_deg, dist, tx, ty, tz, lens)
-        ("close_compressor", "compressor", "COMPRESOR", 0.32, 0.70, 18.0, 12.0, 3.2, 0.0, 0.05, 0.38, 56.0),
-        ("close_condenser",  "condenser",  "CONDENSADOR", 0.70, 0.68, 148.0, 12.0, 4.6, 0.0, cond_y, 2.35, 54.0),
-        ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.28, 0.36, 28.0, 14.0, 2.4, 0.65, 0.30, 0.92, 54.0),
-        ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.70, 0.68, 28.0, 14.0, 2.4, 0.65, 0.30, 0.92, 54.0),
-        ("close_evaporator", "evaporator", "EVAPORADOR", 0.30, 0.72, 16.0, 14.0, 3.4, 0.0, 0.25, 3.20, 54.0),
+        ("close_compressor", "compressor", "COMPRESOR", 0.30, 0.72, 18.0, 12.0, 3.2, 0.0, 0.05, 0.38, 56.0),
+        ("close_condenser",  "condenser",  "CONDENSADOR", 0.72, 0.72, 148.0, 12.0, 4.6, 0.0, cond_y, 2.35, 54.0),
+        ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.28, 0.36, 16.0, 12.0, 2.2, 0.55, 0.28, 0.95, 54.0),
+        ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.72, 0.70, 16.0, 12.0, 2.2, 0.55, 0.28, 0.95, 54.0),
+        ("close_evaporator", "evaporator", "EVAPORADOR", 0.30, 0.74, 16.0, 14.0, 3.4, 0.0, 0.25, 3.20, 54.0),
     ]
 
     for lbl_id, comp_k, txt_str, tu, tv, az_d, el_d, dist_val, tx_val, ty_val, tz_val, lens_val in close_specs:
@@ -422,6 +436,7 @@ def generate_refrigerator_adaptive_labels(
             cam_target=c_target,
             config=config,
             collection=lbl_collection,
+            cam_obj=cam_o,
         )
         created_labels[lbl_id] = (txt_obj, line_obj)
 
@@ -469,26 +484,16 @@ def animate_refrigerator_vertical_showcase(
         d_vec = Vector((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))
         pos = target + d_vec * dist
 
-        # Registrar keyframe al inicio y fin de la etapa (con respiración sutil en azimut)
-        for sub_fr, sub_az_offset in [(f_start, 0.0), (f_end, 0.04)]:
-            az_cur = az + sub_az_offset
-            d_v = Vector((math.sin(az_cur) * math.cos(el), -math.cos(az_cur) * math.cos(el), math.sin(el)))
-            p = target + d_v * dist
+        camera_obj.location = pos
+        camera_obj.rotation_euler = (target - pos).to_track_quat("-Z", "Y").to_euler()
+        cam_data.lens = lens
 
-            camera_obj.location = p
-            camera_obj.rotation_euler = (target - p).to_track_quat("-Z", "Y").to_euler()
-            cam_data.lens = lens
-
+        for sub_fr in (f_start, f_end):
             camera_obj.keyframe_insert(data_path="location", frame=sub_fr)
             camera_obj.keyframe_insert(data_path="rotation_euler", frame=sub_fr)
             cam_data.keyframe_insert(data_path="lens", frame=sub_fr)
 
-    # 2. Suavizado Bézier en todos los canales de F-Curves
-    try:
-        bpy.context.preferences.edit.keyframe_new_interpolation_type = "BEZIER"
-    except Exception:
-        pass
-
+    # 2. Interpolación limpia por etapa (sin saltos anómalos de F-Curves)
     if camera_obj.animation_data and camera_obj.animation_data.action:
         act = camera_obj.animation_data.action
         fcurves_list = []
@@ -501,9 +506,7 @@ def animate_refrigerator_vertical_showcase(
                         fcurves_list.extend(getattr(bag, "fcurves", []))
         for fc in fcurves_list:
             for kp in getattr(fc, "keyframe_points", []):
-                kp.interpolation = "BEZIER"
-                kp.handle_left_type = "AUTO_CLAMPED"
-                kp.handle_right_type = "AUTO_CLAMPED"
+                kp.interpolation = "CONSTANT"
 
     # 3. Animación mecánica continua del compresor
     cp = refrigerator_data.get("compressor_parts")
@@ -548,6 +551,9 @@ def animate_refrigerator_vertical_showcase(
             dot = bpy.data.objects.get(f"Dot_{l_name}")
             if dot:
                 objs.append(dot)
+            badge = bpy.data.objects.get(f"Badge_{l_name}")
+            if badge:
+                objs.append(badge)
 
             windows = visibility_windows.get(l_name, [])
             for o in objs:
@@ -564,11 +570,31 @@ def animate_refrigerator_vertical_showcase(
                     o.hide_viewport = False
                     o.keyframe_insert(data_path="hide_render", frame=w_start)
                     o.keyframe_insert(data_path="hide_viewport", frame=w_start)
+                    o.keyframe_insert(data_path="hide_render", frame=w_end)
+                    o.keyframe_insert(data_path="hide_viewport", frame=w_end)
 
-                    o.hide_render = True
-                    o.hide_viewport = True
-                    o.keyframe_insert(data_path="hide_render", frame=w_end + 1)
-                    o.keyframe_insert(data_path="hide_viewport", frame=w_end + 1)
+                    if w_end < total_frames:
+                        o.hide_render = True
+                        o.hide_viewport = True
+                        o.keyframe_insert(data_path="hide_render", frame=w_end + 1)
+                        o.keyframe_insert(data_path="hide_viewport", frame=w_end + 1)
+
+            # Forzar interpolación CONSTANT en visibilidad
+            for o in objs:
+                if not o or not o.animation_data or not o.animation_data.action:
+                    continue
+                act = o.animation_data.action
+                fcs = []
+                if hasattr(act, "fcurves"):
+                    fcs.extend(act.fcurves)
+                elif hasattr(act, "layers"):
+                    for layer in getattr(act, "layers", []):
+                        for strip in getattr(layer, "strips", []):
+                            for bag in getattr(strip, "channelbags", []):
+                                fcs.extend(getattr(bag, "fcurves", []))
+                for fc in fcs:
+                    for kp in fc.keyframe_points:
+                        kp.interpolation = "CONSTANT"
 
     return {
         "status": "animated",

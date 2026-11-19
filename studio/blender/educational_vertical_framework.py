@@ -489,114 +489,134 @@ def create_adaptive_3d_label(
     cam_target: Vector,
     config: Educational916FrameworkConfig,
     collection: Optional[Any] = None,
+    cam_obj: Optional[Any] = None,
 ) -> Tuple[Any, Any]:
-    """Construye en Blender el texto 3D y la línea directriz orientada y anclada al componente."""
+    """Construye en Blender el texto 3D y la línea directriz orientada y anclada al componente.
+    Utiliza una capa de primer plano HUD (Camera-Parented Near Overlay) a depth=0.45m con
+    un badge de fondo de alto contraste, garantizando que NINGUNA parte del modelo 3D
+    pueda superponerse u ocluir las letras en ningún ángulo ni zoom."""
     if bpy is None:
         return (None, None)
 
-    col = collection or bpy.context.scene.collection
-    depth = (anchor_3d - cam_pos).length * 0.88
-    label_engine = AdaptiveLabelsEngine(config.safe_zones, config.labels)
+    scene = bpy.context.scene
+    col = collection or scene.collection
+    cam = cam_obj or scene.camera or bpy.data.objects.get("Director_Camera_Obj") or bpy.data.objects.get("Camera_916")
 
-    # Posición 3D del texto en el plano de cámara
-    text_pos_3d = label_engine.unproject_screen_uv_to_3d(
-        target_screen_u,
-        target_screen_v,
-        depth,
-        cam_pos,
-        cam_target,
-        config.camera.lens_mm,
-        config.render_width,
-        config.render_height,
-        cam_obj=bpy.context.scene.camera if bpy is not None else None,
-        scene=bpy.context.scene if bpy is not None else None,
-    )
+    hud_dist = 0.45
+    if cam:
+        corners = cam.data.view_frame(scene=scene)
+        c_tr = corners[0]
+        c_bl = corners[2]
+        z_ref = abs(c_bl.z)
+        scale = hud_dist / z_ref
+        frame_w = (c_tr.x - c_bl.x) * scale
+        frame_h = (c_tr.y - c_bl.y) * scale
+    else:
+        frame_w = 0.125
+        frame_h = 0.222
 
-    # Material de etiqueta blanca luminosa
-    mat_lbl = bpy.data.materials.get("Mat_AdaptiveLabel_Text")
-    if not mat_lbl:
-        mat_lbl = bpy.data.materials.new("Mat_AdaptiveLabel_Text")
-        mat_lbl.use_nodes = True
-        b = mat_lbl.node_tree.nodes.get("Principled BSDF")
+    loc_x = (target_screen_u - 0.5) * frame_w
+    loc_y = (target_screen_v - 0.5) * frame_h
+    loc_z = -hud_dist
+
+    # Material texto blanco luminiscente
+    mat_txt = bpy.data.materials.get("Mat_AdaptiveLabel_Text")
+    if not mat_txt:
+        mat_txt = bpy.data.materials.new("Mat_AdaptiveLabel_Text")
+        mat_txt.use_nodes = True
+        b = mat_txt.node_tree.nodes.get("Principled BSDF")
         if b:
             b.inputs["Base Color"].default_value = (*config.labels.text_color_rgb, 1.0)
             if "Emission Color" in b.inputs:
                 b.inputs["Emission Color"].default_value = (*config.labels.text_color_rgb, 1.0)
             if "Emission Strength" in b.inputs:
-                b.inputs["Emission Strength"].default_value = config.labels.text_emission_strength
+                b.inputs["Emission Strength"].default_value = 2.0
 
-    # 1. Objeto de Texto 3D
+    # Material badge oscuro semi-transparente para legibilidad 100% sobre cualquier fondo
+    mat_bg = bpy.data.materials.get("Mat_AdaptiveLabel_Badge")
+    if not mat_bg:
+        mat_bg = bpy.data.materials.new("Mat_AdaptiveLabel_Badge")
+        mat_bg.use_nodes = True
+        b_bg = mat_bg.node_tree.nodes.get("Principled BSDF")
+        if b_bg:
+            b_bg.inputs["Base Color"].default_value = (0.04, 0.07, 0.12, 0.92)
+            b_bg.inputs["Roughness"].default_value = 0.3
+
+    font_size = frame_h * 0.021
+    char_w = font_size * 0.58
+    badge_w = len(text) * char_w + font_size * 0.9
+    badge_h = font_size * 1.55
+
+    # Objeto Texto 3D parented a cámara
     txt_curve = bpy.data.curves.new(f"{name}_txt_curve", type="FONT")
     txt_curve.body = text
-    txt_curve.size = config.labels.font_size
+    txt_curve.size = font_size
     txt_curve.align_x = "CENTER"
     txt_curve.align_y = "CENTER"
-    txt_curve.extrude = config.labels.extrude
-    txt_curve.bevel_depth = config.labels.bevel_depth
+    txt_curve.extrude = font_size * 0.03
 
     txt_obj = bpy.data.objects.new(f"Label_{name}", txt_curve)
-    txt_obj.location = text_pos_3d
-
-    # Orientar texto hacia la cámara (Billboard matemática estricta paralela al plano de pantalla)
-    forward_cam = (cam_target - cam_pos).normalized()
-    right_cam = forward_cam.cross(Vector((0, 0, 1))).normalized()
-    up_cam = right_cam.cross(forward_cam).normalized()
-    billboard_mat = Matrix((right_cam, up_cam, -forward_cam)).transposed()
-    txt_obj.rotation_euler = billboard_mat.to_euler()
+    if cam:
+        txt_obj.parent = cam
+        txt_obj.matrix_parent_inverse = Matrix.Identity(4)
+        txt_obj.location = Vector((loc_x, loc_y, loc_z + 0.002))
+        txt_obj.rotation_euler = (0, 0, 0)
+    else:
+        txt_obj.location = cam_pos
     txt_obj["role"] = "label"
-    txt_obj.data.materials.append(mat_lbl)
-    # Desactivar sombras de la etiqueta para evitar textos fantasma o sombras proyectadas
+    txt_obj.data.materials.append(mat_txt)
     txt_obj.visible_shadow = False
     col.objects.link(txt_obj)
 
-    # 2. Línea Directriz y Punto de Anclaje
+    # Backdrop Badge Plane parented a cámara
+    bpy.ops.mesh.primitive_plane_add(size=1.0)
+    bg_obj = bpy.context.active_object
+    bg_obj.name = f"Badge_{name}"
+    if cam:
+        bg_obj.parent = cam
+        bg_obj.matrix_parent_inverse = Matrix.Identity(4)
+        bg_obj.location = Vector((loc_x, loc_y, loc_z))
+        bg_obj.scale = Vector((badge_w, badge_h, 1.0))
+        bg_obj.rotation_euler = (0, 0, 0)
+    bg_obj["role"] = "label"
+    bg_obj.data.materials.append(mat_bg)
+    bg_obj.visible_shadow = False
+    col.objects.link(bg_obj)
+    if bg_obj.name in scene.collection.objects and col != scene.collection:
+        scene.collection.objects.unlink(bg_obj)
+
+    # Material línea
     mat_line = bpy.data.materials.get("Mat_AdaptiveLeader_Line")
     if not mat_line:
         mat_line = bpy.data.materials.new("Mat_AdaptiveLeader_Line")
         mat_line.use_nodes = True
-        b = mat_line.node_tree.nodes.get("Principled BSDF")
-        if b:
-            b.inputs["Base Color"].default_value = (*config.labels.leader_line_color_rgb, 1.0)
-            if "Emission Color" in b.inputs:
-                b.inputs["Emission Color"].default_value = (*config.labels.leader_line_color_rgb, 1.0)
-            if "Emission Strength" in b.inputs:
-                b.inputs["Emission Strength"].default_value = config.labels.leader_line_emission
+        b_l = mat_line.node_tree.nodes.get("Principled BSDF")
+        if b_l:
+            b_l.inputs["Base Color"].default_value = (*config.labels.leader_line_color_rgb, 1.0)
+            if "Emission Color" in b_l.inputs:
+                b_l.inputs["Emission Color"].default_value = (*config.labels.leader_line_color_rgb, 1.0)
+            if "Emission Strength" in b_l.inputs:
+                b_l.inputs["Emission Strength"].default_value = config.labels.leader_line_emission
 
-    # Esfera de anclaje discreta sobre el componente físico
-    bpy.ops.mesh.primitive_uv_sphere_add(
-        radius=config.labels.anchor_sphere_radius,
-        location=anchor_3d,
-    )
-    dot_obj = bpy.context.active_object
-    dot_obj.name = f"Dot_{name}"
-    dot_obj["role"] = "label"
-    dot_obj.visible_shadow = False
-    dot_obj.data.materials.append(mat_line)
-    col.objects.link(dot_obj)
-    if dot_obj.name in bpy.context.scene.collection.objects and col != bpy.context.scene.collection:
-        bpy.context.scene.collection.objects.unlink(dot_obj)
+    # Trazado de Línea Directriz en el espacio
+    right_offset = -badge_w * 0.5 if target_screen_u >= 0.5 else badge_w * 0.5
+    start_cam_local = Vector((loc_x + right_offset, loc_y, loc_z))
+    shelf_cam_local = Vector((loc_x + right_offset + (-0.008 if target_screen_u >= 0.5 else 0.008), loc_y, loc_z))
 
-    # Conexión exacta al extremo correspondiente de la palabra:
-    # Si la etiqueta está en la mitad derecha (u >= 0.5), la línea arranca en el extremo izquierdo.
-    # Si está en la mitad izquierda (u < 0.5), la línea arranca en el extremo derecho.
-    half_text_w = len(text) * config.labels.font_size * 0.31
-    if target_screen_u >= 0.5:
-        text_anchor = text_pos_3d - right_cam * (half_text_w + 0.02)
-        shoulder_pt = text_anchor - right_cam * 0.07
-    else:
-        text_anchor = text_pos_3d + right_cam * (half_text_w + 0.02)
-        shoulder_pt = text_anchor + right_cam * 0.07
+    cam_mat = cam.matrix_world if cam else Matrix.Identity(4)
+    p0 = cam_mat @ start_cam_local
+    p1 = cam_mat @ shelf_cam_local
+    p2 = anchor_3d
 
     curve_line = bpy.data.curves.new(f"{name}_leader_curve", type="CURVE")
     curve_line.dimensions = "3D"
-    curve_line.bevel_depth = config.labels.leader_line_radius
-    curve_line.bevel_resolution = 4
+    curve_line.bevel_depth = font_size * 0.06
+    curve_line.bevel_resolution = 3
     curve_line.use_fill_caps = True
 
     spline = curve_line.splines.new("BEZIER")
     spline.bezier_points.add(2)
-    # Trazado técnico recto: texto -> repisa horizontal -> punto en la pieza
-    pts = [text_anchor, shoulder_pt, anchor_3d]
+    pts = [p0, p1, p2]
     for i, p in enumerate(pts):
         bp = spline.bezier_points[i]
         bp.co = p
@@ -608,5 +628,20 @@ def create_adaptive_3d_label(
     line_obj.visible_shadow = False
     line_obj.data.materials.append(mat_line)
     col.objects.link(line_obj)
+
+    # Esfera micro de anclaje
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.016, location=anchor_3d)
+    dot_obj = bpy.context.active_object
+    dot_obj.name = f"Dot_{name}"
+    dot_obj["role"] = "label"
+    dot_obj.visible_shadow = False
+    dot_obj.data.materials.append(mat_line)
+    col.objects.link(dot_obj)
+    if dot_obj.name in scene.collection.objects and col != scene.collection:
+        scene.collection.objects.unlink(dot_obj)
+
+    txt_obj["badge_obj"] = bg_obj
+    txt_obj["dot_obj"] = dot_obj
+    line_obj["dot_obj"] = dot_obj
 
     return (txt_obj, line_obj)
