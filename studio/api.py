@@ -35,6 +35,7 @@ from studio.models import (
     save_platform_profiles,
 )
 from studio.blender.blender_gateway import get_blender_status
+from studio.blender.render_profiles import get_render_profile
 from studio.blender.service import (
     render_scene_3d_still,
     render_scene_3d_video,
@@ -398,13 +399,21 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
     import edge_tts
     import soundfile as sf
     from studio.blender.service import _get_ffmpeg
-    from studio.subtitle_engine import build_clauses_srt
 
     target_dir = PROJECTS_DIR / "_prototype_blender_3d"
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    width = 1080 if req.is_vertical else 1920
-    height = 1920 if req.is_vertical else 1080
+    prof_data = get_render_profile(req.render_profile)
+    if req.is_vertical:
+        width = int(prof_data.get("width", 720))
+        height = int(prof_data.get("height", 1280))
+        if width > height:
+            width, height = height, width
+    else:
+        width = int(prof_data.get("width", 1280))
+        height = int(prof_data.get("height", 720))
+        if height > width:
+            width, height = height, width
     dur_sec = max(1.5, float(req.duration_sec))
 
     audio_path = None
@@ -429,7 +438,8 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
         dur_sec = max(2.0, len(data) / float(sr))
 
         subtitles_path = target_dir / "custom_scene.srt"
-        srt_content = build_clauses_srt(text, dur_sec)
+        from video_pipeline import format_srt_time
+        srt_content = f"1\n00:00:00,000 --> {format_srt_time(dur_sec)}\n{text}\n"
         subtitles_path.write_text(srt_content, encoding="utf-8")
 
     from studio.visual_reference_director import VisualReferenceDirector, AutonomousVisualDirector
