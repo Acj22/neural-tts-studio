@@ -5,19 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Neural TTS &amp; YouTube Auto-Video Studio</title>
   <script>
-    // Safeguards inmediatos y declaraciones globales para evitar ReferenceErrors
-    function expLoadProject(id) {
-      if (typeof window.expLoadProjectById === "function" && window.expLoadProjectById !== expLoadProject) {
+    // Safeguards inmediatos en window para evitar ReferenceErrors en inline onchange
+    window.expLoadProject = function(id) {
+      if (typeof window.expLoadProjectById === "function" && window.expLoadProjectById !== window.expLoadProject) {
         return window.expLoadProjectById(id);
       }
-    }
-    function expLoadProjectById(id) {
-      if (typeof window.expLoadProjectById === "function" && window.expLoadProjectById !== expLoadProjectById) {
-        return window.expLoadProjectById(id);
-      }
-    }
-    window.expLoadProject = expLoadProject;
-    window.expLoadProjectById = expLoadProjectById;
+    };
+    window.expLoadProjectById = window.expLoadProject;
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -3275,6 +3269,6 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
   </div>
 
   <script src="/static/fruti.js"></script>
-  <script src="/static/explainer.js?v=2.5.2"></script>
+  <script src="/static/explainer.js?v=2.5.3"></script>
 </body>
 </html>
