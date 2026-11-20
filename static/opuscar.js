@@ -111,6 +111,77 @@ function initOpuscarModule() {
 
   // Cargar proyectos previos si los hay
   loadOpuscarStylesFromAPI();
+
+  // Cargar y mostrar automáticamente el último video generado
+  loadLastOpuscarVideo();
+}
+
+async function loadLastOpuscarVideo() {
+  try {
+    let videoData = null;
+    // 1. Intentar cargar desde el backend el último render registrado
+    try {
+      const res = await fetch("/api/opuscar/last-video");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.has_video && data.video) {
+          videoData = data.video;
+        }
+      }
+    } catch (e) {
+      console.warn("Error consultando último video en backend:", e);
+    }
+
+    // 2. Fallback a localStorage
+    if (!videoData) {
+      const local = localStorage.getItem("opuscar_last_video");
+      if (local) {
+        try { videoData = JSON.parse(local); } catch (e) {}
+      }
+    }
+
+    if (!videoData || !videoData.video_url) return;
+
+    // 3. Cargar en el reproductor de previsualización
+    const inlineVid = document.getElementById("opuscarPreviewPlayer");
+    const pTitle = document.getElementById("opuscarPreviewTitle");
+    const pMeta = document.getElementById("opuscarPreviewMeta");
+    const pDesc = document.getElementById("opuscarPreviewDesc");
+    const dlBtn = document.getElementById("opuscarDownloadBtn");
+    const openBtn = document.getElementById("opuscarOpenTabBtn");
+    const modalVid = document.getElementById("opuscarModalVideo");
+    const modalLink = document.getElementById("opuscarDownloadLink");
+
+    const fullUrl = `${videoData.video_url}?t=${Date.now()}`;
+    if (inlineVid) {
+      inlineVid.src = fullUrl;
+      inlineVid.load();
+    }
+    if (modalVid) modalVid.src = fullUrl;
+    if (modalLink) {
+      modalLink.href = videoData.video_url;
+      modalLink.download = videoData.filename || "opuscar_video.mp4";
+    }
+    if (pTitle) pTitle.textContent = videoData.title || "Video Generado Automáticamente";
+    if (pMeta) {
+      const dur = videoData.duration ? `${Number(videoData.duration).toFixed(1)}s` : "60.0s";
+      const fps = `${videoData.fps || 60} FPS`;
+      const voice = (videoData.voice || "Dalia Neural").replace("es-MX-", "").replace("es-ES-", "");
+      pMeta.textContent = `${dur} · ${fps} · ${voice} + Subtítulos Big Focus 1:1`;
+    }
+    if (pDesc) {
+      pDesc.textContent = videoData.narration || "Animación diorama multicapa paper-cut generada automáticamente con sincronización procedural 1:1.";
+    }
+    if (dlBtn) {
+      dlBtn.href = videoData.video_url;
+      dlBtn.download = videoData.filename || "opuscar_video.mp4";
+    }
+    if (openBtn) {
+      openBtn.href = videoData.video_url;
+    }
+  } catch (err) {
+    console.warn("No se pudo cargar el último video de Opuscar:", err);
+  }
 }
 
 function resizeOpuscarCanvas() {
@@ -384,119 +455,366 @@ function drawOjoSaharaCanvas(ctx, w, h, t, dur, title) {
   ctx.restore();
 }
 
-function drawPaperCutoutDiorama(ctx, w, h, t, dur, title) {
-  const lowTitle = (title || "").toLowerCase();
-  if (lowTitle.includes("sahara") || lowTitle.includes("richat") || lowTitle.includes("mauritania") || lowTitle.includes("desierto") || lowTitle.includes("cráter")) {
-    drawOjoSaharaCanvas(ctx, w, h, t, dur, title);
-    return;
-  }
-  if (lowTitle.includes("chapultepec") || lowTitle.includes("castillo") || lowTitle.includes("alcazar") || lowTitle.includes("maximiliano")) {
-    drawChapultepecLive(ctx, w, h, t, dur, title);
-    return;
-  }
-  if (lowTitle.includes("maya") || lowTitle.includes("campeche") || lowTitle.includes("selva") || lowTitle.includes("valeriana") || lowTitle.includes("lidar")) {
-    drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
-    return;
-  }
-  // Fondo diorama cálido con azulejos
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#fcedd4');
-  grad.addColorStop(0.65, '#f3dcb8');
-  grad.addColorStop(0.65, '#a85b3d');
-  grad.addColorStop(1, '#854228');
-  ctx.fillStyle = grad;
+function detectOpuscarArchetype(text) {
+  const low = (text || "").toLowerCase();
+  if (low.includes("sahara") || low.includes("richat") || low.includes("mauritania")) return "ojo_sahara";
+  if (low.includes("chapultepec") || low.includes("alcazar") || low.includes("maximiliano") || low.includes("carlota")) return "chapultepec";
+  if (low.includes("maya") || low.includes("campeche") || low.includes("valeriana") || low.includes("lidar") || low.includes("piramide") || low.includes("sakil")) return "mayan";
+  if (["mar", "oceano", "isla", "barco", "buque", "flannan", "celeste", "nemo", "agua", "laguna", "submarino", "fosa", "pacifico", "atlantico", "bermuda", "naufragio", "iceberg", "sentinel", "triangulo", "puerto"].some(k => low.includes(k))) return "oceanic";
+  if (["tierra", "pozo", "kola", "mina", "cueva", "cristal", "naica", "fuego", "darvaza", "volcan", "montana", "montaña", "everest", "abismo", "salar", "hielo", "lava", "crater", "terremoto", "geolog", "centralia"].some(k => low.includes(k))) return "geological";
+  if (["espacio", "planeta", "galaxia", "orbita", "agujero", "negro", "wow", "senal", "señal", "estrella", "satelite", "satélite", "universo", "cosmos", "nasa", "astron", "marte", "luna", "telescopio"].some(k => low.includes(k))) return "cosmic";
+  if (["ciudad", "templo", "muralla", "monumento", "torre", "palacio", "catacumba", "paris", "historia", "roma", "coliseo", "antigu", "arquit", "tubos", "hospital", "castaneda", "castañeda"].some(k => low.includes(k))) return "architectural";
+  return "mystery";
+}
+
+function drawOceanicDioramaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo azul marino profundo con sonar
+  ctx.fillStyle = '#0c2131';
   ctx.fillRect(0, 0, w, h);
-
-  // Zócalo
-  ctx.fillStyle = '#5a2d18';
-  ctx.fillRect(0, h * 0.64, w, 8);
-
-  // Cuadrícula azulejos
-  ctx.strokeStyle = 'rgba(210, 180, 140, 0.3)';
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
   ctx.lineWidth = 1;
-  for (let x = 30; x < w; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h * 0.64); ctx.stroke(); }
-  for (let y = 30; y < h * 0.64; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-  // Placa estilo matrícula arriba
-  const pw = Math.min(w * 0.85, 380);
-  const ph = 50;
-  const px = (w - pw) / 2;
-  const py = 25;
+  // Placa superior
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.2)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 4;
   ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(px - 3, py - 3, pw + 6, ph + 6, 12); ctx.fill();
-  ctx.fillStyle = '#fdfbf2';
-  ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.fill();
-  ctx.strokeStyle = '#0f766e';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-  ctx.fillStyle = '#0f766e';
-  ctx.font = 'bold 13px "Arial Black", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(title.toUpperCase(), w / 2, py + ph / 2);
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#0e7490';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('EXPLORACIÓN // OCÉANO & PUNTOS REMOTOS', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Misterio Oceánico').slice(0, 36).toUpperCase(), 36, 64);
   ctx.restore();
 
-  // Gradas estilo estadio (homage exacto a imagen de referencia)
-  const rows = 6;
-  const startY = h * 0.28;
-  for (let r = 0; r < rows; r++) {
-    const y = startY + r * 38;
-    const rw = w * 0.5 + r * 32;
-    const rx = (w - rw) / 2;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.roundRect(rx - 4, y, rw + 8, 22, 6); ctx.fill();
-    ctx.fillStyle = '#dc2626';
-    ctx.beginPath(); ctx.roundRect(rx, y + 2, rw, 18, 5); ctx.fill();
-
-    // Personajitos con gorrito
-    const cols = 10;
-    const sp = rw / cols;
-    for (let c = 0; c < cols; c++) {
-      const cx = rx + c * sp + sp / 2;
-      const cy = y - 4;
-      const fired = (r * cols + c) < ((t / dur) * rows * cols * 1.5);
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#0d9488';
-      ctx.fillRect(cx - 5, cy, 10, 8);
-      ctx.fillStyle = '#fed7aa';
-      ctx.beginPath(); ctx.arc(cx, cy, 5.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(cx, cy - 2, 5.5, Math.PI, Math.PI * 2); ctx.fill();
-
-      // Linterna roja encendiéndose
-      if (fired) {
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath(); ctx.arc(cx + 7, cy - 8, 3.5, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-  }
-
-  // Sticker de Chile Habanero rebotando en el piso
   const cx = w / 2;
-  const cy = h * 0.76 + Math.sin(t * 5) * 8;
+  const cy = h * 0.52;
+
+  // Olas escalonadas de papel
+  const waves = [
+    { col: '#0e7490', y: cy + 90, phase: 0 },
+    { col: '#083344', y: cy + 40, phase: 1.5 },
+    { col: '#04222f', y: cy - 10, phase: 3.0 }
+  ];
+  waves.reverse().forEach((wv) => {
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 30) {
+      const y = wv.y + Math.sin(t * 2.5 + wv.phase + x * 0.015) * 14 - 3;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.fill();
+
+    ctx.fillStyle = wv.col;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 30) {
+      const y = wv.y + Math.sin(t * 2.5 + wv.phase + x * 0.015) * 14;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Navío / Barco estilo paper-cut con balanceo
+  const shipY = cy - 40 + Math.sin(t * 2.8) * 10;
+  const shipRot = Math.sin(t * 2.0) * 0.06;
   ctx.save();
-  ctx.translate(cx, cy);
-  ctx.shadowColor = 'rgba(0,0,0,0.3)';
-  ctx.shadowBlur = 10;
-  ctx.shadowOffsetY = 6;
-  // Borde blanco
+  ctx.translate(cx, shipY);
+  ctx.rotate(shipRot);
+  // Casco blanco sticker
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.ellipse(0, 0, 48, 68, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Interior degradado
-  const cg = ctx.createLinearGradient(0, -60, 0, 60);
-  cg.addColorStop(0, '#16a34a');
-  cg.addColorStop(0.5, '#ea580c');
-  cg.addColorStop(1, '#dc2626');
-  ctx.fillStyle = cg;
-  ctx.beginPath(); ctx.ellipse(0, 0, 42, 62, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.moveTo(-110, 0); ctx.lineTo(110, 0); ctx.lineTo(70, 48); ctx.lineTo(-70, 48);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#e11d48';
+  ctx.beginPath();
+  ctx.moveTo(-105, 3); ctx.lineTo(105, 3); ctx.lineTo(66, 44); ctx.lineTo(-66, 44);
+  ctx.closePath(); ctx.fill();
+
+  // Velas
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-3, -90, 6, 90);
+  ctx.beginPath(); ctx.moveTo(0, -85); ctx.lineTo(60, -50); ctx.lineTo(0, -15); ctx.fill();
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath(); ctx.moveTo(2, -80); ctx.lineTo(54, -50); ctx.lineTo(2, -20); ctx.fill();
+  ctx.restore();
+
+  // Cota técnica
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 100, cy + 140, 200, 36, 10); ctx.fill();
+  ctx.fillStyle = '#082f49';
+  ctx.beginPath(); ctx.roundRect(cx - 98, cy + 142, 196, 32, 8); ctx.fill();
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('PROFUNDIDAD: >4,000 m', cx, cy + 162);
+  ctx.textAlign = 'left';
+}
+
+function drawGeologicalDioramaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo ocre volcánico / abisal
+  ctx.fillStyle = '#1c120d';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(249, 115, 22, 0.15)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Placa superior
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#c2410c';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('GEOLOGÍA // ABISMOS & PROFUNDIDADES TERRESTRES', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Enigma Geológico').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.52;
+
+  // Estratos rocosos
+  const strata = [
+    { col: '#78350f', y: cy + 110 },
+    { col: '#9a3412', y: cy + 50 },
+    { col: '#b45309', y: cy - 10 },
+    { col: '#d97706', y: cy - 70 }
+  ];
+  strata.forEach((st) => {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - w * 0.44 - 4, st.y - 4, w * 0.88 + 8, 48);
+    ctx.fillStyle = st.col;
+    ctx.fillRect(cx - w * 0.44, st.y, w * 0.88, 40);
+  });
+
+  // Pozo vertical con pulso de calor
+  const pulse = 0.5 + 0.5 * Math.sin(t * 4.0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cx - 28, cy - 100, 56, 240);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(cx - 24, cy - 96, 48, 232);
+  ctx.fillStyle = `rgb(249, ${Math.floor(115 * pulse)}, 22)`;
+  ctx.fillRect(cx - 12, cy - 90, 24, 220);
+
+  // Cota técnica
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 100, cy + 160, 200, 36, 10); ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.roundRect(cx - 98, cy + 162, 196, 32, 8); ctx.fill();
+  ctx.fillStyle = '#fb923c';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('SONDEO: 12,262 m // +180°C', cx, cy + 182);
+  ctx.textAlign = 'left';
+}
+
+function drawCosmicDioramaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo espacio profundo
+  ctx.fillStyle = '#080a18';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 20; i++) {
+    const sx = ((i * 137.5) % w);
+    const sy = ((i * 219.3) % h);
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + 0.6 * Math.sin(t * 3.0 + i)})`;
+    ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Placa superior
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#7e22ce';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('ASTRONOMÍA // ENIGMAS DEL ESPACIO PROFUNDO', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Enigma Cósmico').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.50;
+
+  // Anillos orbitales
+  [180, 130, 90].forEach((r) => {
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
+  });
+
+  // Cuerpo celeste central
+  const pulse = Math.sin(t * 2.5) * 4;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(cx, cy, 66 + pulse, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#581c87';
+  ctx.beginPath(); ctx.arc(cx, cy, 62 + pulse, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#9333ea';
+  ctx.beginPath(); ctx.arc(cx, cy, 45 + pulse, 0, Math.PI * 2); ctx.fill();
+
+  // Cota técnica
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 100, cy + 140, 200, 36, 10); ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.roundRect(cx - 98, cy + 142, 196, 32, 8); ctx.fill();
+  ctx.fillStyle = '#d8b4fe';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('RETÍCULA: ENIGMA CÓSMICO', cx, cy + 162);
+  ctx.textAlign = 'left';
+}
+
+function drawArchitecturalDioramaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo cálido plano
+  ctx.fillStyle = '#f8f5eb';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Placa superior
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#4338ca';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('ARQUITECTURA // MONUMENTOS HISTÓRICOS', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Monumento Histórico').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.52;
+
+  // Base y columnata
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cx - w * 0.40 - 4, cy + 90 - 4, w * 0.80 + 8, 48);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(cx - w * 0.40, cy + 90, w * 0.80, 40);
+
+  const numCols = 6;
+  const colW = 24;
+  const span = w * 0.70;
+  const startX = cx - span / 2;
+  for (let i = 0; i < numCols; i++) {
+    const colX = startX + (i * (span - colW) / (numCols - 1));
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(colX - 3, cy - 70 - 3, colW + 6, 166);
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(colX, cy - 70, colW, 160);
+  }
+
+  // Frontón superior
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.38 - 4, cy - 70);
+  ctx.lineTo(cx, cy - 140 - 4);
+  ctx.lineTo(cx + w * 0.38 + 4, cy - 70);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#cbd5e1';
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.38, cy - 70);
+  ctx.lineTo(cx, cy - 140);
+  ctx.lineTo(cx + w * 0.38, cy - 70);
+  ctx.closePath(); ctx.fill();
+
+  // Cota técnica
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 100, cy + 150, 200, 36, 10); ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.roundRect(cx - 98, cy + 152, 196, 32, 8); ctx.fill();
+  ctx.fillStyle = '#818cf8';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ESTRUCTURA PATRIMONIAL', cx, cy + 172);
+  ctx.textAlign = 'left';
+}
+
+function drawMysteryArchiveCanvas(ctx, w, h, t, dur, title) {
+  // Fondo pergamino archivo
+  ctx.fillStyle = '#f6f1e6';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(180, 160, 130, 0.25)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Placa superior
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#dc2626';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('EXPEDIENTE INVESTIGADO // CLASIFICADO', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Caso Sin Resolver').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.52;
+
+  // Carpeta de archivo paper-cut
+  const fw = w * 0.72;
+  const fh = 220;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - fw / 2 - 5, cy - fh / 2 - 5, fw + 10, fh + 10, 14); ctx.fill();
+  ctx.fillStyle = '#d97706';
+  ctx.beginPath(); ctx.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, 10); ctx.fill();
+
+  // Sello CONFIDENCIAL rojo
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 100, cy - 30, 200, 44, 8); ctx.fill();
+  ctx.fillStyle = '#dc2626';
+  ctx.beginPath(); ctx.roundRect(cx - 96, cy - 26, 192, 36, 6); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('CONFIDENCIAL // CLASIFICADO', cx, cy - 3);
+
+  // Lupa de investigación giratoria
+  const dialAngle = t * 1.8;
+  const dx = cx + Math.cos(dialAngle) * 25;
+  const dy = cy + 70;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(dx, dy, 48, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath(); ctx.arc(dx, dy, 44, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(dx - 40, dy); ctx.lineTo(dx + 40, dy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(dx, dy - 40); ctx.lineTo(dx, dy + 40); ctx.stroke();
+
+  // Cota técnica
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 100, cy + 150, 200, 36, 10); ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.roundRect(cx - 98, cy + 152, 196, 32, 8); ctx.fill();
+  ctx.fillStyle = '#ef4444';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('ESTADO: EN INVESTIGACIÓN', cx, cy + 172);
+  ctx.textAlign = 'left';
+}
+
+function drawPaperCutoutDiorama(ctx, w, h, t, dur, title) {
+  const archetype = detectOpuscarArchetype(title);
+  if (archetype === "ojo_sahara") return drawOjoSaharaCanvas(ctx, w, h, t, dur, title);
+  if (archetype === "chapultepec") return drawChapultepecLive(ctx, w, h, t, dur, title);
+  if (archetype === "mayan") return drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
+  if (archetype === "oceanic") return drawOceanicDioramaCanvas(ctx, w, h, t, dur, title);
+  if (archetype === "geological") return drawGeologicalDioramaCanvas(ctx, w, h, t, dur, title);
+  if (archetype === "cosmic") return drawCosmicDioramaCanvas(ctx, w, h, t, dur, title);
+  if (archetype === "architectural") return drawArchitecturalDioramaCanvas(ctx, w, h, t, dur, title);
+  return drawMysteryArchiveCanvas(ctx, w, h, t, dur, title);
+}
   // Ojitos
   ctx.fillStyle = '#ffffff';
   ctx.beginPath(); ctx.arc(-12, -10, 8, 0, Math.PI * 2); ctx.fill();
@@ -884,6 +1202,11 @@ async function renderOpuscarVideo() {
     if (progBar) progBar.style.width = "100%";
     if (progText) progText.textContent = "¡Video compilado exitosamente!";
 
+    // Guardar en almacenamiento local para recordar siempre el último video
+    try {
+      localStorage.setItem("opuscar_last_video", JSON.stringify(data));
+    } catch (e) {}
+
     // Cargar en visor modal y reproductor inline
     const modal = document.getElementById("opuscarVideoModal");
     const vid = document.getElementById("opuscarModalVideo");
@@ -891,14 +1214,18 @@ async function renderOpuscarVideo() {
     const inlineVid = document.getElementById("opuscarPreviewPlayer");
     const lastVideoCard = document.getElementById("opuscarLastVideoCard");
 
+    const cacheBuster = `?t=${Date.now()}`;
+    const fullVidUrl = `${data.video_url}${cacheBuster}`;
+
+    if (inlineVid) {
+      inlineVid.src = fullVidUrl;
+      inlineVid.load();
+      inlineVid.play().catch(() => {});
+    }
     if (vid) {
-      vid.src = `${data.video_url}?t=${Date.now()}`;
+      vid.src = fullVidUrl;
       vid.load();
       vid.play().catch(() => {});
-    }
-    if (inlineVid) {
-      inlineVid.src = `${data.video_url}?t=${Date.now()}`;
-      inlineVid.load();
     }
     if (lastVideoCard) {
       lastVideoCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -913,6 +1240,12 @@ async function renderOpuscarVideo() {
     const pMeta = document.getElementById("opuscarPreviewMeta");
     const pDesc = document.getElementById("opuscarPreviewDesc");
 
+    // Deseleccionar botones de showcase fijos
+    ["btnShowcaseSahara", "btnShowcaseChapultepec", "btnShowcaseMaya", "btnShowcaseChile"].forEach((id) => {
+      const b = document.getElementById(id);
+      if (b) b.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1";
+    });
+
     if (dlBtn) { dlBtn.href = data.video_url; dlBtn.download = data.filename; }
     if (openBtn) { openBtn.href = data.video_url; }
     if (pTitle) { pTitle.textContent = data.title || title; }
@@ -923,7 +1256,7 @@ async function renderOpuscarVideo() {
       pMeta.textContent = `${durLabel} · ${fpsLabel} · ${voiceLabel} + Subtítulos Big Focus 1:1`;
     }
     if (pDesc) {
-      pDesc.textContent = data.narration || narration || "Animación diorama multicapa paper-cut generada proceduralmente con sincronización 1:1 de audio, subtítulos y elementos visuales.";
+      pDesc.textContent = data.narration || narr || "Animación diorama multicapa paper-cut generada proceduralmente con sincronización 1:1 de audio, subtítulos y elementos visuales.";
     }
     if (modal) modal.classList.remove("hidden");
 

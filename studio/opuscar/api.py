@@ -17,6 +17,7 @@ logger = logging.getLogger("studio.opuscar")
 router = APIRouter(prefix="/api/opuscar", tags=["Lemo-Opuscar Animation Engine"])
 
 PROJECTS_DIR = Path(__file__).resolve().parent.parent.parent / "projects"
+LAST_RENDER_FILE = PROJECTS_DIR / "opuscar_last_render.json"
 
 
 class OpuscarRenderRequest(BaseModel):
@@ -50,6 +51,19 @@ def get_single_opuscar_style(style_id: str):
     return {"status": "success", "style": style}
 
 
+@router.get("/last-video")
+def get_last_opuscar_video():
+    """Devuelve los metadatos y URL del último video renderizado para que la UI lo cargue automáticamente."""
+    if LAST_RENDER_FILE.exists():
+        try:
+            import json
+            data = json.loads(LAST_RENDER_FILE.read_text(encoding="utf-8"))
+            return {"status": "success", "has_video": True, "video": data}
+        except Exception:
+            pass
+    return {"status": "success", "has_video": False, "video": None}
+
+
 @router.post("/render")
 def render_opuscar_video_endpoint(req: OpuscarRenderRequest):
     """Renderiza fotograma a fotograma el video MP4 con narración y subtítulos integrados."""
@@ -73,7 +87,7 @@ def render_opuscar_video_endpoint(req: OpuscarRenderRequest):
             except Exception:
                 pass
 
-        return {
+        res_data = {
             "status": "success",
             "style_id": meta_info.get("style_id", req.style_id),
             "video_url": f"/projects/{out_dir.name}/{video_path.name}",
@@ -85,6 +99,17 @@ def render_opuscar_video_endpoint(req: OpuscarRenderRequest):
             "narration": meta_info.get("narration", req.narration),
             "voice": meta_info.get("voice", req.voice),
         }
+
+        # Guardar en caché del último video generado
+        try:
+            import json, time
+            cache_payload = dict(res_data)
+            cache_payload["timestamp"] = time.time()
+            LAST_RENDER_FILE.write_text(json.dumps(cache_payload, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return res_data
     except Exception as e:
         logger.exception("Error al renderizar animación Lemo-Opuscar:")
         raise HTTPException(status_code=500, detail=str(e))

@@ -69,71 +69,293 @@ async def synthesize_opuscar_audio(
     return 5.0
 
 
-def draw_paper_cutout_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza estética de diorama paper cutout con stickers, bordes blancos y sombras 2.5D."""
-    low_title = (title or "").lower()
-    if any(k in low_title for k in ("sahara", "richat", "mauritania", "desierto", "crater")):
-        draw_ojo_sahara_diorama(draw, w, h, t, duration, title)
-        return
-    if any(k in low_title for k in ("chapultepec", "castillo", "alcazar", "maximiliano", "carlota")):
-        draw_chapultepec_diorama(draw, w, h, t, duration, title)
-        return
-    if any(k in low_title for k in ("maya", "campeche", "valeriana", "lidar", "piramide", "sakil")):
-        draw_mayan_diorama(draw, w, h, t, duration, title)
-        return
+def detect_diorama_archetype(text: str) -> str:
+    """Clasifica el tema semántico para generar un diorama procedural auténtico."""
+    low = (text or "").lower()
+    if any(k in low for k in ("sahara", "richat", "mauritania")):
+        return "ojo_sahara"
+    if any(k in low for k in ("chapultepec", "alcazar", "maximiliano", "carlota")):
+        return "chapultepec"
+    if any(k in low for k in ("maya", "campeche", "valeriana", "lidar", "piramide", "sakil")):
+        return "mayan"
+    if any(k in low for k in ("mar", "oceano", "isla", "barco", "buque", "flannan", "celeste", "nemo", "agua", "laguna", "submarino", "fosa", "pacifico", "atlantico", "bermuda", "naufragio", "iceberg", "sentinel", "triangulo", "puerto")):
+        return "oceanic"
+    if any(k in low for k in ("tierra", "pozo", "kola", "mina", "cueva", "cristal", "naica", "fuego", "darvaza", "volcan", "montana", "montaña", "everest", "abismo", "salar", "hielo", "lava", "crater", "terremoto", "geolog", "centralia", "chimenea")):
+        return "geological"
+    if any(k in low for k in ("espacio", "planeta", "galaxia", "orbita", "agujero", "negro", "wow", "senal", "señal", "estrella", "satelite", "satélite", "universo", "cosmos", "nasa", "astron", "marte", "luna", "telescopio")):
+        return "cosmic"
+    if any(k in low for k in ("ciudad", "templo", "muralla", "monumento", "torre", "palacio", "catacumba", "paris", "historia", "roma", "coliseo", "antigu", "arquit", "tubos", "hospital", "castaneda", "castañeda", "obra")):
+        return "architectural"
+    return "mystery"
 
-    # 1. Fondo de azulejos / piso cálido
-    bg_warm = (251, 245, 232)
-    tile_line = (240, 225, 200)
-    for y in range(0, h, 80):
-        draw.line([(0, y), (w, y)], fill=tile_line, width=1)
-    for x in range(0, w, 80):
-        draw.line([(x, 0), (x, h)], fill=tile_line, width=1)
 
-    # 2. Placa superior estilo diorama (sticker con borde blanco)
-    p_x1, p_y1 = 80, 70
-    p_x2, p_y2 = w - 80, 160
-    # Sombra
-    draw.rounded_rectangle([(p_x1 + 4, p_y1 + 4), (p_x2 + 4, p_y2 + 4)], radius=18, fill=(200, 190, 175))
-    # Borde blanco de recorte
-    draw.rounded_rectangle([(p_x1 - 4, p_y1 - 4), (p_x2 + 4, p_y2 + 4)], radius=22, fill=(255, 255, 255))
-    # Placa interior crema
-    draw.rounded_rectangle([(p_x1, p_y1), (p_x2, p_y2)], radius=18, fill=(255, 253, 248), outline=(180, 160, 140), width=2)
-    draw.text((p_x1 + 30, p_y1 + 18), "DIORAMA POP // RECORTE DE PAPEL", fill=(13, 148, 136))
-    draw.text((p_x1 + 30, p_y1 + 48), title[:40].upper(), fill=(30, 41, 59))
+def draw_oceanic_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza diorama náutico/marítimo de papel recortado con olas dinámicas y navío."""
+    # Fondo azul marino abisal con sonar
+    draw.rectangle([(0, 0), (w, h)], fill=(12, 33, 49))
+    grid_col = (18, 48, 71)
+    for y in range(0, h, 60):
+        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
+    for x in range(0, w, 60):
+        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
 
-    # 3. Gradas en perspectiva (estilo formación escalonada)
-    num_tiers = 6
-    tier_base_y = int(h * 0.72)
-    for tier in range(num_tiers):
-        ty = tier_base_y - (tier * 48)
-        tw = int(w * (0.88 - tier * 0.08))
-        tx1 = (w - tw) // 2
-        tx2 = tx1 + tw
-        # Sombra de grada
-        draw.rectangle([(tx1 + 4, ty + 4), (tx2 + 4, ty + 36)], fill=(210, 200, 185))
-        # Borde blanco
-        draw.rectangle([(tx1 - 3, ty - 3), (tx2 + 3, ty + 33)], fill=(255, 255, 255))
-        # Grada roja/crema
-        draw.rectangle([(tx1, ty), (tx2, ty + 30)], fill=(220, 38, 38) if tier % 2 == 0 else (245, 240, 230), outline=(180, 40, 40), width=2)
+    # Placa superior
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(6, 18, 28))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(16, 44, 66), outline=(56, 189, 248), width=2)
+    draw.text((px1 + 25, py1 + 16), "EXPLORACIÓN // OCÉANO & PUNTOS REMOTOS", fill=(56, 189, 248))
+    draw.text((px1 + 25, py1 + 46), (title or "Misterio Oceánico")[:38].upper(), fill=(241, 245, 249))
 
-    # 4. Stickers de personajes / figuras en gradas con rebote
-    bounce = math.sin(t * 6.0) * 8.0
     cx = w // 2
-    cy = int(h * 0.50) + int(bounce)
+    cy = int(h * 0.52)
 
-    # Sticker central destacado
-    # Sombra
-    draw.ellipse([(cx - 130 + 6, cy - 110 + 6), (cx + 130 + 6, cy + 110 + 6)], fill=(190, 180, 165))
-    # Borde de recorte blanco
-    draw.ellipse([(cx - 136, cy - 116), (cx + 136, cy + 116)], fill=(255, 255, 255))
-    # Cuerpo principal
-    draw.ellipse([(cx - 128, cy - 108), (cx + 128, cy + 108)], fill=(234, 179, 8), outline=(202, 138, 4), width=4)
+    # Olas en capas de papel recortado (4 niveles escalonados)
+    wave_layers = [
+        ((14, 116, 144), cy + 120, 0.0),
+        ((12, 74, 96), cy + 70, 1.2),
+        ((8, 51, 68), cy + 20, 2.4),
+        ((6, 38, 52), cy - 30, 3.6),
+    ]
+    for col, base_y, phase in reversed(wave_layers):
+        pts = [(0, h)]
+        step = 40
+        for x in range(0, w + step, step):
+            wave_y = int(base_y + math.sin(t * 2.5 + phase + x * 0.015) * 16)
+            pts.append((x, wave_y))
+        pts.append((w, h))
+        draw.polygon(pts, fill=col)
+        # Borde blanco de espuma en la cresta de papel
+        crest = [pts[1]]
+        for p in pts[1:-1]:
+            crest.append((p[0], p[1] - 2))
+        for p in reversed(pts[1:-1]):
+            crest.append((p[0], p[1] + 3))
+        draw.polygon(crest, fill=(255, 255, 255))
 
-    # Ojos y expresión amigable
-    draw.ellipse([(cx - 45, cy - 30), (cx - 20, cy - 5)], fill=(30, 41, 59))
-    draw.ellipse([(cx + 20, cy - 30), (cx + 45, cy - 5)], fill=(30, 41, 59))
-    draw.arc([(cx - 40, cy + 5), (cx + 40, cy + 55)], start=10, end=170, fill=(185, 28, 28), width=5)
+    # Barco / Elemento central estilo sticker con sombra y borde blanco
+    ship_y = cy - 40 + int(math.sin(t * 2.8) * 12)
+    ship_rot = math.sin(t * 2.0) * 0.08
+    # Casco
+    draw.polygon([(cx - 140, ship_y), (cx + 140, ship_y), (cx + 90, ship_y + 60), (cx - 90, ship_y + 60)], fill=(255, 255, 255))
+    draw.polygon([(cx - 134, ship_y + 3), (cx + 134, ship_y + 3), (cx + 86, ship_y + 56), (cx - 86, ship_y + 56)], fill=(225, 29, 72))
+    # Mástiles
+    draw.line([(cx, ship_y), (cx, ship_y - 120)], fill=(255, 255, 255), width=6)
+    draw.line([(cx, ship_y), (cx, ship_y - 120)], fill=(245, 158, 11), width=4)
+    draw.polygon([(cx, ship_y - 110), (cx + 80, ship_y - 70), (cx, ship_y - 30)], fill=(255, 255, 255))
+    draw.polygon([(cx + 2, ship_y - 106), (cx + 74, ship_y - 70), (cx + 2, ship_y - 34)], fill=(241, 245, 249))
+
+    # Cota técnica
+    draw.rectangle([(cx - 120, cy + 180), (cx + 120, cy + 225)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 117, cy + 183), (cx + 117, cy + 222)], fill=(15, 23, 42))
+    draw.text((cx - 100, cy + 194), "PROFUNDIDAD: >4,000 m", fill=(56, 189, 248))
+
+
+def draw_geological_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza diorama de geología profunda, volcanes, cavernas y abismos."""
+    # Fondo cálido ocre volcánico
+    draw.rectangle([(0, 0), (w, h)], fill=(28, 18, 13))
+    grid_col = (44, 28, 20)
+    for y in range(0, h, 60):
+        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
+    for x in range(0, w, 60):
+        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
+
+    # Placa superior
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(12, 7, 5))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(45, 24, 16), outline=(249, 115, 22), width=2)
+    draw.text((px1 + 25, py1 + 16), "GEOLOGÍA // ABISMOS & PROFUNDIDADES TERRESTRES", fill=(249, 115, 22))
+    draw.text((px1 + 25, py1 + 46), (title or "Enigma Geológico")[:38].upper(), fill=(254, 243, 199))
+
+    cx = w // 2
+    cy = int(h * 0.52)
+
+    # Estratos rocosos en capas paper-cut
+    strata = [
+        ((120, 53, 15), cy + 160),
+        ((154, 52, 18), cy + 80),
+        ((180, 83, 9), cy),
+        ((217, 119, 6), cy - 80),
+    ]
+    for col, sy in strata:
+        # Silueta dentada de roca con borde blanco
+        draw.rectangle([(cx - int(w * 0.44) - 4, sy - 4), (cx + int(w * 0.44) + 4, sy + 64)], fill=(255, 255, 255))
+        draw.rectangle([(cx - int(w * 0.44), sy), (cx + int(w * 0.44), sy + 60)], fill=col)
+
+    # Pozo central / Falla vertical luminosa
+    pulse = 0.5 + 0.5 * math.sin(t * 4.0)
+    draw.rectangle([(cx - 38, cy - 140), (cx + 38, cy + 200)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 32, cy - 136), (cx + 32, cy + 196)], fill=(15, 23, 42))
+    draw.rectangle([(cx - 16, cy - 130), (cx + 16, cy + 190)], fill=(int(249 + 6 * pulse), int(115 * pulse), 22))
+
+    # Cota técnica
+    draw.rectangle([(cx - 120, cy + 215), (cx + 120, cy + 260)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 117, cy + 218), (cx + 117, cy + 257)], fill=(15, 23, 42))
+    draw.text((cx - 100, cy + 228), "SONDEO: 12,262 m // +180°C", fill=(251, 146, 60))
+
+
+def draw_cosmic_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza diorama cósmico / astronómico con anillos orbitales y astros."""
+    # Fondo espacio profundo
+    draw.rectangle([(0, 0), (w, h)], fill=(8, 10, 24))
+    # Estrellas de papel
+    for i in range(25):
+        sx = int((i * 137.5) % w)
+        sy = int((i * 219.3) % h)
+        twinkle = int(180 + 75 * math.sin(t * 3.0 + i))
+        draw.ellipse([(sx - 2, sy - 2), (sx + 2, sy + 2)], fill=(twinkle, twinkle, 255))
+
+    # Placa superior
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(4, 6, 16))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(15, 23, 42), outline=(168, 85, 247), width=2)
+    draw.text((px1 + 25, py1 + 16), "ASTRONOMÍA // ENIGMAS DEL ESPACIO PROFUNDO", fill=(192, 132, 252))
+    draw.text((px1 + 25, py1 + 46), (title or "Enigma Cósmico")[:38].upper(), fill=(243, 232, 255))
+
+    cx = w // 2
+    cy = int(h * 0.50)
+
+    # Anillos orbitales en perspectiva
+    for r, col, lw in [(260, (147, 51, 234), 4), (200, (192, 132, 252), 6), (140, (232, 121, 249), 4)]:
+        draw.arc([(cx - r, cy - r // 2), (cx + r, cy + r // 2)], start=0, end=360, fill=(255, 255, 255), width=lw + 4)
+        draw.arc([(cx - r, cy - r // 2), (cx + r, cy + r // 2)], start=0, end=360, fill=col, width=lw)
+
+    # Cuerpo celeste central con sombra y borde blanco
+    pulse = math.sin(t * 2.5) * 6
+    draw.ellipse([(cx - 100 - 6, cy - 100 - 6), (cx + 100 + 6, cy + 100 + 6)], fill=(255, 255, 255))
+    draw.ellipse([(cx - 96, cy - 96), (cx + 96, cy + 96)], fill=(88, 28, 135))
+    draw.ellipse([(cx - 70 + pulse, cy - 70 + pulse), (cx + 70 + pulse, cy + 70 + pulse)], fill=(126, 34, 206))
+
+    # Cota técnica
+    draw.rectangle([(cx - 120, cy + 180), (cx + 120, cy + 225)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 117, cy + 183), (cx + 117, cy + 222)], fill=(15, 23, 42))
+    draw.text((cx - 100, cy + 194), "RETÍCULA: ENIGMA CÓSMICO", fill=(216, 180, 254))
+
+
+def draw_architectural_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza diorama de monumentos arquitectónicos históricos."""
+    # Fondo plano arquitectónico cálido
+    draw.rectangle([(0, 0), (w, h)], fill=(248, 245, 235))
+    grid_col = (230, 220, 205)
+    for y in range(0, h, 60):
+        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
+    for x in range(0, w, 60):
+        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
+
+    # Placa superior
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(195, 185, 170))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(67, 56, 202), width=2)
+    draw.text((px1 + 25, py1 + 16), "ARQUITECTURA // MONUMENTOS HISTÓRICOS", fill=(67, 56, 202))
+    draw.text((px1 + 25, py1 + 46), (title or "Monumento Histórico")[:38].upper(), fill=(15, 23, 42))
+
+    cx = w // 2
+    cy = int(h * 0.52)
+
+    # Pedestal base
+    draw.rectangle([(cx - int(w * 0.42) - 4, cy + 120 - 4), (cx + int(w * 0.42) + 4, cy + 180 + 4)], fill=(255, 255, 255))
+    draw.rectangle([(cx - int(w * 0.42), cy + 120), (cx + int(w * 0.42), cy + 180)], fill=(203, 213, 225))
+
+    # Columnata monumental (6 columnas)
+    num_cols = 6
+    col_w = 32
+    span = int(w * 0.72)
+    start_x = cx - span // 2
+    for i in range(num_cols):
+        col_x = start_x + int(i * (span - col_w) / (num_cols - 1))
+        draw.rectangle([(col_x - 3, cy - 90 - 3), (col_x + col_w + 3, cy + 120 + 3)], fill=(255, 255, 255))
+        draw.rectangle([(col_x, cy - 90), (col_x + col_w, cy + 120)], fill=(241, 245, 249), outline=(148, 163, 184), width=2)
+
+    # Entablamento y frontón triangular superior
+    draw.rectangle([(cx - int(w * 0.40) - 4, cy - 130 - 4), (cx + int(w * 0.40) + 4, cy - 90 + 4)], fill=(255, 255, 255))
+    draw.rectangle([(cx - int(w * 0.40), cy - 130), (cx + int(w * 0.40), cy - 90)], fill=(226, 232, 240))
+    # Frontón
+    draw.polygon([(cx - int(w * 0.40) - 4, cy - 130), (cx, cy - 220 - 4), (cx + int(w * 0.40) + 4, cy - 130)], fill=(255, 255, 255))
+    draw.polygon([(cx - int(w * 0.40), cy - 130), (cx, cy - 220), (cx + int(w * 0.40), cy - 130)], fill=(203, 213, 225))
+
+    # Cota técnica
+    draw.rectangle([(cx - 120, cy + 200), (cx + 120, cy + 245)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 117, cy + 203), (cx + 117, cy + 242)], fill=(15, 23, 42))
+    draw.text((cx - 100, cy + 214), "ESTRUCTURA PATRIMONIAL", fill=(129, 140, 248))
+
+
+def draw_mystery_archive_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza diorama de expediente clasificado, crímenes, conspiraciones y misterios."""
+    # Fondo pergamino / archivo militar
+    draw.rectangle([(0, 0), (w, h)], fill=(246, 241, 230))
+    grid_col = (230, 220, 205)
+    for y in range(0, h, 60):
+        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
+    for x in range(0, w, 60):
+        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
+
+    # Placa superior
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(190, 180, 165))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(220, 38, 38), width=2)
+    draw.text((px1 + 25, py1 + 16), "EXPEDIENTE INVESTIGADO // CLASIFICADO", fill=(220, 38, 38))
+    draw.text((px1 + 25, py1 + 46), (title or "Caso Sin Resolver")[:38].upper(), fill=(15, 23, 42))
+
+    cx = w // 2
+    cy = int(h * 0.52)
+
+    # Carpeta de expediente inclinada con borde blanco
+    rot_angle = math.sin(t * 1.5) * 2.0
+    f_w, f_h = int(w * 0.68), 280
+    fx1, fy1 = cx - f_w // 2, cy - f_h // 2
+    draw.rectangle([(fx1 - 6, fy1 - 6), (fx1 + f_w + 6, fy1 + f_h + 6)], fill=(255, 255, 255))
+    draw.rectangle([(fx1, fy1), (fx1 + f_w, fy1 + f_h)], fill=(217, 119, 6), outline=(180, 83, 9), width=3)
+
+    # Sello CONFIDENCIAL en rojo
+    draw.rectangle([(cx - 130, cy - 40), (cx + 130, cy + 20)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 126, cy - 36), (cx + 126, cy + 16)], fill=(220, 38, 38))
+    draw.text((cx - 100, cy - 20), "CONFIDENCIAL // CLASIFICADO", fill=(255, 255, 255))
+
+    # Lupa de investigación / Disco criptográfico giratorio
+    dial_r = 85
+    dial_angle = t * 1.8
+    dx = cx + int(math.cos(dial_angle) * 30)
+    dy = cy + 90
+    draw.ellipse([(dx - dial_r - 4, dy - dial_r - 4), (dx + dial_r + 4, dy + dial_r + 4)], fill=(255, 255, 255))
+    draw.ellipse([(dx - dial_r, dy - dial_r), (dx + dial_r, dy + dial_r)], fill=(241, 245, 249), outline=(100, 116, 139), width=3)
+    draw.line([(dx, dy - dial_r + 5), (dx, dy + dial_r - 5)], fill=(220, 38, 38), width=3)
+    draw.line([(dx - dial_r + 5, dy), (dx + dial_r - 5, dy)], fill=(220, 38, 38), width=3)
+
+    # Cota técnica
+    draw.rectangle([(cx - 120, cy + 215), (cx + 120, cy + 260)], fill=(255, 255, 255))
+    draw.rectangle([(cx - 117, cy + 218), (cx + 117, cy + 257)], fill=(15, 23, 42))
+    draw.text((cx - 100, cy + 228), "ESTADO: EN INVESTIGACIÓN", fill=(239, 68, 68))
+
+
+def draw_paper_cutout_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza diorama procedural paper-cut adaptado automáticamente a CUALQUIER temática."""
+    archetype = detect_diorama_archetype(title)
+    if archetype == "ojo_sahara":
+        draw_ojo_sahara_diorama(draw, w, h, t, duration, title)
+    elif archetype == "chapultepec":
+        draw_chapultepec_diorama(draw, w, h, t, duration, title)
+    elif archetype == "mayan":
+        draw_mayan_diorama(draw, w, h, t, duration, title)
+    elif archetype == "oceanic":
+        draw_oceanic_diorama(draw, w, h, t, duration, title)
+    elif archetype == "geological":
+        draw_geological_diorama(draw, w, h, t, duration, title)
+    elif archetype == "cosmic":
+        draw_cosmic_diorama(draw, w, h, t, duration, title)
+    elif archetype == "architectural":
+        draw_architectural_diorama(draw, w, h, t, duration, title)
+    else:
+        draw_mystery_archive_diorama(draw, w, h, t, duration, title)
 
 
 def draw_mayan_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
