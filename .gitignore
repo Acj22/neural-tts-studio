@@ -35,3 +35,5 @@ list_voices.py
 render_chile_video.py
 test_voice_candidates.py
 *.log
+inspect_refrigerator/
+
