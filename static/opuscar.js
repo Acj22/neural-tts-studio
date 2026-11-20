@@ -1411,15 +1411,45 @@ const OPUSCAR_SEARCH_SUGGESTIONS = {
   ]
 };
 
-function onOpuscarSearchCategoryChange() {
+async function onOpuscarSearchCategoryChange(forceRefresh = false) {
   const catEl = document.getElementById("opuscarSearchCategory");
   const chipsContainer = document.getElementById("opuscarTopicChips");
   if (!catEl || !chipsContainer) return;
 
   const category = catEl.value || "historia_mexico";
-  const list = OPUSCAR_SEARCH_SUGGESTIONS[category] || [];
-  chipsContainer.innerHTML = "";
+  chipsContainer.innerHTML = `<span class="text-[10px] text-indigo-400 animate-pulse">Cargando temas dinámicos...</span>`;
 
+  try {
+    const res = await fetch(`/api/topics/diverse?category=${encodeURIComponent(category)}&count=10&refresh=${forceRefresh}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "success" && data.topics && data.topics.length > 0) {
+        chipsContainer.innerHTML = "";
+        data.topics.forEach((tObj) => {
+          const topic = tObj.title || tObj;
+          const icon = tObj.icon || "•";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-amber-500/20 border border-slate-700 hover:border-amber-500/50 text-[11px] text-slate-300 hover:text-amber-200 transition text-left truncate max-w-xs flex items-center gap-1";
+          btn.innerHTML = `<span>${icon}</span> <span class="truncate">${topic}</span>`;
+          btn.title = topic;
+          btn.onclick = () => {
+            const qInput = document.getElementById("opuscarSearchQuery");
+            if (qInput) qInput.value = topic;
+            searchAndGenerateOpuscarScript(false);
+          };
+          chipsContainer.appendChild(btn);
+        });
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Fallo cargando temas dinámicos, usando catálogo local:", err);
+  }
+
+  // Fallback al catálogo local
+  const list = OPUSCAR_SEARCH_SUGGESTIONS[category] || OPUSCAR_SEARCH_SUGGESTIONS["historia_mexico"];
+  chipsContainer.innerHTML = "";
   list.forEach((topic) => {
     const btn = document.createElement("button");
     btn.type = "button";

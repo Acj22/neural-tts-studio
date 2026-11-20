@@ -1349,6 +1349,30 @@ def get_youtube_script_search_catalog():
     return {"categories": YOUTUBE_SEARCH_CATEGORIES}
 
 
+@app.get("/api/topics/diverse")
+def get_diverse_topics_endpoint(category: Optional[str] = None, count: int = 8, refresh: bool = False):
+    """Devuelve una lista variada y no repetitiva de temas documentados, consultando Wikipedia en vivo si refresh=True."""
+    from studio.dynamic_topic_service import get_diverse_topics
+    topics = get_diverse_topics(category=category, count=count, refresh=refresh)
+    return {"status": "success", "topics": topics}
+
+
+@app.get("/api/topics/categories")
+def get_topic_categories_endpoint():
+    """Devuelve las 8 grandes categorías temáticas disponibles con sus iconos y descripciones."""
+    from studio.dynamic_topic_service import DEEP_TOPICS_POOL
+    cats = []
+    for cid, cdata in DEEP_TOPICS_POOL.items():
+        cats.append({
+            "id": cid,
+            "name": cdata["name"],
+            "icon": cdata["icon"],
+            "badge": cdata["badge"],
+            "total_topics": len(cdata["topics"]),
+        })
+    return {"status": "success", "categories": cats}
+
+
 @app.post("/api/youtube/search-script")
 def search_youtube_script_endpoint(req: YouTubeScriptSearchRequest):
     """Investiga en tiempo real el tema o categoría elegida y genera el guion + mejor título + alternativas para Shorts/TikTok o YouTube 4-6 min."""

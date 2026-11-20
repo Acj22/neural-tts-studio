@@ -19,6 +19,14 @@ async function initShortsStudio() {
   }
 }
 
+async function refreshShortsTopics() {
+  const container = document.getElementById("shortsTopicsContainer");
+  if (container) {
+    container.innerHTML = `<div class="col-span-1 sm:col-span-2 lg:col-span-3 text-center py-4 text-xs text-violet-400 font-semibold animate-pulse">🔄 Consultando nuevas temáticas y enigmas documentales...</div>`;
+  }
+  await initShortsStudio();
+}
+
 function renderShortsTopicCards() {
   const container = document.getElementById("shortsTopicsContainer");
   if (!container) return;
@@ -246,7 +254,143 @@ async function compileEarshotFoley() {
   }
 }
 
+async function renderAnimatedShortVideo() {
+  if (!activeShortsScript) {
+    alert("Por favor genera primero el guion investigado con el botón 'Generar Guion Investigado'.");
+    return;
+  }
+
+  const btn = document.getElementById("btnRenderAnimatedShort");
+  const progBox = document.getElementById("shortsRenderProgressBox");
+  const progText = document.getElementById("shortsRenderProgressText");
+  const progBar = document.getElementById("shortsRenderProgressBar");
+  const card = document.getElementById("shortsVideoCard");
+  const vid = document.getElementById("shortsPreviewPlayer");
+  const titleEl = document.getElementById("shortsPreviewTitle");
+  const metaEl = document.getElementById("shortsPreviewMeta");
+  const descEl = document.getElementById("shortsPreviewDesc");
+  const dlBtn = document.getElementById("shortsDownloadBtn");
+  const openBtn = document.getElementById("shortsOpenTabBtn");
+
+  if (btn) btn.disabled = true;
+  if (progBox) progBox.classList.remove("hidden");
+  if (progBar) progBar.style.width = "35%";
+  if (progText) progText.textContent = "Sintetizando locución neuronal y foley procedural Earshot...";
+
+  try {
+    const voice = document.getElementById("voiceSelect")?.value || "es-MX-DaliaNeural";
+
+    const res = await fetch("/api/animated-shorts/render-video", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic_id: activeShortsScript.topic_id,
+        title: activeShortsScript.title,
+        scenes: activeShortsScript.scenes,
+        voice: voice,
+        fps: 30,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error en el servidor al renderizar el short.");
+    }
+
+    if (progBar) progBar.style.width = "100%";
+    if (progText) progText.textContent = "¡Video compilado exitosamente!";
+
+    const data = await res.json();
+
+    // Guardar en localStorage
+    try {
+      localStorage.setItem("shorts_last_video", JSON.stringify(data));
+    } catch (e) {}
+
+    // Mostrar y reproducir automáticamente
+    const fullUrl = `${data.video_url}?t=${Date.now()}`;
+    if (vid) {
+      vid.src = fullUrl;
+      vid.load();
+      vid.play().catch(() => {});
+    }
+    if (titleEl) titleEl.textContent = data.title;
+    if (metaEl) {
+      metaEl.textContent = `${Number(data.duration).toFixed(1)}s · ${data.fps} FPS · ${data.voice.replace("es-MX-", "")} + Foley Earshot + Subtítulos 1:1`;
+    }
+    if (descEl) {
+      const firstNarration = activeShortsScript.scenes[0]?.narration || "";
+      descEl.textContent = firstNarration ? `"${firstNarration}..."` : "Video vertical 9:16 generado proceduralmente con 5 actos cinematográficos.";
+    }
+    if (dlBtn) {
+      dlBtn.href = data.video_url;
+      dlBtn.download = data.filename;
+    }
+    if (openBtn) {
+      openBtn.href = data.video_url;
+    }
+    if (card) {
+      card.classList.remove("hidden");
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    setTimeout(() => {
+      if (progBox) progBox.classList.add("hidden");
+    }, 2500);
+  } catch (err) {
+    alert("Error al renderizar Animated Short: " + err.message);
+    if (progBox) progBox.classList.add("hidden");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadLastShortsVideo() {
+  try {
+    let videoData = null;
+    const res = await fetch("/api/animated-shorts/last-video");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.has_video && data.video) {
+        videoData = data.video;
+      }
+    }
+    if (!videoData) {
+      const local = localStorage.getItem("shorts_last_video");
+      if (local) {
+        try { videoData = JSON.parse(local); } catch (e) {}
+      }
+    }
+    if (!videoData || !videoData.video_url) return;
+
+    const card = document.getElementById("shortsVideoCard");
+    const vid = document.getElementById("shortsPreviewPlayer");
+    const titleEl = document.getElementById("shortsPreviewTitle");
+    const metaEl = document.getElementById("shortsPreviewMeta");
+    const dlBtn = document.getElementById("shortsDownloadBtn");
+    const openBtn = document.getElementById("shortsOpenTabBtn");
+
+    if (vid) {
+      vid.src = `${videoData.video_url}?t=${Date.now()}`;
+      vid.load();
+    }
+    if (titleEl) titleEl.textContent = videoData.title;
+    if (metaEl) {
+      metaEl.textContent = `${Number(videoData.duration).toFixed(1)}s · ${videoData.fps || 30} FPS · ${(videoData.voice || "Dalia").replace("es-MX-", "")} + Foley Earshot + Subtítulos 1:1`;
+    }
+    if (dlBtn) {
+      dlBtn.href = videoData.video_url;
+      dlBtn.download = videoData.filename || "animated_short.mp4";
+    }
+    if (openBtn) openBtn.href = videoData.video_url;
+    if (card) card.classList.remove("hidden");
+  } catch (e) {
+    console.warn("Error cargando último animated short:", e);
+  }
+}
+
 // Inicializar al cargar el script
 document.addEventListener("DOMContentLoaded", () => {
   initShortsStudio();
+  loadLastShortsVideo();
 });

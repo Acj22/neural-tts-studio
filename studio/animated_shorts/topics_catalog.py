@@ -82,8 +82,36 @@ ANIMATED_SHORTS_TOPICS: List[Dict[str, Any]] = [
 ]
 
 
-def get_all_animated_shorts_topics() -> List[Dict[str, Any]]:
-    return ANIMATED_SHORTS_TOPICS
+def get_all_animated_shorts_topics(refresh: bool = False) -> List[Dict[str, Any]]:
+    """Devuelve las categorías de temas con presets dinámicos y variados."""
+    try:
+        from studio.dynamic_topic_service import DEEP_TOPICS_POOL, get_diverse_topics
+        import random
+        topics_copy = []
+        for t in ANIMATED_SHORTS_TOPICS:
+            tc = dict(t)
+            # Mapear al pool profundo correspondiente
+            cat_key = "arqueologia_enigma"
+            if "ingenier" in t["id"]:
+                cat_key = "ingenieria_extrema"
+            elif "ciencia" in t["id"]:
+                cat_key = "ciencia_tecnologia"
+            elif "naturaleza" in t["id"]:
+                cat_key = "anomalias_tierra"
+            elif "espacial" in t["id"]:
+                cat_key = "espacio_profundo"
+
+            deep_list = DEEP_TOPICS_POOL.get(cat_key, {}).get("topics", [])
+            if deep_list:
+                shuffled = list(deep_list)
+                random.shuffle(shuffled)
+                # Combinar presets base con 6 temas aleatorios frescos
+                tc["preset_titles"] = shuffled[:8]
+                tc["default_title"] = shuffled[0]
+            topics_copy.append(tc)
+        return topics_copy
+    except Exception:
+        return ANIMATED_SHORTS_TOPICS
 
 
 def get_topic_by_id(topic_id: str) -> Dict[str, Any] | None:
