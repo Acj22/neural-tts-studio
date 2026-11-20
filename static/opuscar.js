@@ -465,7 +465,9 @@ function drawChapultepecLive(ctx, w, h, t, dur, title) {
   ctx.restore();
 }
 
-const drawMayanDioramaLive = drawMayaDioramaCanvas;
+function drawMayanDioramaLive(ctx, w, h, t, dur, title) {
+  return drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
+}
 
 function drawBlueprintCAD(ctx, w, h, t, dur, title) {
   const lowTitle = (title || "").toLowerCase();
