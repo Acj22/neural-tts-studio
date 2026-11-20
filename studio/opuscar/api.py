@@ -64,12 +64,26 @@ def render_opuscar_video_endpoint(req: OpuscarRenderRequest):
             fps=req.fps,
             output_dir=out_dir,
         )
+        meta_info = {}
+        meta_file = out_dir / "meta.json"
+        if meta_file.exists():
+            try:
+                import json
+                meta_info = json.loads(meta_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
         return {
             "status": "success",
-            "style_id": req.style_id,
+            "style_id": meta_info.get("style_id", req.style_id),
             "video_url": f"/projects/{out_dir.name}/{video_path.name}",
             "filename": video_path.name,
             "format": "9:16" if req.is_vertical else "16:9",
+            "duration": meta_info.get("duration", 0.0),
+            "fps": meta_info.get("fps", req.fps),
+            "title": meta_info.get("title", req.title),
+            "narration": meta_info.get("narration", req.narration),
+            "voice": meta_info.get("voice", req.voice),
         }
     except Exception as e:
         logger.exception("Error al renderizar animación Lemo-Opuscar:")

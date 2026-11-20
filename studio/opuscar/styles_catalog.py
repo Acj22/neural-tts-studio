@@ -47,6 +47,24 @@ OPUSCAR_STATIONS = [
 
 OPUSCAR_STYLES: List[Dict[str, Any]] = [
     {
+        "id": "ojo_sahara_diorama",
+        "name": "Diorama Ojo del Sahara & Geología (Estructura de Richat 🌍)",
+        "station": "graphic_kinetic",
+        "badge": "Geología / Maravillas 🌍",
+        "description": "Diorama geológico paper-cut con dunas de arena del Sahara, anillos concéntricos en perspectiva elíptica 2.5D de 40 km de diámetro, domo intrusivo, escaneo orbital y micro-animaciones dinámicas.",
+        "palette": {
+            "background": "#fbf5e8",
+            "grid": "#e6dcbf",
+            "primary": "#b45309",
+            "accent": "#0284c7",
+            "text": "#0f172a",
+        },
+        "default_title": "El Rincón Más Asombroso de la Tierra: El Ojo del Sahara",
+        "default_narration": "En medio del desierto de Mauritania existe una gigantesca estructura concéntrica de 40 kilómetros visible desde el espacio: la mística Estructura de Richat.",
+        "default_fps": 60,
+        "default_duration": 60.0,
+    },
+    {
         "id": "chapultepec_diorama",
         "name": "Diorama Castillo de Chapultepec & Virreinato (Alcázar Real ★)",
         "station": "graphic_kinetic",

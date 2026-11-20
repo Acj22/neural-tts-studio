@@ -71,6 +71,17 @@ async def synthesize_opuscar_audio(
 
 def draw_paper_cutout_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
     """Renderiza estética de diorama paper cutout con stickers, bordes blancos y sombras 2.5D."""
+    low_title = (title or "").lower()
+    if any(k in low_title for k in ("sahara", "richat", "mauritania", "desierto", "crater")):
+        draw_ojo_sahara_diorama(draw, w, h, t, duration, title)
+        return
+    if any(k in low_title for k in ("chapultepec", "castillo", "alcazar", "maximiliano", "carlota")):
+        draw_chapultepec_diorama(draw, w, h, t, duration, title)
+        return
+    if any(k in low_title for k in ("maya", "campeche", "valeriana", "lidar", "piramide", "sakil")):
+        draw_mayan_diorama(draw, w, h, t, duration, title)
+        return
+
     # 1. Fondo de azulejos / piso cálido
     bg_warm = (251, 245, 232)
     tile_line = (240, 225, 200)
@@ -123,6 +134,182 @@ def draw_paper_cutout_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: floa
     draw.ellipse([(cx - 45, cy - 30), (cx - 20, cy - 5)], fill=(30, 41, 59))
     draw.ellipse([(cx + 20, cy - 30), (cx + 45, cy - 5)], fill=(30, 41, 59))
     draw.arc([(cx - 40, cy + 5), (cx + 40, cy + 55)], start=10, end=170, fill=(185, 28, 28), width=5)
+
+
+def draw_mayan_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza el diorama de arqueología maya con pirámide escalonada y selva."""
+    bg_jungle = (8, 28, 21)
+    draw.rectangle([(0, 0), (w, h)], fill=bg_jungle)
+
+    # Placa superior
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(4, 15, 11))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(16, 44, 34), outline=(52, 211, 153), width=2)
+    draw.text((px1 + 25, py1 + 16), "ARQUEOLOGÍA PREHISPÁNICA // LIDAR EN CAMPECHE", fill=(52, 211, 153))
+    draw.text((px1 + 25, py1 + 46), (title or "Ciudad Maya")[:38].upper(), fill=(241, 245, 249))
+
+    cx = w // 2
+    cy = int(h * 0.58)
+
+    # Selva base
+    draw.ellipse([(cx - int(w * 0.46), cy + 40), (cx + int(w * 0.46), cy + 220)], fill=(27, 67, 50), outline=(255, 255, 255), width=3)
+
+    # Pirámide escalonada en 5 niveles
+    steps = [
+        (220, 40, cy - 20),
+        (180, 36, cy - 56),
+        (140, 32, cy - 88),
+        (100, 28, cy - 116),
+        (60, 24, cy - 140),
+    ]
+    for sw, sh, sy in steps:
+        draw.rectangle([(cx - sw, sy), (cx + sw, sy + sh)], fill=(203, 213, 225), outline=(255, 255, 255), width=2)
+        # Escalinata central
+        draw.rectangle([(cx - 20, sy), (cx + 20, sy + sh)], fill=(148, 163, 184))
+
+    # Templo superior
+    draw.rectangle([(cx - 30, cy - 180), (cx + 30, cy - 140)], fill=(241, 245, 249), outline=(52, 211, 153), width=3)
+
+    # Escaneo LiDAR dinámico
+    laser_y = int((cy - 200) + ((t * 0.8) % 1.0) * 320)
+    draw.line([(cx - 240, laser_y), (cx + 240, laser_y)], fill=(52, 211, 153), width=3)
+
+    # Glifos de jade flotantes
+    glyph_y = cy - 220 + int(math.sin(t * 3.0) * 8)
+    draw.rounded_rectangle([(cx - 90, glyph_y), (cx + 90, glyph_y + 36)], radius=10, fill=(6, 78, 59), outline=(52, 211, 153), width=2)
+    draw.text((cx - 70, glyph_y + 10), "VALERIANA • 6,674 ESTRUCTURAS", fill=(209, 250, 229))
+
+
+def draw_ojo_sahara_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza el diorama geológico de papel recortado del Ojo del Sahara (Estructura de Richat)."""
+    # 1. Fondo de arena del desierto con cuadrícula topográfica
+    bg_sand = (248, 241, 227)
+    grid_color = (230, 215, 190)
+    for y in range(0, h, 60):
+        draw.line([(0, y), (w, y)], fill=grid_color, width=1)
+    for x in range(0, w, 60):
+        draw.line([(x, 0), (x, h)], fill=grid_color, width=1)
+
+    # 2. Placa superior estilo paper-cut con borde blanco y sombra
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 5, py1 + 5), (px2 + 5, py2 + 5)], radius=18, fill=(205, 190, 165))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(180, 130, 80), width=2)
+    draw.text((px1 + 25, py1 + 16), "GEOLOGÍA // ESTRUCTURA DE RICHAT (MAURITANIA)", fill=(180, 83, 9))
+    draw.text((px1 + 25, py1 + 46), (title or "El Ojo del Sahara")[:38].upper(), fill=(15, 23, 42))
+
+    cx = w // 2
+    cy = int(h * 0.48)
+
+    # 3. Dunas del desierto en capas de papel recortado con sombras
+    dune_layers = [
+        (int(h * 0.76), (217, 119, 6), (180, 83, 9)),
+        (int(h * 0.70), (245, 158, 11), (217, 119, 6)),
+        (int(h * 0.64), (251, 191, 36), (245, 158, 11)),
+    ]
+    for dy, d_fill, d_border in dune_layers:
+        wave = math.sin(t * 1.5 + dy * 0.01) * 8
+        draw.ellipse([(cx - int(w * 0.65), dy + int(wave)), (cx + int(w * 0.65), dy + 280 + int(wave))], fill=d_fill, outline=d_border, width=3)
+
+    # 4. Anillos concéntricos del Ojo del Sahara (Estructura de Richat - 40 km)
+    # Perspectiva elíptica 2.5D
+    rings = [
+        (260, 140, (146, 64, 14), "Cinturón de cuarcita exterior"),
+        (210, 112, (180, 83, 9), "Brecha hidrotermal"),
+        (160, 84, (217, 119, 6), "Estrato de dolomía"),
+        (110, 58, (14, 116, 144), "Depresión de basalto"),
+        (65, 34, (2, 132, 199), "Núcleo intrusivo central"),
+    ]
+    pulse = 1.0 + 0.02 * math.sin(t * 3.0)
+
+    # Sombra de la estructura completa
+    draw.ellipse([(cx - int(270 * pulse) + 8, cy - int(148 * pulse) + 8), (cx + int(270 * pulse) + 8, cy + int(148 * pulse) + 8)], fill=(195, 175, 150))
+    # Borde exterior blanco de sticker
+    draw.ellipse([(cx - int(274 * pulse), cy - int(152 * pulse)), (cx + int(274 * pulse), cy + int(152 * pulse))], fill=(255, 255, 255))
+
+    for rx, ry, r_color, _ in rings:
+        r_x = int(rx * pulse)
+        r_y = int(ry * pulse)
+        draw.ellipse([(cx - r_x, cy - r_y), (cx + r_x, cy + r_y)], fill=r_color, outline=(255, 255, 255), width=3)
+
+    # Centro de la estructura (domo)
+    draw.ellipse([(cx - 24, cy - 14), (cx + 24, cy + 14)], fill=(255, 255, 255))
+    draw.ellipse([(cx - 18, cy - 10), (cx + 18, cy + 10)], fill=(3, 105, 161))
+
+    # 5. Cota de medición satelital (Ø 40 km)
+    cota_y = cy + int(170 * pulse)
+    draw.line([(cx - 220, cota_y), (cx + 220, cota_y)], fill=(15, 23, 42), width=2)
+    draw.line([(cx - 220, cota_y - 10), (cx - 220, cota_y + 10)], fill=(15, 23, 42), width=2)
+    draw.line([(cx + 220, cota_y - 10), (cx + 220, cota_y + 10)], fill=(15, 23, 42), width=2)
+    draw.text((cx - 80, cota_y - 30), "DIÁMETRO: Ø 40 KM", fill=(15, 23, 42))
+
+    # 6. Escaneo orbital dinámico
+    scan_angle = t * 1.8
+    scan_x = cx + int(math.cos(scan_angle) * 230)
+    scan_y = cy + int(math.sin(scan_angle) * 120)
+    draw.line([(cx, cy), (scan_x, scan_y)], fill=(2, 132, 199), width=2)
+    draw.ellipse([(scan_x - 6, scan_y - 6), (scan_x + 6, scan_y + 6)], fill=(255, 255, 255), outline=(2, 132, 199), width=2)
+
+    # 7. Badge de coordenadas geográficas
+    bx1, by1 = cx - 180, int(h * 0.72)
+    bx2, by2 = cx + 180, by1 + 52
+    draw.rounded_rectangle([(bx1 + 3, by1 + 3), (bx2 + 3, by2 + 3)], radius=12, fill=(200, 185, 160))
+    draw.rounded_rectangle([(bx1 - 2, by1 - 2), (bx2 + 2, by2 + 2)], radius=14, fill=(255, 255, 255))
+    draw.rounded_rectangle([(bx1, by1), (bx2, by2)], radius=12, fill=(255, 253, 248), outline=(217, 119, 6), width=2)
+    draw.text((bx1 + 20, by1 + 16), "COORD: 21°07' N · 11°24' W", fill=(180, 83, 9))
+
+
+def draw_chapultepec_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
+    """Renderiza el diorama multicapa de papel recortado del Castillo de Chapultepec."""
+    bg_warm = (251, 245, 232)
+    grid_color = (235, 222, 198)
+    for y in range(0, h, 60): draw.line([(0, y), (w, y)], fill=grid_color, width=1)
+    for x in range(0, w, 60): draw.line([(x, 0), (x, h)], fill=grid_color, width=1)
+
+    px1, py1 = 60, 60
+    px2, py2 = w - 60, 155
+    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(200, 190, 175))
+    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
+    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(180, 130, 80), width=2)
+    draw.text((px1 + 25, py1 + 16), "HISTORIA DE MÉXICO // ALCÁZAR REAL", fill=(180, 83, 9))
+    draw.text((px1 + 25, py1 + 46), (title or "Castillo de Chapultepec")[:38].upper(), fill=(15, 23, 42))
+
+    cx = w // 2
+    cy = int(h * 0.58)
+
+    # Cerro verde del Chapulín
+    draw.ellipse([(cx - int(w * 0.45) + 6, cy - 20 + 6), (cx + int(w * 0.45) + 6, cy + 180 + 6)], fill=(190, 180, 160))
+    draw.ellipse([(cx - int(w * 0.45) - 3, cy - 20 - 3), (cx + int(w * 0.45) + 3, cy + 180 + 3)], fill=(255, 255, 255))
+    draw.ellipse([(cx - int(w * 0.45), cy - 20), (cx + int(w * 0.45), cy + 180)], fill=(22, 163, 74), outline=(21, 128, 61), width=4)
+
+    # Edificio del Castillo de Chapultepec
+    draw.rounded_rectangle([(cx - 160, cy - 140), (cx + 160, cy - 20)], radius=12, fill=(255, 255, 255), outline=(203, 213, 225), width=3)
+    draw.rounded_rectangle([(cx - 150, cy - 130), (cx + 150, cy - 30)], radius=8, fill=(248, 250, 252))
+
+    # Arcadas neoclásicas
+    for arch_x in range(cx - 130, cx + 130, 40):
+        draw.rounded_rectangle([(arch_x, cy - 110), (arch_x + 24, cy - 40)], radius=6, fill=(30, 41, 59))
+        draw.ellipse([(arch_x + 6, cy - 100), (arch_x + 18, cy - 80)], fill=(245, 158, 11))
+
+    # Torreón central y reloj
+    draw.rectangle([(cx - 40, cy - 200), (cx + 40, cy - 140)], fill=(255, 255, 255), outline=(203, 213, 225), width=3)
+    draw.ellipse([(cx - 16, cy - 180), (cx + 16, cy - 148)], fill=(248, 250, 252), outline=(180, 83, 9), width=2)
+    # Manecillas
+    draw.line([(cx, cy - 164), (cx, cy - 174)], fill=(15, 23, 42), width=2)
+    draw.line([(cx, cy - 164), (cx + 8, cy - 164)], fill=(15, 23, 42), width=2)
+
+    # Asta y bandera de México
+    wave = int(math.sin(t * 6.0) * 4)
+    draw.line([(cx, cy - 200), (cx, cy - 260)], fill=(100, 116, 139), width=4)
+    draw.rectangle([(cx + 2, cy - 260 + wave), (cx + 22, cy - 225 + wave)], fill=(22, 163, 74))
+    draw.rectangle([(cx + 22, cy - 260 + wave), (cx + 42, cy - 225 + wave)], fill=(255, 255, 255))
+    draw.rectangle([(cx + 42, cy - 260 + wave), (cx + 62, cy - 225 + wave)], fill=(220, 38, 38))
+
+    # Cota de altitud
+    draw.text((cx - 90, cy + 90), "ALTITUD: 2,325 m s.n.m.", fill=(255, 255, 255))
 
 
 def draw_blueprint_cad(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
@@ -363,46 +550,26 @@ def render_opuscar_animation_video(
     total_frames = int(dur_sec * fps)
     low_text = (title + " " + narration).lower()
 
-    # Si style_id viene vacío o es blueprint_cad sin tema automotriz, cambiar a paper_cutout_diorama
-    if not style_id or (style_id == "blueprint_cad" and not any(k in low_text for k in ["turbo", "compresor", "motor", "cilindro", "rpm", "boost", "mecanic"])):
+    # Detección inteligente de temática para garantizar correspondencia visual 1:1
+    if any(k in low_text for k in ("sahara", "richat", "mauritania", "desierto", "crater")):
+        style_id = "ojo_sahara_diorama"
+        draw_fn = draw_ojo_sahara_diorama
+    elif any(k in low_text for k in ("chapultepec", "castillo", "alcazar", "maximiliano", "carlota")):
+        style_id = "chapultepec_diorama"
+        draw_fn = draw_chapultepec_diorama
+    elif any(k in low_text for k in ("maya", "campeche", "valeriana", "lidar", "piramide", "sakil")):
+        style_id = "mayan_diorama"
+        draw_fn = draw_mayan_diorama
+    elif style_id == "ojo_sahara_diorama":
+        draw_fn = draw_ojo_sahara_diorama
+    elif style_id == "chapultepec_diorama":
+        draw_fn = draw_chapultepec_diorama
+    elif style_id == "mayan_diorama":
+        draw_fn = draw_mayan_diorama
+    elif style_id == "blueprint_cad" and not any(k in low_text for k in ["turbo", "compresor", "motor", "cilindro", "rpm", "boost", "mecanic"]):
         style_id = "paper_cutout_diorama"
-
-    # Si el tema investigado es El Castillo de Chapultepec, Maximiliano, Virreinato, Reforma
-    if style_id in ("chapultepec_diorama", "castillo") or any(k in low_text for k in ["chapultepec", "castillo", "alcazar", "maximiliano", "carlota", "virrey", "reforma", "degollado", "cardenas"]):
-        chap_vid = _repo_root / "projects" / "opuscar_chapultepec" / "chapultepec_diorama_9_16.mp4"
-        if chap_vid.exists():
-            target_vid = output_dir / f"opuscar_{style_id}_{width}x{height}.mp4"
-            shutil.copy2(chap_vid, target_vid)
-            return target_vid
-
-    # Si el tema investigado es la Ciudad Maya de Campeche, Valeriana, LiDAR o estilo mayan_diorama
-    if style_id == "mayan_diorama" or any(k in low_text for k in ["maya", "campeche", "valeriana", "lidar", "sakil", "piramide", "arqueolog", "antiquity", "auld-thomas"]):
-        maya_vid = _repo_root / "projects" / "ciudad_maya_diorama" / "ciudad_maya_diorama_9_16.mp4"
-        if maya_vid.exists():
-            target_vid = output_dir / f"opuscar_{style_id}_{width}x{height}.mp4"
-            shutil.copy2(maya_vid, target_vid)
-            return target_vid
-
-    # Si el tema investigado es el chile / capsaicina
-    if any(k in low_text for k in ["chile", "capsaicina", "habanero", "jalapeño", "picante"]):
-        chile_vid = _repo_root / "projects" / "chile_diorama_perfeccionado" / "chile_diorama_9_16.mp4"
-        if chile_vid.exists():
-            target_vid = output_dir / f"opuscar_{style_id}_{width}x{height}.mp4"
-            shutil.copy2(chile_vid, target_vid)
-            return target_vid
-
-    # Estilo de paleta
-    pal = style_data.get("palette", {})
-    bg_hex = pal.get("background", "#fbf5e8")
-    if style_id == "paper_cutout_diorama" or style_id in ("chapultepec_diorama", "mayan_diorama"):
-        bg_hex = "#fbf5e8"
-    # Convertir hex a RGB
-    h_c = bg_hex.lstrip("#")
-    bg_rgb = tuple(int(h_c[i:i+2], 16) for i in (0, 2, 4)) if len(h_c) == 6 else (251, 245, 232)
-
-    # Función de renderizado según estilo (POR DEFECTO SIEMPRE PAPER-CUT DIORAMA)
-    draw_fn: Callable = draw_paper_cutout_diorama
-    if style_id == "blueprint_cad":
+        draw_fn = draw_paper_cutout_diorama
+    elif style_id == "blueprint_cad":
         draw_fn = draw_blueprint_cad
     elif style_id == "vector_flow":
         draw_fn = draw_vector_flow
@@ -412,6 +579,16 @@ def render_opuscar_animation_video(
         draw_fn = draw_hud_telemetry
     elif style_id == "anime_speedlines":
         draw_fn = draw_anime_speedlines
+    else:
+        draw_fn = draw_paper_cutout_diorama
+
+    # Estilo de paleta
+    pal = (style_data or {}).get("palette", {})
+    bg_hex = pal.get("background", "#fbf5e8")
+    if style_id in ("paper_cutout_diorama", "chapultepec_diorama", "mayan_diorama", "ojo_sahara_diorama"):
+        bg_hex = "#fbf5e8"
+    h_c = bg_hex.lstrip("#")
+    bg_rgb = tuple(int(h_c[i:i+2], 16) for i in (0, 2, 4)) if len(h_c) == 6 else (251, 245, 232)
 
     # 3. Renderizar cada cuadro como función pura del tiempo t
     for f in range(total_frames):
@@ -424,7 +601,25 @@ def render_opuscar_animation_video(
         frame_path = frames_dir / f"frame_{f:05d}.png"
         im.save(str(frame_path))
 
-    # 4. Crear archivo de subtítulos ASS dinámicos
+    # 4. Crear archivo de subtítulos ASS dinámicos sincronizados progresivamente
+    words = [w.strip() for w in narration.split() if w.strip()]
+    dialogues = []
+    if words:
+        chunk_size = 5  # 4-6 palabras por línea para 9:16 vertical
+        chunks = [words[i:i + chunk_size] for i in range(0, len(words), chunk_size)]
+        chunk_dur = dur_sec / max(1, len(chunks))
+        for idx, ch in enumerate(chunks):
+            start_t = idx * chunk_dur
+            end_t = min(dur_sec, (idx + 1) * chunk_dur)
+            s_min, s_sec = int(start_t // 60), start_t % 60
+            e_min, e_sec = int(end_t // 60), end_t % 60
+            phrase = " ".join(ch)
+            dialogues.append(
+                f"Dialogue: 0,{s_min}:{s_sec:05.2f},{e_min}:{e_sec:05.2f},Default,,0,0,0,,{phrase}"
+            )
+    else:
+        dialogues.append(f"Dialogue: 0,0:00:00.20,0:00:{dur_sec:05.2f},Default,,0,0,0,,{title}")
+
     subtitles_ass = output_dir / "subtitles.ass"
     sub_content = f"""[Script Info]
 Title: Lemo-Opuscar Subtitles
@@ -434,13 +629,30 @@ PlayResY: {height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,42,&H00FFFFFF,&H0000D7FF,&H000B0F19,&H90000000,-1,0,0,0,100,100,0,0,1,4.5,2.5,2,40,40,260,1
+Style: Default,Arial Black,44,&H00FFFFFF,&H0000D7FF,&H000B0F19,&H90000000,-1,0,0,0,100,100,0,0,1,4.5,2.5,2,40,40,240,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.20,0:00:{dur_sec:05.2f},Default,,0,0,0,,{narration}
-"""
+""" + "\n".join(dialogues) + "\n"
     subtitles_ass.write_text(sub_content, encoding="utf-8")
+
+    # Guardar metadatos para la API / UI
+    meta_path = output_dir / "meta.json"
+    try:
+        import json
+        meta_path.write_text(
+            json.dumps({
+                "duration": dur_sec,
+                "fps": fps,
+                "style_id": style_id,
+                "title": title,
+                "narration": narration,
+                "voice": voice,
+            }, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
 
     # 5. Multiplexar con FFmpeg
     final_video = output_dir / f"opuscar_{style_id}_{width}x{height}.mp4"

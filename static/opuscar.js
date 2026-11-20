@@ -16,6 +16,13 @@ let opuscarCurrentStyle = "paper_cutout_diorama";
 
 // Catálogo de estilos locales
 const OPUSCAR_PRESETS = {
+  ojo_sahara_diorama: {
+    name: "Diorama Ojo del Sahara & Geología (Estructura de Richat 🌍)",
+    bg: "#fbf5e8",
+    draw: drawOjoSaharaCanvas,
+    title: "El Rincón Más Asombroso de la Tierra: El Ojo del Sahara",
+    narration: "En medio del desierto de Mauritania existe una gigantesca estructura concéntrica de 40 kilómetros visible desde el espacio: la mística Estructura de Richat."
+  },
   chapultepec_diorama: {
     name: "Diorama Castillo de Chapultepec & Virreinato (Alcázar Real ★)",
     bg: "#fbf5e8",
@@ -272,8 +279,122 @@ function drawMayaDioramaCanvas(ctx, w, h, t, dur, title) {
   ctx.beginPath(); ctx.arc(droneX + 12, droneY, 6, 0, Math.PI * 2); ctx.fill();
 }
 
+function drawOjoSaharaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo de papel crema / arena del desierto
+  ctx.fillStyle = '#fbf5e8';
+  ctx.fillRect(0, 0, w, h);
+
+  // Cuadrícula topográfica desértica
+  ctx.strokeStyle = 'rgba(215, 195, 160, 0.35)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Placa superior estilo paper-cut con borde blanco y sombra
+  ctx.save();
+  ctx.fillStyle = 'rgba(180, 150, 110, 0.4)';
+  ctx.beginPath(); ctx.roundRect(24, 24, w - 48, 64, 14); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#b45309';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('GEOLOGÍA // ESTRUCTURA DE RICHAT (MAURITANIA)', 38, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'El Ojo del Sahara').slice(0, 38).toUpperCase(), 38, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.52;
+
+  // Dunas de arena del desierto (capas en abanico)
+  ctx.save();
+  ctx.fillStyle = '#e2c59b';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 90, w * 0.46, 120, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Anillos concéntricos de la Estructura de Richat en perspectiva elíptica 2.5D
+  const rings = [
+    { rx: w * 0.42, ry: 130, color: '#f3e5cb', stroke: '#cbb085', lw: 10 },
+    { rx: w * 0.35, ry: 105, color: '#ebd0a5', stroke: '#b89260', lw: 12 },
+    { rx: w * 0.28, ry: 80,  color: '#c29d6a', stroke: '#8c6436', lw: 14 },
+    { rx: w * 0.20, ry: 58,  color: '#8b5a2b', stroke: '#5c3814', lw: 12 },
+    { rx: w * 0.12, ry: 36,  color: '#4a2c11', stroke: '#2e1806', lw: 10 }
+  ];
+
+  ctx.save();
+  // Sombra proyectada del domo
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 18, w * 0.44, 136, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Borde blanco paper-cut alrededor de la estructura
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w * 0.44, 136, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  rings.forEach((r) => {
+    ctx.fillStyle = r.color;
+    ctx.strokeStyle = r.stroke;
+    ctx.lineWidth = r.lw;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r.rx, r.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // Núcleo central / domo ígneo
+  const corePulse = Math.sin(t * 3.0) * 3;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 22 + corePulse, 14 + corePulse * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#0284c7';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 18 + corePulse, 10 + corePulse * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Escaneo orbital radar satelital (línea giratoria)
+  const scanAngle = (t * 1.5) % (Math.PI * 2);
+  const scanLen = w * 0.40;
+  ctx.strokeStyle = 'rgba(2, 132, 199, 0.6)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(scanAngle) * scanLen, cy + Math.sin(scanAngle) * (scanLen * 0.32));
+  ctx.stroke();
+
+  // Cota y etiqueta técnica flotante "40 KM DIÁMETRO"
+  const tagY = cy - 145 + Math.sin(t * 2.5) * 5;
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath(); ctx.roundRect(cx - 95, tagY + 4, 190, 36, 10); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(cx - 97, tagY - 2, 194, 40, 12); ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.roundRect(cx - 95, tagY, 190, 36, 10); ctx.fill();
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('DIÁMETRO: 40 KM • VISIBLE DESDE EL ESPACIO', cx, tagY + 22);
+
+  ctx.restore();
+}
+
 function drawPaperCutoutDiorama(ctx, w, h, t, dur, title) {
-  if (title.toLowerCase().includes("maya") || title.toLowerCase().includes("campeche") || title.toLowerCase().includes("selva")) {
+  const lowTitle = (title || "").toLowerCase();
+  if (lowTitle.includes("sahara") || lowTitle.includes("richat") || lowTitle.includes("mauritania") || lowTitle.includes("desierto") || lowTitle.includes("cráter")) {
+    drawOjoSaharaCanvas(ctx, w, h, t, dur, title);
+    return;
+  }
+  if (lowTitle.includes("chapultepec") || lowTitle.includes("castillo") || lowTitle.includes("alcazar") || lowTitle.includes("maximiliano")) {
+    drawChapultepecLive(ctx, w, h, t, dur, title);
+    return;
+  }
+  if (lowTitle.includes("maya") || lowTitle.includes("campeche") || lowTitle.includes("selva") || lowTitle.includes("valeriana") || lowTitle.includes("lidar")) {
     drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
     return;
   }
@@ -473,10 +594,14 @@ function drawBlueprintCAD(ctx, w, h, t, dur, title) {
   const lowTitle = (title || "").toLowerCase();
   const isMech = ["turbo", "compresor", "valvula", "piston", "motor", "rpm", "boost", "mecanic", "cad", "cilindro"].some(k => lowTitle.includes(k));
   if (!isMech) {
-    if (lowTitle.includes("maya") || lowTitle.includes("campeche") || lowTitle.includes("valeriana") || lowTitle.includes("lidar")) {
+    if (lowTitle.includes("sahara") || lowTitle.includes("richat") || lowTitle.includes("mauritania") || lowTitle.includes("desierto") || lowTitle.includes("cráter")) {
+      drawOjoSaharaCanvas(ctx, w, h, t, dur, title);
+    } else if (lowTitle.includes("maya") || lowTitle.includes("campeche") || lowTitle.includes("valeriana") || lowTitle.includes("lidar")) {
       drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
-    } else {
+    } else if (lowTitle.includes("chapultepec") || lowTitle.includes("castillo") || lowTitle.includes("alcazar") || lowTitle.includes("maximiliano")) {
       drawChapultepecLive(ctx, w, h, t, dur, title);
+    } else {
+      drawPaperCutoutDiorama(ctx, w, h, t, dur, title);
     }
     return;
   }
@@ -785,9 +910,21 @@ async function renderOpuscarVideo() {
     const dlBtn = document.getElementById("opuscarDownloadBtn");
     const openBtn = document.getElementById("opuscarOpenTabBtn");
     const pTitle = document.getElementById("opuscarPreviewTitle");
+    const pMeta = document.getElementById("opuscarPreviewMeta");
+    const pDesc = document.getElementById("opuscarPreviewDesc");
+
     if (dlBtn) { dlBtn.href = data.video_url; dlBtn.download = data.filename; }
     if (openBtn) { openBtn.href = data.video_url; }
-    if (pTitle) { pTitle.textContent = title; }
+    if (pTitle) { pTitle.textContent = data.title || title; }
+    if (pMeta) {
+      const durLabel = data.duration ? `${Number(data.duration).toFixed(1)}s` : "60.0s";
+      const fpsLabel = `${data.fps || 60} FPS`;
+      const voiceLabel = (data.voice || voice || "Dalia Neural").replace("es-MX-", "").replace("es-ES-", "");
+      pMeta.textContent = `${durLabel} · ${fpsLabel} · ${voiceLabel} + Subtítulos Big Focus 1:1`;
+    }
+    if (pDesc) {
+      pDesc.textContent = data.narration || narration || "Animación diorama multicapa paper-cut generada proceduralmente con sincronización 1:1 de audio, subtítulos y elementos visuales.";
+    }
     if (modal) modal.classList.remove("hidden");
 
     setTimeout(() => { if (progBox) progBox.classList.add("hidden"); }, 2500);
@@ -809,13 +946,28 @@ function selectOpuscarShowcase(type) {
   const desc = document.getElementById("opuscarPreviewDesc");
   const dl = document.getElementById("opuscarDownloadBtn");
   const tab = document.getElementById("opuscarOpenTabBtn");
+  const btnSahara = document.getElementById("btnShowcaseSahara");
   const btnChap = document.getElementById("btnShowcaseChapultepec");
   const btnMaya = document.getElementById("btnShowcaseMaya");
   const btnChile = document.getElementById("btnShowcaseChile");
   const modalVid = document.getElementById("opuscarModalVideo");
   const modalLink = document.getElementById("opuscarDownloadLink");
 
-  if (type === 'chapultepec') {
+  if (type === 'sahara') {
+    const url = "/projects/opuscar_ojo_sahara_diorama/opuscar_ojo_sahara_diorama_1080x1920.mp4";
+    if (vid) { vid.src = url; vid.load(); vid.play().catch(() => {}); }
+    if (title) title.textContent = "🌍 El Rincón Más Asombroso de la Tierra: El Ojo del Sahara";
+    if (meta) meta.textContent = "60.0s · 60 FPS · Dalia Neural + Subtítulos Big Focus 1:1";
+    if (desc) desc.textContent = "Animación diorama geológico de papel recortado: dunas del desierto de Mauritania, anillos concéntricos en perspectiva elíptica 2.5D de la Estructura de Richat (40 km), domo intrusivo central, radar orbital satelital y subtítulos progresivos 1:1.";
+    if (dl) { dl.href = url; dl.download = "ojo_sahara_diorama_9_16.mp4"; }
+    if (tab) { tab.href = url; }
+    if (modalVid) { modalVid.src = `${url}?t=${Date.now()}`; }
+    if (modalLink) { modalLink.href = url; modalLink.download = "ojo_sahara_diorama_9_16.mp4"; }
+    if (btnSahara) { btnSahara.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition flex items-center gap-1"; }
+    if (btnChap) { btnChap.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
+    if (btnMaya) { btnMaya.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
+    if (btnChile) { btnChile.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
+  } else if (type === 'chapultepec') {
     const url = "/projects/opuscar_chapultepec/chapultepec_diorama_9_16.mp4";
     if (vid) { vid.src = url; vid.load(); vid.play().catch(() => {}); }
     if (title) title.textContent = "🏰 El Castillo de Chapultepec: El Único Alcázar Real de América";
@@ -825,6 +977,7 @@ function selectOpuscarShowcase(type) {
     if (tab) { tab.href = url; }
     if (modalVid) { modalVid.src = `${url}?t=${Date.now()}`; }
     if (modalLink) { modalLink.href = url; modalLink.download = "chapultepec_diorama_9_16.mp4"; }
+    if (btnSahara) { btnSahara.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
     if (btnChap) { btnChap.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition flex items-center gap-1"; }
     if (btnMaya) { btnMaya.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
     if (btnChile) { btnChile.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
@@ -838,6 +991,7 @@ function selectOpuscarShowcase(type) {
     if (tab) { tab.href = url; }
     if (modalVid) { modalVid.src = `${url}?t=${Date.now()}`; }
     if (modalLink) { modalLink.href = url; modalLink.download = "ciudad_maya_diorama_9_16.mp4"; }
+    if (btnSahara) { btnSahara.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
     if (btnChap) { btnChap.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
     if (btnMaya) { btnMaya.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition flex items-center gap-1"; }
     if (btnChile) { btnChile.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
@@ -851,6 +1005,7 @@ function selectOpuscarShowcase(type) {
     if (tab) { tab.href = url; }
     if (modalVid) { modalVid.src = `${url}?t=${Date.now()}`; }
     if (modalLink) { modalLink.href = url; modalLink.download = "chile_diorama_9_16.mp4"; }
+    if (btnSahara) { btnSahara.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
     if (btnChap) { btnChap.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
     if (btnChile) { btnChile.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition flex items-center gap-1"; }
     if (btnMaya) { btnMaya.className = "px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"; }
@@ -1007,13 +1162,15 @@ async function searchAndGenerateOpuscarScript(useRandom = false) {
     // 4. Seleccionar estilo visual ideal según temática
     const styleSel = document.getElementById("opuscarStyleSelect");
     if (styleSel) {
-      const qLow = query.toLowerCase();
-      if (qLow.includes("chapultepec") || qLow.includes("castillo") || qLow.includes("maximiliano") || qLow.includes("reforma") || qLow.includes("palacio")) {
+      const qLow = (query + " " + (data.best_title || "")).toLowerCase();
+      if (qLow.includes("sahara") || qLow.includes("richat") || qLow.includes("mauritania") || qLow.includes("desierto") || qLow.includes("cráter")) {
+        styleSel.value = "ojo_sahara_diorama";
+      } else if (qLow.includes("chapultepec") || qLow.includes("castillo") || qLow.includes("alcazar") || qLow.includes("maximiliano") || qLow.includes("reforma") || qLow.includes("palacio")) {
         styleSel.value = "chapultepec_diorama";
       } else if (qLow.includes("maya") || qLow.includes("campeche") || qLow.includes("valeriana") || qLow.includes("arqueol") || qLow.includes("pirámide")) {
         styleSel.value = "mayan_diorama";
-      } else if (category === "historia_mexico" || category === "lugares_mundo") {
-        styleSel.value = "chapultepec_diorama";
+      } else if (category === "lugares_mundo" || category === "historia_mexico") {
+        styleSel.value = "paper_cutout_diorama";
       } else if (category === "misterio") {
         styleSel.value = "da_vinci_codex";
       } else {
