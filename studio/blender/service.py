@@ -31,6 +31,30 @@ def _get_ffmpeg() -> str:
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
+def stitch_inspection_sheet(tiles_dir: Path, out_png: Path) -> Optional[Path]:
+    """Une las 4 vistas de control de calidad en una hoja 2x2 etiquetada."""
+    from PIL import Image, ImageDraw
+
+    names = [("hero", "HERO 3/4"), ("front", "FRONTAL"), ("top", "SUPERIOR"), ("side", "LATERAL")]
+    imgs = []
+    for key, label in names:
+        p = tiles_dir / f"qc_{key}.png"
+        if not p.exists():
+            return None
+        imgs.append((Image.open(p).convert("RGB"), label))
+    w, h = imgs[0][0].size
+    pad = 10
+    sheet = Image.new("RGB", (w * 2 + pad * 3, h * 2 + pad * 3), (15, 23, 42))
+    for i, (im, label) in enumerate(imgs):
+        x = pad + (i % 2) * (w + pad)
+        y = pad + (i // 2) * (h + pad)
+        sheet.paste(im, (x, y))
+        ImageDraw.Draw(sheet).text((x + 8, y + 8), label, fill=(0, 210, 255))
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out_png)
+    return out_png
+
+
 def render_scene_3d_video(
     scene: dict[str, Any],
     output_mp4: Path,
@@ -75,6 +99,8 @@ def render_scene_3d_video(
         "visual_direction": scene.get("visual_direction"),
         "output_dir": str(temp_frames_dir.resolve()),
         "single_frame_only": False,
+        "quality_enhancements": bool(scene.get("quality_enhancements", True)),
+        "quality_contact_sheet": bool(scene.get("quality_contact_sheet", False)),
     }
 
     spec_file = temp_frames_dir / "scene_spec.json"
@@ -89,6 +115,9 @@ def render_scene_3d_video(
 
     if ret != 0:
         raise RuntimeError(f"Fallo en Blender Worker (código {ret}): {err or out}")
+
+    if spec["quality_contact_sheet"]:
+        stitch_inspection_sheet(temp_frames_dir / "_qc_tiles", output_mp4.with_name(f"{output_mp4.stem}_qc.png"))
 
     # Compilar los fotogramas PNG en MP4 con FFmpeg local asegurando Full HD
     ffmpeg_cmd = [

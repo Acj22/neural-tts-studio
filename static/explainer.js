@@ -49,6 +49,18 @@ const EXPLAINER_BENCHMARK_TOPICS = {
     topic: "Cómo funciona una transmisión automática (Convertidor de par y engranajes planetarios)",
     main_question: "¿Cómo cambia de marcha una transmisión automática usando fluido a presión y engranajes planetarios?",
     category: "ingenieria"
+  },
+  turbo: {
+    project_name: "¿Cómo funciona un turbocompresor?",
+    topic: "Cómo funciona un turbocompresor automotriz (Turbina Inconel, CHRA y compresor billet)",
+    main_question: "¿Cómo aprovecha un turbocompresor los gases de escape a 950°C para duplicar la potencia del motor?",
+    category: "automoviles"
+  },
+  refrigerador: {
+    project_name: "¿Cómo funciona un refrigerador?",
+    topic: "Cómo funciona el ciclo de refrigeración por compresión de vapor",
+    main_question: "¿Cómo extrae calor un refrigerador mediante el ciclo termodinámico de compresión de vapor?",
+    category: "hogar"
   }
 };
 
@@ -1007,7 +1019,20 @@ async function runCustomBlenderRender() {
     const data = await res.json();
     if (progBar) progBar.style.width = "100%";
     if (progPct) progPct.textContent = "100%";
-    if (progText) progText.textContent = "¡Renderizado completado con éxito!";
+    if (progText) {
+      const q = data.quality || {};
+      const n = (q.pbr_materials || []).length;
+      progText.textContent = `¡Listo! PBR Poly Haven en ${n} materiales · HDRI ${q.hdri || "n/d"}${data.branded ? " · Intro/Cierre Opuscar" : ""}`;
+    }
+    if (data.qc_sheet_url) {
+      const img = document.getElementById("blenderInspectionModalImg");
+      const link = document.getElementById("blenderInspectionDownloadLink");
+      const title = document.getElementById("blenderInspectionModalTitle");
+      if (img) img.src = `${data.qc_sheet_url}?t=${Date.now()}`;
+      if (link) link.href = data.qc_sheet_url;
+      if (title) title.textContent = "Control de calidad previo al render (4 vistas)";
+      document.getElementById("blenderInspectionModal")?.classList.remove("hidden");
+    }
 
     const vid = document.getElementById("blenderLiveVideoPlayer");
     if (vid) {
@@ -1059,14 +1084,378 @@ async function rebuildBlenderBenchmark() {
   }
 }
 
+function playCustomVideoUrl(url) {
+  const vid = document.getElementById("blenderLiveVideoPlayer");
+  if (vid) {
+    vid.src = `${url}?t=${Date.now()}`;
+    vid.load();
+    vid.play().catch(() => {});
+  }
+}
+
+async function checkBlenderStatusAndBridge() {
+  const badge = document.getElementById("blenderStatusBadge");
+  const bridgeBadge = document.getElementById("blenderBridgeBadge");
+  try {
+    const res = await fetch("/api/explainer/blender/status");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (badge) {
+      if (data.available) {
+        badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 text-emerald-300 text-xs font-semibold whitespace-nowrap";
+        badge.innerHTML = `<span>🟢 ${data.version || "Blender 5.3"} Conectado (${data.mode || "Headless"})</span>`;
+      } else {
+        badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-rose-500/40 text-rose-300 text-xs font-semibold whitespace-nowrap";
+        badge.innerHTML = `<span>🔴 Blender no encontrado</span>`;
+      }
+    }
+    if (bridgeBadge) {
+      if (data.live_socket_connected) {
+        bridgeBadge.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+        bridgeBadge.textContent = "⚡ Live Socket Activo (<50ms TCP)";
+      } else {
+        bridgeBadge.className = "text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30";
+        bridgeBadge.textContent = "⚙️ Modo Headless Batch CLI";
+      }
+    }
+  } catch (err) {
+    console.warn("Error consultando estado de Blender:", err);
+  }
+}
+
+async function inspectBlenderModelMultiAngle() {
+  const model = document.getElementById("blenderModelSelect").value;
+  const btn = document.getElementById("btnInspectMultiAngle");
+  const origText = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>⏳ Generando 4 Vistas...</span>`;
+  }
+  try {
+    const res = await fetch(`/api/explainer/blender/inspect-multi-angle/${encodeURIComponent(model)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error generando inspección multi-ángulo.");
+    }
+    const data = await res.json();
+    const modal = document.getElementById("blenderInspectionModal");
+    const img = document.getElementById("blenderInspectionModalImg");
+    const title = document.getElementById("blenderInspectionModalTitle");
+    const link = document.getElementById("blenderInspectionDownloadLink");
+
+    if (title) title.textContent = `Auditoría Multi-Ángulo 2x2: ${model.toUpperCase()}`;
+    if (img) img.src = `${data.image_url}?t=${Date.now()}`;
+    if (link) {
+      link.href = data.image_url;
+      link.download = data.filename || `inspection_${model}.png`;
+    }
+    if (modal) modal.classList.remove("hidden");
+  } catch (e) {
+    alert("Error de inspección: " + e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+  }
+}
+
+function closeBlenderInspectionModal() {
+  const modal = document.getElementById("blenderInspectionModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function searchPolyhavenPBR() {
+  const q = (document.getElementById("polyhavenSearchInput").value || "").trim();
+  const sel = document.getElementById("polyhavenTextureSelect");
+  const msg = document.getElementById("polyhavenStatusMsg");
+  if (msg) msg.textContent = "Buscando en catálogo de Poly Haven...";
+  try {
+    const res = await fetch(`/api/explainer/blender/polyhaven/textures?query=${encodeURIComponent(q)}&limit=25`);
+    if (!res.ok) throw new Error("Error consultando texturas");
+    const data = await res.json();
+    if (sel && data.textures) {
+      sel.innerHTML = "";
+      if (data.textures.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No se encontraron texturas";
+        sel.appendChild(opt);
+      } else {
+        data.textures.forEach((t) => {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = `${t.name} (${(t.categories || []).join(", ")})`;
+          sel.appendChild(opt);
+        });
+      }
+    }
+    if (msg) msg.textContent = `Encontradas ${data.count} texturas para "${q}".`;
+  } catch (e) {
+    if (msg) msg.textContent = "Error al buscar: " + e.message;
+  }
+}
+
+async function downloadSelectedPolyhavenPBR() {
+  const sel = document.getElementById("polyhavenTextureSelect");
+  const btn = document.getElementById("btnDownloadPBR");
+  const msg = document.getElementById("polyhavenStatusMsg");
+  if (!sel || !sel.value) return;
+  const assetId = sel.value;
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = `Descargando mapas PBR 1k de "${assetId}"...`;
+  try {
+    const res = await fetch("/api/explainer/blender/polyhaven/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ asset_id: assetId, resolution: "1k" }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error descargando mapas.");
+    }
+    const data = await res.json();
+    const mapNames = Object.keys(data.maps || {}).join(", ");
+    if (msg) msg.textContent = `✓ Textura "${assetId}" en caché local (${mapNames}).`;
+  } catch (e) {
+    if (msg) msg.textContent = "Error descargando: " + e.message;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ============================================================
+// 💡 ASISTENTE PEDAGÓGICO & BUSCADOR DE TEMAS TÉCNICOS 3D (BLENDER)
+// ============================================================
+const BLENDER_TOPICS_CATALOG = {
+  turbocharger: {
+    icon: "🔥",
+    title: "Turbocompresor Automotriz (Flujo Dual Inconel & Boost)",
+    principle: "Termodinámica Brayton modificada + Sobrealimentación Forzada",
+    desc: "Los gases calientes de escape (~950°C) del motor ingresan a la caracola de turbina e impulsan un rodete Inconel a más de 150,000 RPM. A través de un eje central lubricado (CHRA), se acciona el rodete compresor de aluminio billet, que succiona aire fresco, lo comprime a alta presión y lo inyecta a los cilindros. La válvula wastegate y blow-off regulan la sobrepresión para proteger el bloque motor y evitar onda de choque.",
+    components: "Caracola de escape Inconel, Turbina radial, Cartucho CHRA a 150k RPM, Rodete compresor billet, Válvula wastegate con diafragma.",
+    sfx: "Silbido agudo de cojinetes cerámicos a 150,000 RPM, soplido masivo de inducción forzada, clics metálicos axiales y descarga blow-off valve (pssshh-tututu).",
+    camera: "Exploded View (despiece axial de eje y caracolas), Cutaway 120° (flujo térmico rojo/azul) y Extreme Close-Up a los álabes del compresor.",
+    modelValue: "turbocharger",
+    narration: "Los gases de escape a 950 grados impulsan la turbina Inconel a 150,000 revoluciones por minuto, forzando aire frío de alta densidad a los cilindros."
+  },
+  gpu_vs_cpu: {
+    icon: "⚡",
+    title: "Arquitectura GPU vs CPU (Paralelismo Masivo - Diorama en Gradas)",
+    principle: "Computación SIMD / SIMT masiva vs Procesamiento Secuencial MIMD",
+    desc: "Una CPU es como un chef maestro hiperrápido que procesa tareas complejas una por una en estricto orden secuencial. Una GPU, en cambio, es como un estadio completo con miles de cocineros en gradas trabajando al unísono: 'todos juntos'. Aunque cada núcleo individual es sencillo, su paralelismo masivo le permite picar montañas de datos o calcular millones de píxeles gráficos en una sola fracción de segundo.",
+    components: "Unidad de Control Central (CPU Core), Gradas de Núcleos CUDA/Stream (GPU Cores), Matriz de Píxeles/Vegetales a procesar, Bus de memoria PCIe.",
+    sfx: "Cadencia rítmica sincrónica de cientos de cuchillos cortando a la vez, tic-tac acelerado de reloj maestro, zumbido de bus de datos y campana de orquestación.",
+    camera: "Perspectiva isométrica de las gradas, zoom dinámico a las filas de procesadores con cuchillos y vista superior (top-view) dividiendo el trabajo en cuadrícula.",
+    modelValue: "combustion_engine",
+    narration: "A diferencia de un procesador central que resuelve una tarea a la vez, la tarjeta gráfica coordina miles de pequeños núcleos trabajando todos juntos al mismo tiempo."
+  },
+  combustion_engine: {
+    icon: "🚗",
+    title: "Motor de Combustión 4 Tiempos (Ciclo Otto)",
+    principle: "Ciclo termodinámico Otto de 4 carreras: Admisión, Compresión, Combustión y Escape",
+    desc: "El ciclo se completa en dos vueltas de cigüeñal: 1) Admisión: el pistón baja succionando la mezcla aire-combustible; 2) Compresión: el pistón sube comprimiendo la mezcla con ambas válvulas herméticamente cerradas; 3) Combustión: la bujía genera una chispa de 20,000 voltios provocando una deflagración violenta que empuja el pistón hacia abajo generando par motor; 4) Escape: la válvula de escape abre y el pistón expulsa los gases residuales.",
+    components: "Pistón de aleación hipereutéctica, Biela forjada en H, Cigüeñal contrapesado, Árbol de levas DOHC, Válvulas de admisión y escape, Bujía de iridio.",
+    sfx: "Explosión seca de encendido, sordo golpe metálico de bielas, zumbido de distribución variable y flujo pulsante de escape.",
+    camera: "Corte transversal (Cutaway) del cilindro en carrera PMS-PMI, seguimiento de rotación de biela y cigüeñal, y macro a la chispa de la bujía.",
+    modelValue: "combustion_engine",
+    narration: "Observa cómo la explosión controlada en la cámara de combustión empuja el pistón hacia abajo, transformando la presión química en rotación constante en el cigüeñal."
+  },
+  automatic_transmission: {
+    icon: "⚙️",
+    title: "Transmisión Automática (Tren Epicicloidal Planetario)",
+    principle: "Multiplicación de torque mediante engranajes concéntricos sol-satélite-corona",
+    desc: "Un tren de engranajes epicicloidal se compone de un engranaje solar central, múltiples satélites montados sobre un portasatélites y una corona exterior dentada. Al fijar o accionar diferentes elementos mediante paquetes de embragues hidráulicos y bandas de freno bañadas en aceite ATF, se obtienen reducciones de par, transmisión directa, sobremarcha (overdrive) y reversa sin desconectar mecánicamente el motor.",
+    components: "Engranaje Solar, 3 a 5 Satélites planetarios, Portasatélites de fundición, Corona dentada interna, Paquetes de embrague multidisco, Convertidor de par con estator.",
+    sfx: "Presurización de fluido hidráulico ATF, encaje suave de embragues multidisco, zumbido armónico de engranajes helicoidales.",
+    camera: "Vista axial frontal de satélites girando a distintas velocidades, despiece axial de platos de embrague y corte longitudinal 3D.",
+    modelValue: "automatic_transmission",
+    narration: "Al frenar la corona exterior o el sol central mediante embragues de presión hidráulica, los engranajes planetarios alteran la relación de giro sin interrumpir la aceleración."
+  },
+  wankel_engine: {
+    icon: "🔄",
+    title: "Motor Rotativo Wankel",
+    principle: "Rotor triangular epitrocoidal que prescinde de pistones alternativos",
+    desc: "En lugar de pistones que suben y bajan con bruscas inercias, un rotor de perfil triangular trilobular gira dentro de una carcasa con forma de epitrocoide (óvalo acinturado). Cada una de las tres caras del rotor define una cámara de volumen variable, ejecutando simultáneamente los ciclos de admisión, compresión, doble chispa de encendido y escape en cada vuelta completa.",
+    components: "Rotor triangular con sellos de vértice (Apex Seals), Carcasa epitrocoidal con baño de cromo, Eje excéntrico de salida, Engranaje estacionario sincronizador.",
+    sfx: "Zumbido lineal sin vibraciones secundarias a 9,000 RPM, doble chispa de encendido de alta frecuencia y aullido sordo por lumbrera periférica.",
+    camera: "Corte frontal transparente mostrando el rotor orbitando el eje excéntrico y las tres cámaras cambiando de color según su fase térmica.",
+    modelValue: "combustion_engine",
+    narration: "El rotor triangular gira en un movimiento orbital continuo, completando admisión, compresión, combustión y escape sin un solo pistón alternativo."
+  },
+  refrigerator_cycle: {
+    icon: "❄️",
+    title: "Ciclo Frigorífico por Compresión de Vapor",
+    principle: "Termodinámica inversa de Carnot y expansión isentálpica Joule-Thomson",
+    desc: "El compresor presuriza el fluido refrigerante en fase gaseosa elevando drásticamente su temperatura. En el serpentín condensador posterior, cede calor al aire de la habitación y se licúa. Luego atraviesa el tubo capilar micrométrico donde sufre una caída de presión súbita que desploma su temperatura a -25°C. Al entrar al evaporador del congelador, hierve absorbiendo el calor de los alimentos.",
+    components: "Compresor hermético de pistón oscilante, Condensador estático de alambre, Filtro deshidratador, Tubo capilar de cobre de 0.8mm, Evaporador de placa de aluminio.",
+    sfx: "Ronroneo sordo de baja vibración del compresor montado en muelles, siseo continuo de despresurización en el capilar y suave gorgoteo de ebullición refrigerante.",
+    camera: "Esquema tridimensional con gradiente térmico dinámico (rojo ardiente en condensador, azul escarchado en evaporador) y corte del mecanismo del pistón compresor.",
+    modelValue: "refrigerator_cycle",
+    narration: "El refrigerante se expande violentamente a través del tubo capilar, absorbiendo todo el calor del interior para expulsarlo al ambiente mediante el serpentín trasero."
+  },
+  turbofan_jet: {
+    icon: "✈️",
+    title: "Motor Turbofán Aeronáutico de Alto Índice de Derivación",
+    principle: "Propulsión a reacción por conservación de cantidad de movimiento y ciclo Joule-Brayton",
+    desc: "Un enorme fan frontal de titanio aspira varias toneladas de aire por segundo. Cerca del 80% del flujo rodea el núcleo (flujo bypass) aportando la mayor parte del empuje con alta eficiencia acústica. El flujo central se comprime en etapas de baja y alta presión, se quema con queroseno Jet-A1 a 1,700°C en cámaras anulares y se expande en turbinas que impulsan los ejes concéntricos.",
+    components: "Fan de titanio con álabes de cuerda ancha, Compresor axial de 14 etapas, Cámara de combustión anular, Turbina monocristalina refrigerada por aire, Tobera de escape con chevrons.",
+    sfx: "Silbido supersónico de las puntas del fan a Match 1.2, rugido continuo subsónico de combustión y desgarre de aire presurizado en tobera.",
+    camera: "Corte 120 grados mostrando la separación entre el manto de aire frío exterior y el núcleo incandescente, con partículas de aire simuladas.",
+    modelValue: "turbocharger",
+    narration: "El gran ventilador frontal de titanio genera el ochenta por ciento del empuje desplazando aire frío exterior, mientras el núcleo térmico alimenta la combustión a más de mil quinientos grados."
+  },
+  printer_3d_fdm: {
+    icon: "🖨️",
+    title: "Impresora 3D FDM (Cinemática CoreXY & Hotend)",
+    principle: "Modelado por Deposición Fundida (FDM) con coordenadas cartesianas",
+    desc: "La cinemática CoreXY utiliza dos motores paso a paso fijos que mueven conjuntamente dos correas cerradas para posicionar el cabezal de impresión en cualquier punto XY sin cargar el peso de los motores. El filamento termoplástico (PLA o PETG) es traccionado por un engranaje doble hacia la zona de fusión a 210°C, saliendo por una boquilla de latón de 0.4 mm para trazar capas de 0.2 mm sobre una cama que desciende en Z.",
+    components: "Pórtico de aluminio extruido V-Slot, Motores paso a paso NEMA 17 con drivers silenciosos TMC, Correas dentadas GT2 de fibra de vidrio, Bloque calefactor con cartucho de 40W y termistor, Boquilla de latón mecanizada.",
+    sfx: "Modulación sutil de frecuencia de motores paso a paso, ventilador centrífugo radial de capa a alta velocidad y chasquido de retracción de extrusor directo.",
+    camera: "Acercamiento macro a la punta de la boquilla depositando el cordón fundido, vista isométrica del movimiento CoreXY sincronizado y despiece de extrusor.",
+    modelValue: "printer_3d_fdm",
+    narration: "Los motores coordinan las correas dentadas CoreXY guiando el cabezal a gran velocidad mientras la boquilla deposita filamento fundido capa por capa con precisión micrométrica."
+  },
+  nuclear_reactor: {
+    icon: "⚛️",
+    title: "Reactor Nuclear de Agua a Presión (PWR)",
+    principle: "Fisión nuclear en cadena de Uranio-235 moderada por agua ligera",
+    desc: "En el interior de la vasija de presión de acero forjado, pastillas cerámicas de dióxido de uranio enriquecido sufren fisión nuclear liberando enormes cantidades de energía térmica. El agua del circuito primario circula a través del núcleo absorbiendo este calor a 315°C; un presurizador la mantiene a 155 bares para evitar que hierva. En los generadores de vapor, transfiere este calor a un circuito secundario aislado que genera vapor libre de radiación para impulsar las turbinas.",
+    components: "Vasija de presión de acero de 20cm de espesor, Barras de combustible con vainas de circonio, Barras de control de absorción neutrónica (boro/cadmio), Presurizador de vapor, Generador de vapor vertical.",
+    sfx: "Zumbido continuo de resonancia magnética en alternador, flujo continuo de vapor masivo a alta presión y clic mecánico de posicionamiento de barras de control.",
+    camera: "Corte transversal de la vasija con barras de control descendiendo, esquema 3D del circuito doble cerrado aislante y visualización de radiación Cerenkov azulada.",
+    modelValue: "combustion_engine",
+    narration: "El agua a ciento cincuenta y cinco atmósferas de presión absorbe el calor extremo de la fisión nuclear sin hervir, transfiriendo su energía a un generador de vapor completamente sellado."
+  }
+};
+
+let currentSelectedBlenderTopicKey = "turbocharger";
+
+function loadBlenderTopic(topicKey) {
+  const item = BLENDER_TOPICS_CATALOG[topicKey];
+  if (!item) return;
+  currentSelectedBlenderTopicKey = topicKey;
+
+  const iconEl = document.getElementById("blenderTopicCardIcon");
+  const titleEl = document.getElementById("blenderTopicCardTitle");
+  const principleEl = document.getElementById("blenderTopicCardPrinciple");
+  const descEl = document.getElementById("blenderTopicCardDesc");
+  const compEl = document.getElementById("blenderTopicCardComponents");
+  const sfxEl = document.getElementById("blenderTopicCardSFX");
+  const camEl = document.getElementById("blenderTopicCardCamera");
+  const searchInput = document.getElementById("blenderTopicSearchQuery");
+
+  if (iconEl) iconEl.textContent = item.icon;
+  if (titleEl) titleEl.textContent = item.title;
+  if (principleEl) principleEl.textContent = `Principio: ${item.principle}`;
+  if (descEl) descEl.textContent = item.desc;
+  if (compEl) compEl.textContent = item.components;
+  if (sfxEl) sfxEl.textContent = item.sfx;
+  if (camEl) camEl.textContent = item.camera;
+  if (searchInput) searchInput.value = item.title;
+
+  const card = document.getElementById("blenderTopicExplainerCard");
+  if (card) {
+    card.classList.remove("hidden");
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function searchAndApplyBlenderTopic(isRandom) {
+  const keys = Object.keys(BLENDER_TOPICS_CATALOG);
+  if (isRandom) {
+    const randomKey = keys[Math.floor(Math.random() * keys.length)];
+    loadBlenderTopic(randomKey);
+    return;
+  }
+
+  const query = (document.getElementById("blenderTopicSearchQuery")?.value || "").toLowerCase().trim();
+  if (!query) {
+    loadBlenderTopic(keys[0]);
+    return;
+  }
+
+  const match = keys.find(k => {
+    const item = BLENDER_TOPICS_CATALOG[k];
+    return item.title.toLowerCase().includes(query) ||
+           item.desc.toLowerCase().includes(query) ||
+           item.principle.toLowerCase().includes(query);
+  });
+
+  if (match) {
+    loadBlenderTopic(match);
+  } else {
+    currentSelectedBlenderTopicKey = "custom";
+    const titleEl = document.getElementById("blenderTopicCardTitle");
+    const principleEl = document.getElementById("blenderTopicCardPrinciple");
+    const descEl = document.getElementById("blenderTopicCardDesc");
+    const compEl = document.getElementById("blenderTopicCardComponents");
+    const sfxEl = document.getElementById("blenderTopicCardSFX");
+    const camEl = document.getElementById("blenderTopicCardCamera");
+    const iconEl = document.getElementById("blenderTopicCardIcon");
+
+    if (iconEl) iconEl.textContent = "⚙️";
+    if (titleEl) titleEl.textContent = `Mecanismo Personalizado: ${query.toUpperCase()}`;
+    if (principleEl) principleEl.textContent = "Principio Físico Procedural / Maqueta 3D EEVEE";
+    if (descEl) descEl.textContent = `Visualización tridimensional y despiece cinemático de ${query}. Se modelan las partes móviles, flujo de fuerzas y transferencias térmicas o electromagnéticas en tiempo real.`;
+    if (compEl) compEl.textContent = "Estructura principal de carcasa, Eje de accionamiento, Subsistema interno, Elementos de sujeción métricos.";
+    if (sfxEl) sfxEl.textContent = "Clics de ensamble metálico, fricción controlada de componentes y zumbido electromecánico.";
+    if (camEl) camEl.textContent = "Hero Shot de presentación general, Cutaway para cavidades funcionales y Exploded View para despiece.";
+
+    const card = document.getElementById("blenderTopicExplainerCard");
+    if (card) card.classList.remove("hidden");
+  }
+}
+
+function injectBlenderTopicToStudio() {
+  const item = BLENDER_TOPICS_CATALOG[currentSelectedBlenderTopicKey];
+  const modelSelect = document.getElementById("blenderModelSelect");
+  const narrationInput = document.getElementById("blenderNarrationInput");
+  const btn = document.getElementById("btnInjectBlenderTopic");
+
+  if (item) {
+    if (modelSelect && item.modelValue) {
+      modelSelect.value = item.modelValue;
+    }
+    if (narrationInput && item.narration) {
+      narrationInput.value = item.narration;
+    }
+  } else {
+    const query = document.getElementById("blenderTopicSearchQuery")?.value || "Mecanismo";
+    if (narrationInput) {
+      narrationInput.value = `Observa el principio de funcionamiento interno de ${query}, donde cada componente transmite fuerza con precisión milimétrica.`;
+    }
+  }
+
+  if (btn) {
+    const prev = btn.innerHTML;
+    btn.innerHTML = `<span>✅ ¡Guion y Modelo Configurados!</span>`;
+    btn.className = "px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-[11px] transition flex items-center gap-1.5 shadow-md";
+    setTimeout(() => {
+      btn.innerHTML = prev;
+      btn.className = "px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1.5 shadow-md whitespace-nowrap self-start sm:self-auto";
+    }, 2500);
+  }
+}
+
+window.loadBlenderTopic = loadBlenderTopic;
+window.searchAndApplyBlenderTopic = searchAndApplyBlenderTopic;
+window.injectBlenderTopicToStudio = injectBlenderTopicToStudio;
+window.playCustomVideoUrl = playCustomVideoUrl;
 window.expOpenBlender3DModal = expOpenBlender3DModal;
 window.expCloseBlender3DModal = expCloseBlender3DModal;
 window.expRunBlenderBenchmark = expRunBlenderBenchmark;
 window.playBlenderScene = playBlenderScene;
 window.runCustomBlenderRender = runCustomBlenderRender;
 window.rebuildBlenderBenchmark = rebuildBlenderBenchmark;
+window.inspectBlenderModelMultiAngle = inspectBlenderModelMultiAngle;
+window.closeBlenderInspectionModal = closeBlenderInspectionModal;
+window.searchPolyhavenPBR = searchPolyhavenPBR;
+window.downloadSelectedPolyhavenPBR = downloadSelectedPolyhavenPBR;
+window.checkBlenderStatusAndBridge = checkBlenderStatusAndBridge;
 
 window.addEventListener("DOMContentLoaded", () => {
   initExplainerStudio();
   setTimeout(populateExplainerVoiceSelect, 900);
+  setTimeout(checkBlenderStatusAndBridge, 1200);
 });

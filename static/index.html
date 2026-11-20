@@ -37,71 +37,83 @@
 </head>
 <body class="antialiased selection:bg-indigo-500 selection:text-white">
   <div class="max-w-7xl mx-auto px-4 py-6">
-    <!-- Header con Selector de Modo -->
-    <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+    <!-- Header Fijo / Sticky con Selector de Modo Siempre Visible -->
+    <header class="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-md border border-slate-800/80 py-3 px-4 mb-6 shadow-2xl rounded-2xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       <div class="flex items-center gap-3.5">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
         </div>
         <div>
-          <div class="flex flex-wrap items-center gap-2.5">
-            <h1 class="text-2xl font-bold tracking-tight text-white">AI VIDEO STUDIO</h1>
-            <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-              🎓 EXPLAINER AI — ¿CÓMO FUNCIONA?
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-xl font-bold tracking-tight text-white">AI VIDEO STUDIO</h1>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+              🧊 3D BLENDER EEVEE
             </span>
-            <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              Multiplataforma · 9:16 &amp; 16:9
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+              ✨ LEMO-OPUSCAR 99 ESTILOS
             </span>
           </div>
-          <p class="text-sm text-slate-400">Investigación verificable + Guiones educativos (Corto y Largo) + Diagramas técnicos animados + Exportación para YouTube, Shorts, TikTok, Instagram y Facebook</p>
+          <p class="text-xs text-slate-400">Estudio Unificado de Animación 3D Procedimental, Cine en Código y Narración Neuronal</p>
         </div>
       </div>
 
-      <!-- Pestañas de Modo -->
+      <!-- Pestañas de Navegación del Menú Principal -->
       <div class="flex flex-wrap items-center gap-2">
         <div class="p-1 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center gap-1">
           <button
-            id="tabBtnExplainer"
-            onclick="switchMode('explainer')"
-            class="px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow"
-          >
-            🎓 Explainer AI (¿Cómo Funciona? ★)
-          </button>
-          <button
             id="tabBtnBlender"
             onclick="switchMode('blender')"
-            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-cyan-300 hover:text-white flex items-center gap-1.5"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition bg-cyan-600 text-white shadow flex items-center gap-1.5"
           >
             <span>🧊</span>
             <span>Motor 3D Blender (Maqueta ★)</span>
           </button>
           <button
+            id="tabBtnOpuscar"
+            onclick="switchMode('opuscar')"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-indigo-300 hover:text-white flex items-center gap-1.5"
+          >
+            <span>✨</span>
+            <span>Lemo-Opuscar (Cine en Código ★)</span>
+          </button>
+          <button
+            id="tabBtnShorts"
+            onclick="switchMode('shorts')"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-violet-300 hover:text-white flex items-center gap-1.5"
+          >
+            <span>⚡</span>
+            <span>Animated Shorts (3D/WebGL + Foley)</span>
+          </button>
+          <button
             id="tabBtnYT"
             onclick="switchMode('youtube')"
-            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white flex items-center gap-1"
           >
-            🎬 Automatizador YouTube (Guion → Video)
+            <span>🎬</span>
+            <span>Automatizador YouTube</span>
           </button>
           <button
             id="tabBtnTTS"
             onclick="switchMode('tts')"
-            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white flex items-center gap-1"
           >
-            🎙️ Estudio de Voz (TTS Rápido)
+            <span>🎙️</span>
+            <span>Estudio de Voz</span>
           </button>
           <button
             id="tabBtnFruti"
             onclick="switchMode('fruti')"
-            class="px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white flex items-center gap-1"
           >
-            🍓 Frutinovelas (Diálogos animados)
+            <span>🍓</span>
+            <span>Frutinovelas</span>
           </button>
         </div>
 
         <a href="/docs" target="_blank" class="px-3 py-2 rounded-xl glass hover:bg-slate-800/80 text-xs font-medium text-slate-300 flex items-center gap-1.5 transition">
-          <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
           API (/docs)
         </a>
       </div>
@@ -218,287 +230,437 @@
       </aside>
 
       <!-- ============================================================ -->
-      <!-- 🎓 MÓDULO PRINCIPAL: EXPLAINER AI — ¿CÓMO FUNCIONA?           -->
+      <!-- ✨ MÓDULO CINE & ANIMACIÓN PROCEDIMENTAL: LEMO-OPUSCAR         -->
       <!-- ============================================================ -->
-      <main id="panelExplainer" class="lg:col-span-8 space-y-5">
-        <div class="glass rounded-2xl p-5 space-y-4 border border-amber-500/35">
-          <div class="flex flex-wrap items-center justify-between gap-3">
+      <main id="panelOpuscar" class="lg:col-span-8 space-y-5 hidden">
+        <div class="glass rounded-2xl p-5 space-y-5 border border-indigo-500/40 shadow-2xl">
+          <!-- Encabezado del Módulo -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div>
-              <h2 class="text-base font-bold text-white flex items-center gap-2">
-                🎓 EXPLAINER AI — ¿CÓMO FUNCIONA? (Estudio Educativo Multiplataforma)
-              </h2>
-              <p class="text-xs text-slate-400">
-                Introduce un tema una sola vez → Investiga fuentes reales → Genera Guion Corto (9:16) y Guion Largo (16:9) → Crea Storyboard y Diagramas Técnicos Animados SVG → Exporta paquetes para YouTube, Shorts, TikTok, Instagram Reels y Facebook.
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">✨</span>
+                <h2 class="text-lg font-bold text-white tracking-tight">LEMO-OPUSCAR — CINE Y ANIMACIÓN EN CÓDIGO (99 ESTILOS)</h2>
+                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                  lemomo-ai/lemo-opuscar · $0 Costo · Procedural
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">
+                Genera animaciones cinemáticas mediante código procedimental puro (Canvas HTML5 / WebGL) evaluado en función de t. Sin modelos pesados de video ni APIs externas.
               </p>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <select
-                id="expSavedProjectsSelect"
-                onchange="if(this.value) { if(typeof window.expLoadProjectById === 'function') window.expLoadProjectById(this.value); else if(typeof window.expLoadProject === 'function') window.expLoadProject(this.value); }"
-                class="rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-1.5 text-xs text-amber-200 max-w-xs sm:max-w-md"
-              >
-                <option value="">📂 Cargar Proyecto Maestro Explainer AI...</option>
-              </select>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-emerald-400 font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                ● 60 FPS Determinista
+              </span>
             </div>
           </div>
 
-          <!-- Casos de Prueba Oficiales (Fase 19) -->
-          <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-amber-300">
-              ⚡ Cargar 1 de los 5 Casos de Ingeniería de Prueba (o escribe cualquier tema abajo):
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" onclick="expLoadPresetTopic('motor')" class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-semibold transition">
-                1️⃣ Motor de Combustión (8 Pasos)
-              </button>
-              <button type="button" onclick="expLoadPresetTopic('cajero')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-                2️⃣ Cajero Automático (ATM)
-              </button>
-              <button type="button" onclick="expLoadPresetTopic('gps')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-                3️⃣ Sistema GPS (Trilateración)
-              </button>
-              <button type="button" onclick="expLoadPresetTopic('pantalla')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-                4️⃣ Pantalla Táctil Capacitiva
-              </button>
-              <button type="button" onclick="expLoadPresetTopic('transmision')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-                5️⃣ Transmisión Automática
-              </button>
-              <button type="button" onclick="expOpenBlender3DModal()" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600/40 to-indigo-600/40 hover:from-cyan-600/60 hover:to-indigo-600/60 border border-cyan-400/50 text-cyan-200 text-xs font-bold transition flex items-center gap-1 shadow-lg shadow-cyan-500/10">
-                🎬 Prototipo 3D Blender (Motor 4 Tiempos ★)
-              </button>
-            </div>
-          </div>
-
-          <!-- Formulario de Creación de Proyectos (Fase 3) -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Nombre del Proyecto</label>
-              <input id="expProjectName" value="¿Cómo funciona un motor de combustión?" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
-            </div>
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1">Tema a Explicar ★</label>
-              <input id="expTopic" value="Cómo funciona un motor de combustión interna de 4 tiempos" class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white" />
-            </div>
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Pregunta Principal</label>
-              <input id="expQuestion" value="¿Cómo transforma un motor de combustión la gasolina en movimiento rotativo a través de sus 4 tiempos?" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+          <!-- Reproductor de Canvas en Vivo -->
+          <div class="space-y-3">
+            <div class="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-indigo-500/30 shadow-2xl flex items-center justify-center p-2">
+              <canvas id="opuscarCanvas" class="w-full h-80 sm:h-96 rounded-xl bg-slate-950"></canvas>
             </div>
 
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Categoría (12 Áreas)</label>
-              <select id="expCategory" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"></select>
-            </div>
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Público Objetivo</label>
-              <input id="expAudience" value="Público general curioso, estudiantes y entusiastas de la ciencia e ingeniería" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
-            </div>
-            <div class="md:col-span-4">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-emerald-300 mb-1">Estilo Visual Consistente (Fase 8)</label>
-              <select id="expVisualStyle" class="w-full rounded-xl bg-slate-950 border border-emerald-500/40 px-3 py-2 text-xs text-white"></select>
-            </div>
-
-            <div class="md:col-span-3">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Duraciones a Generar</label>
-              <select id="expDurationMode" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
-                <option value="both" selected>★ Ambas (Short 1-3m + Long 5-10m)</option>
-                <option value="short">Solo Short (1 a 3 minutos)</option>
-                <option value="long">Solo Long (5 a 10 minutos)</option>
-              </select>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Formato de Pantalla</label>
-              <select id="expScreenFormat" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
-                <option value="both" selected>★ Multi-Formato (9:16 + 16:9)</option>
-                <option value="9:16">📱 Vertical 9:16 (1080×1920)</option>
-                <option value="16:9">📺 Horizontal 16:9 (1920×1080)</option>
-              </select>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Voz del Narrador</label>
-              <select id="expVoiceSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
-                <option value="es-MX-JorgeNeural">🇲🇽 Jorge Neural HD (Documental ★)</option>
-              </select>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Música Sin Copyright</label>
-              <select id="expBgMusic" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
-                <option value="doc_mystery" selected>🕵️ Misterio / Investigación ★</option>
-                <option value="inspiring_science">🚀 Ciencia y Descubrimiento</option>
-                <option value="warm_story">🌅 Storytelling Cálido</option>
-                <option value="lofi_chill">☕ Lo-Fi Estudio</option>
-                <option value="none">🔇 Sin Música</option>
-              </select>
-            </div>
-          </div>
-
-          <input id="expSpeed" type="hidden" value="1.0" />
-
-          <details class="rounded-xl bg-slate-950/60 border border-slate-800 p-3">
-            <summary class="cursor-pointer text-xs font-semibold text-slate-300">📚 Notas o fuentes adicionales aportadas por el usuario (opcional)</summary>
-            <textarea id="expUserNotes" rows="2" placeholder="Puedes pegar aquí datos específicos, enlaces o apuntes técnicos adicionales que quieras incluir como fuente..." class="mt-2 w-full rounded-lg bg-slate-950 border border-slate-800 p-2 text-xs text-slate-200"></textarea>
-          </details>
-
-          <!-- Botones Principales de Acción -->
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
-            <button
-              type="button"
-              onclick="expRunStandaloneResearch()"
-              class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-semibold text-xs transition"
-            >
-              🔍 1. Investigar Tema Primero (Revisar Fuentes)
-            </button>
-            <button
-              id="btnExpCreate"
-              type="button"
-              onclick="expCreateMasterProject(false)"
-              class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow transition"
-            >
-              📐 2. Crear Proyecto Maestro (Investigación + Guiones Corto/Largo + Storyboard + Diagramas SVG)
-            </button>
-            <button
-              id="btnExpCreateFull"
-              type="button"
-              onclick="expCreateMasterProject(true)"
-              class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-emerald-500 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg transition"
-            >
-              🚀 3. Producir Todo en 1 Clic (Guiones + Voz + Videos Multiplataforma + Portadas)
-            </button>
-          </div>
-
-          <div id="expProgressBox" class="hidden p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/30 space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span id="expProgressText" class="text-emerald-200 font-medium">Procesando...</span>
-              <span id="expProgressPct" class="mono text-emerald-300">20%</span>
-            </div>
-            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-              <div id="expProgressBar" class="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-300" style="width: 20%"></div>
-            </div>
-          </div>
-
-          <div id="expErrorBox" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
-        </div>
-
-        <!-- WORKSPACE DEL PROYECTO MAESTRO (Sub-pestañas Fases 4 a 18) -->
-        <div id="expWorkspaceBox" class="hidden space-y-4">
-          <div class="glass rounded-2xl p-4 space-y-3 border border-indigo-500/30">
-            <div class="flex flex-wrap items-center justify-between gap-2">
+            <!-- Barra de Transporte y Scrubber de Línea de Tiempo -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2">
-                <h3 id="expActiveProjectTitle" class="text-sm font-bold text-white">Proyecto Maestro</h3>
-                <span id="expActiveProjectBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-xs mono"></span>
+                <button
+                  type="button"
+                  id="btnOpuscarPlay"
+                  onclick="toggleOpuscarPlay()"
+                  class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition"
+                >
+                  ⏸ Pausar
+                </button>
+                <button
+                  type="button"
+                  onclick="scrubOpuscarTimeline(0)"
+                  class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition"
+                  title="Reiniciar animación"
+                >
+                  ⏮ Reiniciar
+                </button>
               </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <div class="p-1 rounded-lg bg-slate-950 border border-slate-800 flex items-center gap-1">
-                  <button id="btnExpVerShort" onclick="expSwitchVersion('short')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500 text-white">📱 Versión Short (9:16 · 1-3m)</button>
-                  <button id="btnExpVerLong" onclick="expSwitchVersion('long')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300">📺 Versión Long (16:9 · 5-10m)</button>
+
+              <!-- Slider de tiempo t -->
+              <div class="flex-1 max-w-md flex items-center gap-2">
+                <input
+                  id="opuscarTimeSlider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="0"
+                  step="0.1"
+                  oninput="scrubOpuscarTimeline(this.value)"
+                  class="w-full accent-indigo-500 cursor-pointer"
+                />
+                <span id="opuscarTimeLabel" class="text-xs text-indigo-300 font-mono whitespace-nowrap min-w-[75px] text-right">0.00s / 6.0s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuración del Estilo y Narración -->
+          <div class="space-y-4 pt-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1">Estilo Cinematográfico (Opuscar)</label>
+                <select id="opuscarStyleSelect" class="w-full rounded-xl bg-slate-950 border border-indigo-500/40 px-3 py-2 text-xs text-white">
+                  <option value="paper_cutout_diorama" selected>🎭 Diorama Paper-Cut & Stickers (Viral Maestro ★)</option>
+                  <option value="chapultepec_diorama">🏰 Diorama Castillo de Chapultepec & Virreinato (Alcázar Real ★)</option>
+                  <option value="mayan_diorama">🏛️ Diorama Maya & Arqueología Prehispánica (LiDAR ★)</option>
+                  <option value="blueprint_cad">📐 Plano Técnico Blueprint (CAD Turbocompresor)</option>
+                  <option value="vector_flow">🌊 Dinámica de Fluidos & Vórtice Vectorial</option>
+                  <option value="da_vinci_codex">📜 Códice Da Vinci (Manuscrito Renacentista)</option>
+                  <option value="hud_telemetry">🛰️ HUD de Telemetría Militar & Aeroespacial</option>
+                  <option value="anime_speedlines">⚡ Líneas de Hipervelocidad Anime</option>
+                  <option value="chalkboard_physics">🎓 Pizarra Universitaria de Física</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Formato de Video</label>
+                <select id="opuscarFormatSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                  <option value="9:16" selected>📱 Vertical 9:16 (Shorts/TikTok/Reels)</option>
+                  <option value="16:9">📺 Horizontal 16:9 (YouTube HD)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Voz del Narrador (Edge TTS)</label>
+                <select id="opuscarVoiceSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                  <option value="es-MX-DaliaNeural" selected>🇲🇽 Dalia (Natural, Expresiva, MX)</option>
+                  <option value="es-MX-JorgeNeural">🇲🇽 Jorge (Masculina, Dinámica, MX)</option>
+                  <option value="es-MX-BeatrizNeural">🇲🇽 Beatriz (Cálida, Educativa, MX)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 🔍 BUSCADOR INTELIGENTE DE GUIONES VIRALES (TIKTOK / REELS / SHORTS) -->
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-indigo-500/40 shadow-xl space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-lg">🔍</span>
+                  <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Buscador y Generador de Guiones Virales (TikTok / Shorts / Reels)
+                  </h3>
+                  <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    Investigación Real + Alto CTR
+                  </span>
                 </div>
-                <button onclick="expDuplicateCurrentProject()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-semibold">📑 Duplicar Proyecto</button>
-                <a id="expMasterZipLink" href="#" class="px-3.5 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs">📦 Descargar Todo (.ZIP)</a>
+                <span class="text-[11px] text-slate-400">Guiones optimizados con ganchos de retención</span>
+              </div>
+
+              <!-- Selector de Categoría y Formato -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="md:col-span-2">
+                  <label class="block text-[10px] font-semibold uppercase tracking-wider text-indigo-300 mb-1">
+                    1. Categoría Temática
+                  </label>
+                  <select
+                    id="opuscarSearchCategory"
+                    onchange="onOpuscarSearchCategoryChange()"
+                    class="w-full rounded-xl bg-slate-950 border border-indigo-500/50 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="historia_mexico" selected>🇲🇽 Curiosidades e Historia de México</option>
+                    <option value="misterio">🕵️ Sucesos de Misterio y Enigmas del Mundo</option>
+                    <option value="terror">👻 Crímenes Reales, Terror y Suspenso</option>
+                    <option value="lugares_mundo">🌍 Lugares Asombrosos y Secretos del Mundo</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
+                    2. Duración y Formato
+                  </label>
+                  <select
+                    id="opuscarSearchDuration"
+                    class="w-full rounded-xl bg-slate-950 border border-amber-500/50 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="shorts" selected>📱 Shorts / TikTok (60-90s · 9:16)</option>
+                    <option value="youtube_4_6m">📺 Documental 4-6 min (16:9)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Barra de Búsqueda y Botones -->
+              <div class="space-y-2">
+                <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-300">
+                  3. Tema Específico o Palabras Clave (Opcional)
+                </label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input
+                    id="opuscarSearchQuery"
+                    type="text"
+                    placeholder="Escribe un tema (ej. 'La cueva de Naica', 'El caníbal de la Guerrero') o déjalo vacío..."
+                    class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                  />
+                  <button
+                    type="button"
+                    id="btnOpuscarRandomScript"
+                    onclick="searchAndGenerateOpuscarScript(true)"
+                    class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    title="Seleccionar un tema viral sugerido al azar"
+                  >
+                    <span>🎲 Tema Sorpresa</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="btnOpuscarSearchScript"
+                    onclick="searchAndGenerateOpuscarScript(false)"
+                    class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold text-xs shadow-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <span>✨ Investigar y Redactar</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Chips de Sugerencias Rápidas -->
+              <div class="space-y-1.5 pt-1">
+                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">💡 Temas Virales Populares:</span>
+                <div id="opuscarTopicChips" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  <!-- Se llenan dinámicamente con JS -->
+                </div>
+              </div>
+
+              <!-- Tarjeta de Resultado con Título Recomendado y Ganchos -->
+              <div id="opuscarScriptResultCard" class="hidden p-3.5 rounded-xl bg-slate-950/90 border border-indigo-500/30 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                    <span>✅</span> Guion Investigado con Éxito
+                  </span>
+                  <span id="opuscarResultDurationBadge" class="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-mono">
+                    ~75s (Shorts)
+                  </span>
+                </div>
+                <div>
+                  <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Título de Alto CTR:</span>
+                  <p id="opuscarResultBestTitle" class="text-xs font-bold text-amber-200 mt-0.5"></p>
+                </div>
+                <div class="flex flex-wrap gap-2 text-[10px] text-slate-400">
+                  <span id="opuscarResultHook" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300"></span>
+                  <span id="opuscarResultTags" class="text-indigo-400 font-mono"></span>
+                </div>
               </div>
             </div>
 
-            <!-- Barra de Sub-pestañas de Ingeniería -->
-            <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800">
-              <button id="expSubBtn_research" onclick="expSwitchSubTab('research')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 shadow transition">🔍 1. Investigación y Fuentes</button>
-              <button id="expSubBtn_scripts" onclick="expSwitchSubTab('scripts')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">📝 2. Guiones (Corto / Largo / Redes)</button>
-              <button id="expSubBtn_storyboard" onclick="expSwitchSubTab('storyboard')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">🎬 3. Storyboard + Diagramas SVG</button>
-              <button id="expSubBtn_export" onclick="expSwitchSubTab('export')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">🚀 4. Exportación Multiplataforma &amp; Social Pack</button>
-              <button id="expSubBtn_qc" onclick="expSwitchSubTab('qc')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-slate-300 hover:text-white border border-slate-800 transition">🛡️ 5. Control de Calidad (14 pts) y Costos</button>
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Título de la Pieza Animada</label>
+              <input
+                id="opuscarTitleInput"
+                type="text"
+                value="El Castillo de Chapultepec: El Único Alcázar Real de América"
+                placeholder="Título de la animación..."
+                class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
+              />
             </div>
-          </div>
 
-          <!-- SUB-PANEL 1: RESEARCH ENGINE -->
-          <div id="expSubPanel_research" class="glass rounded-2xl p-5 space-y-4">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🔍 Fase 4: Research Engine — Conceptos, Hechos Verificados, Estimaciones y Fuentes</h3>
-            <div id="expResearchContent" class="space-y-4"></div>
-          </div>
-
-          <!-- SUB-PANEL 2: SCRIPT ENGINE -->
-          <div id="expSubPanel_scripts" class="hidden glass rounded-2xl p-5 space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300">📝 Fase 5: Script Engine — Secciones Editables y Comprobación de Audio Real</h3>
-                <span id="expScriptStatsBadge" class="text-xs text-slate-400 mono"></span>
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <button onclick="expSynthesizeVersionAudio(expActiveVersion)" class="px-3.5 py-2 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-500/40 text-emerald-200 text-xs font-semibold">
-                  🎙️ Sintetizar Voz Real de esta Versión
-                </button>
-                <button onclick="expSynthesizeVersionAudio('both')" class="px-3.5 py-2 rounded-xl bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-500/40 text-indigo-200 text-xs font-semibold">
-                  🎙️ Sintetizar Ambas Versiones (Short + Long)
-                </button>
-              </div>
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Guion / Narración a Sincronizar</label>
+              <textarea
+                id="opuscarNarrationInput"
+                rows="2"
+                placeholder="Escribe la explicación a narrar y sincronizar..."
+                class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
+              >En lo alto del Cerro del Chapulín se alza una fortaleza única en todo el continente americano: el Castillo de Chapultepec, construido en 1785 a 2,325 metros sobre el nivel del mar.</textarea>
             </div>
-            <audio id="expVersionAudioPlayer" controls class="hidden w-full h-10"></audio>
-            <div id="expScriptSectionsList" class="space-y-3"></div>
-            <div class="pt-3 border-t border-slate-800 space-y-2">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">📱 Variaciones de Guion Adaptadas por Plataforma</h4>
-              <div id="expPlatformAdaptationsBox" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
-            </div>
-          </div>
 
-          <!-- SUB-PANEL 3: STORYBOARD & DIAGRAMAS SVG -->
-          <div id="expSubPanel_storyboard" class="hidden glass rounded-2xl p-5 space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">🎬 Fases 6, 7 y 13: Storyboard Semántico, Diagramas Técnicos SVG y Timeline Editor</h3>
-                <p class="text-[11px] text-slate-400">Puedes editar etiquetas, reordenar escenas, cambiar entre Diagrama SVG animado (Modo B) o Imagen IA con movimiento (Modo A), y renderizar 1 escena de prueba.</p>
-              </div>
-              <span id="expStoryboardCountBadge" class="text-xs text-indigo-300 mono"></span>
-            </div>
-            <div id="expStoryboardScenesList" class="space-y-3"></div>
-          </div>
-
-          <!-- SUB-PANEL 4: MULTI-PLATFORM EXPORT & SOCIAL PACKAGER -->
-          <div id="expSubPanel_export" class="hidden glass rounded-2xl p-5 space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🚀 Fases 11 y 12: Multi-Platform Export (Reencuadre Inteligente) &amp; Social Media Packager</h3>
-                <p class="text-[11px] text-slate-400">Genera versiones verticales (9:16) y horizontales (16:9) respetando zonas seguras, con portadas y descripciones únicas por red social.</p>
-              </div>
-              <button onclick="expRunMultiPlatformExport()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg">
-                🚀 Exportar Plataformas Seleccionadas (.MP4 + Portadas + Copy)
+            <!-- Botón de Renderizado de Video -->
+            <div class="pt-2">
+              <button
+                type="button"
+                id="btnRenderOpuscar"
+                onclick="renderOpuscarVideo()"
+                class="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-bold text-xs shadow-xl transition flex items-center justify-center gap-2"
+              >
+                <span>🎬</span>
+                <span>Generar y Compilar Video MP4 con Locución & Subtítulos (Lemo-Opuscar)</span>
               </button>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
-              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" value="youtube_shorts" checked class="expPlatChk accent-emerald-500" />
-                <span>📱 YouTube Shorts (9:16)</span>
-              </label>
-              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" value="youtube_video" checked class="expPlatChk accent-emerald-500" />
-                <span>📺 YouTube Video (16:9)</span>
-              </label>
-              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" value="tiktok" checked class="expPlatChk accent-emerald-500" />
-                <span>🎵 TikTok (9:16)</span>
-              </label>
-              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" value="instagram_reels" checked class="expPlatChk accent-emerald-500" />
-                <span>📸 Instagram Reels (9:16)</span>
-              </label>
-              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" value="facebook_reels" checked class="expPlatChk accent-emerald-500" />
-                <span>📘 Facebook Reels (9:16)</span>
-              </label>
-              <label class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" value="facebook_video" class="expPlatChk accent-emerald-500" />
-                <span>📘 Facebook Video (16:9)</span>
-              </label>
+            <!-- Progreso y Errores -->
+            <div id="opuscarProgressBarContainer" class="hidden p-3.5 rounded-xl bg-slate-950 border border-indigo-500/40 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span id="opuscarProgressText" class="text-indigo-200 font-medium">Procesando fotogramas deterministas...</span>
+                <span class="mono text-indigo-300">En curso</span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div id="opuscarProgressBar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-300" style="width: 25%"></div>
+              </div>
             </div>
 
-            <div id="expSocialPackagesGrid" class="space-y-4 pt-2"></div>
+            <div id="opuscarErrorBox" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-200"></div>
+
+            <!-- 🎬 REPRODUCTOR DE VIDEOS DIORAMA / LEMO-OPUSCAR -->
+            <div id="opuscarLastVideoCard" class="p-4 rounded-2xl bg-slate-950/90 border border-emerald-500/40 shadow-2xl space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-emerald-400 text-base">🎬</span>
+                  <h3 class="text-xs font-bold text-white uppercase tracking-wider">Videos Diorama Compilados (Lemo-Opuscar 9:16)</h3>
+                  <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    Listo para Ver y Descargar
+                  </span>
+                </div>
+                <!-- Selector rápido de videos diorama disponibles -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onclick="selectOpuscarShowcase('chapultepec')"
+                    id="btnShowcaseChapultepec"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1"
+                  >
+                    <span>🏰 Castillo de Chapultepec (Último ★)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onclick="selectOpuscarShowcase('maya')"
+                    id="btnShowcaseMaya"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"
+                  >
+                    <span>🏛️ Ciudad Maya</span>
+                  </button>
+                  <button
+                    type="button"
+                    onclick="selectOpuscarShowcase('chile')"
+                    id="btnShowcaseChile"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-1"
+                  >
+                    <span>🌶️ El Chile</span>
+                  </button>
+                </div>
+              </div>
+              <div class="flex flex-col sm:flex-row items-center justify-center gap-5 pt-1">
+                <div class="w-full max-w-[260px] rounded-xl overflow-hidden bg-black border border-emerald-500/30 shadow-2xl flex justify-center">
+                  <video
+                    id="opuscarPreviewPlayer"
+                    controls
+                    preload="metadata"
+                    src="/projects/opuscar_chapultepec/chapultepec_diorama_9_16.mp4"
+                    class="w-full h-auto aspect-[9/16] max-h-[460px] object-contain bg-black"
+                  ></video>
+                </div>
+                <div class="space-y-3 flex-1 text-xs text-slate-300">
+                  <div>
+                    <h4 id="opuscarPreviewTitle" class="font-bold text-sm text-amber-300">🏰 El Castillo de Chapultepec: El Único Alcázar Real de América</h4>
+                    <p id="opuscarPreviewMeta" class="text-[10px] text-emerald-400 font-mono mt-0.5">88.0s · 60 FPS · Dalia Neural + Vals Imperial + Subtítulos Big Focus 1:1</p>
+                    <p id="opuscarPreviewDesc" class="text-slate-400 text-[11px] mt-1.5 leading-relaxed">
+                      Animación diorama multicapa paper-cut: Cerro del Chapulín, alcázar neoclásico con reloj ornamental, bandera ondeante en tiempo real, cota vertical animada a 2,325 m s.n.m., Paseo de la Reforma con carruaje imperial de Maximiliano y Carlota, y votación final A vs B en los comentarios.
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onclick="openOpuscarCurrentInModal()"
+                      id="btnOpenOpuscarModal"
+                      class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg"
+                    >
+                      <span>✨ Ver en Modal</span>
+                    </button>
+                    <a
+                      id="opuscarDownloadBtn"
+                      href="/projects/opuscar_chapultepec/chapultepec_diorama_9_16.mp4"
+                      download="chapultepec_diorama_9_16.mp4"
+                      class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg"
+                    >
+                      <span>📥 Descargar MP4</span>
+                    </a>
+                    <a
+                      id="opuscarOpenTabBtn"
+                      href="/projects/opuscar_chapultepec/chapultepec_diorama_9_16.mp4"
+                      target="_blank"
+                      class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5"
+                    >
+                      <span>↗️ Abrir en Pestaña Nueva</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ============================================================ -->
+      <!-- ⚡ MÓDULO NUEVO: ANIMATED SHORTS (3D/WebGL + RAPIER + PIXELFX + EARSHOT) -->
+      <!-- ============================================================ -->
+      <main id="panelShorts" class="lg:col-span-8 space-y-5 hidden">
+        <div class="glass rounded-2xl p-5 space-y-5 border border-violet-500/40 shadow-2xl">
+          <!-- Encabezado del Módulo -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">⚡</span>
+                <h2 class="text-lg font-bold text-white tracking-tight">ANIMATED SHORTS STUDIO (3D/WebGL · FÍSICA RAPIER · PIXELFX · EARSHOT)</h2>
+                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/40">
+                  Suite Multi-Repo Unificada
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">
+                Generador de shorts verticales (9:16) con estética 3D WebGL, dinámica física con Rapier, partículas PixelFX y diseño sonoro procedural foley con Earshot.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-violet-400 font-semibold px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                ● 60 FPS · 5 Actos Narrativos
+              </span>
+            </div>
           </div>
 
-          <!-- SUB-PANEL 5: QUALITY CONTROL (14 PUNTOS) & CONTROL DE COSTOS -->
-          <div id="expSubPanel_qc" class="hidden glass rounded-2xl p-5 space-y-5">
-            <div class="space-y-2">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">💰 Fase 15: Panel de Consumo y Control de Costos</h3>
-              <div id="expCostSummaryBox"></div>
+          <!-- Selector de Temas Especializados -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <span>📚</span>
+                <span>Paso 1: Selecciona la Categoría Temática</span>
+              </label>
+              <span class="text-[10px] text-slate-400">Reglas de Investigación y Calidad Histórica Activas</span>
             </div>
-            <div class="space-y-2 pt-3 border-t border-slate-800">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300">🛡️ Fase 16: Quality Control — 14 Verificaciones Antes de Exportar</h3>
-              <div id="expQCList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
+            <div id="shortsTopicsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <!-- Se inyecta dinámicamente desde shorts_studio.js -->
+            </div>
+          </div>
+
+          <!-- Selección y Edición de Título -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
+            <input type="hidden" id="shortsActiveTopicId" value="arqueologia_enigma" />
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <span>🎯</span>
+                <span>Paso 2: Título con Gancho y Precisión Documentada</span>
+              </label>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-slate-400">Presets investigados:</span>
+                <select id="shortsPresetsSelect" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-violet-500">
+                  <!-- Se inyecta dinámicamente -->
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="shortsTitleInput"
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-medium focus:outline-none focus:border-violet-500 transition"
+                placeholder="Escribe o personaliza el título..."
+              />
+              <button
+                type="button"
+                onclick="generateShortsScript()"
+                class="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold whitespace-nowrap shadow-lg shadow-violet-600/20 transition flex items-center gap-1.5"
+              >
+                <span>✨</span>
+                <span>Generar Guion Investigado</span>
+              </button>
+            </div>
+            <div id="shortsScriptStatus" class="min-h-[20px]"></div>
+          </div>
+
+          <!-- Contenedor del Guion en 5 Actos y Desglose de Foley Earshot -->
+          <div id="shortsScriptContainer" class="space-y-4">
+            <div class="p-8 rounded-xl bg-slate-950/40 border border-slate-800/60 text-center space-y-2">
+              <span class="text-3xl">🎬</span>
+              <h3 class="text-xs font-bold text-slate-300">Ningún guion generado aún</h3>
+              <p class="text-[11px] text-slate-500 max-w-md mx-auto">
+                Selecciona una categoría temática arriba y presiona "Generar Guion Investigado" para desglosar la historia en 5 actos con fuentes contrastadas y pistas foley de Earshot.
+              </p>
             </div>
           </div>
         </div>
@@ -507,7 +669,7 @@
       <!-- ============================================================ -->
       <!-- 🧊 MÓDULO 3D DEDICADO: BLENDER 5.3 + EEVEE NEXT              -->
       <!-- ============================================================ -->
-      <main id="panelBlender" class="lg:col-span-8 space-y-5 hidden">
+      <main id="panelBlender" class="lg:col-span-8 space-y-5">
         <div class="glass rounded-2xl p-5 space-y-5 border border-cyan-500/40 shadow-2xl">
           <!-- Encabezado del Módulo -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
@@ -544,7 +706,7 @@
               <div class="w-full max-w-[280px] sm:max-w-[320px] rounded-xl overflow-hidden bg-black border border-cyan-500/40 shadow-xl flex-shrink-0">
                 <video
                   id="blenderLiveVideoPlayer"
-                  src="/projects/_prototype_blender_3d/prototipo_motor_4_tiempos_3d_9_16.mp4"
+                  src="/projects/showcase_turbocharger_vertical_9_16/video_showcase_turbocharger_vertical_9_16.mp4"
                   controls
                   autoplay
                   loop
@@ -559,9 +721,17 @@
                   📍 Selecciona una Escena para Visualizar en el Reproductor:
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <button type="button" onclick="playCustomVideoUrl('/projects/showcase_turbocharger_vertical_9_16/video_showcase_turbocharger_vertical_9_16.mp4')" class="p-2.5 rounded-xl bg-gradient-to-r from-amber-600/40 to-orange-600/40 hover:from-amber-600/60 hover:to-orange-600/60 border border-amber-400/50 text-amber-100 font-bold text-left transition col-span-1 sm:col-span-2 flex items-center justify-between shadow-lg shadow-amber-500/10">
+                    <span class="flex items-center gap-1.5"><span>🔥</span><span>Video Maestro: Turbocompresor Automotriz (131s · 14 Tomas Dinámicas · 9:16)</span></span>
+                    <span class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">NUEVO: ULTRA-DINÁMICO ★</span>
+                  </button>
+                  <button type="button" onclick="playCustomVideoUrl('/projects/showcase_refrigerator_vertical_9_16/video_showcase_refrigerador_vertical_9_16.mp4')" class="p-2.5 rounded-xl bg-gradient-to-r from-emerald-600/40 to-cyan-600/40 hover:from-emerald-600/60 hover:to-cyan-600/60 border border-emerald-400/50 text-emerald-100 font-bold text-left transition col-span-1 sm:col-span-2 flex items-center justify-between shadow-lg shadow-emerald-500/10">
+                    <span class="flex items-center gap-1.5"><span>❄️</span><span>Video Maestro: Refrigerador (105s · Voz Dalia · 9:16)</span></span>
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">FINALIZADO</span>
+                  </button>
                   <button type="button" onclick="playBlenderScene('master')" class="p-2.5 rounded-xl bg-gradient-to-r from-cyan-600/30 to-indigo-600/30 hover:from-cyan-600/50 hover:to-indigo-600/50 border border-cyan-400/50 text-cyan-100 font-bold text-left transition col-span-1 sm:col-span-2 flex items-center justify-between">
-                    <span>🌟 Video Maestro Completo (8 Escenas · 46s)</span>
-                    <span class="text-[10px] text-cyan-300 font-normal">Full HD 9:16</span>
+                    <span>🚗 Motor 4 Tiempos (Benchmark Prototipo · 46s)</span>
+                    <span class="text-[10px] text-cyan-300 font-normal">Vertical 9:16</span>
                   </button>
                   <button type="button" onclick="playBlenderScene(1)" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-200 text-left transition">
                     <span class="font-semibold text-cyan-300">1. Hero View:</span> Presentación 3D del motor
@@ -592,6 +762,158 @@
             </div>
           </div>
 
+          <!-- 💡 PANEL DE BÚSQUEDA Y SUGERENCIAS DE TEMAS 3D (ASISTENTE PEDAGÓGICO) -->
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950/40 border border-cyan-500/40 shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">💡</span>
+                  <h3 class="text-xs font-bold text-white uppercase tracking-wider">Buscador de Temas Técnicos 3D & Sugerencias de Funcionamiento</h3>
+                  <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    Asistente Pedagógico
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Escribe un mecanismo o pulsa sobre una sugerencia para ver cómo funciona cada componente, qué efectos sonoros (SFX) lleva y cómo animarlo en 3D.
+                </p>
+              </div>
+              <span class="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-800/40">
+                100% Procedural & Libre
+              </span>
+            </div>
+
+            <!-- Input de Búsqueda Libre y Botones -->
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input
+                id="blenderTopicSearchQuery"
+                type="text"
+                placeholder="Escribe el mecanismo que deseas realizar (ej. 'Turbocompresor', 'GPU vs CPU', 'Motor Wankel', 'Reactor Nuclear')..."
+                class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+              />
+              <button
+                type="button"
+                id="btnBlenderRandomTopic"
+                onclick="searchAndApplyBlenderTopic(true)"
+                class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+                title="Elegir un mecanismo o sistema técnico al azar"
+              >
+                <span>🎲 Tema Sorpresa</span>
+              </button>
+              <button
+                type="button"
+                id="btnBlenderApplyTopic"
+                onclick="searchAndApplyBlenderTopic(false)"
+                class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs shadow-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                <span>✨ Cargar Explicación</span>
+              </button>
+            </div>
+
+            <!-- Categorías y Chips de Sugerencias -->
+            <div class="space-y-2 pt-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">🔬 Sugerencias de Sistemas & Principios Físicos:</span>
+                <span class="text-[9px] text-slate-500">Haz clic en cualquier chip para ver cómo funciona</span>
+              </div>
+              
+              <!-- Chips por Categoría -->
+              <div class="flex flex-wrap gap-1.5">
+                <!-- Automotriz -->
+                <button type="button" onclick="loadBlenderTopic('turbocharger')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-400 text-amber-200 text-[11px] transition flex items-center gap-1">
+                  <span>🔥 Turbocompresor (Boost & Wastegate)</span>
+                </button>
+                <button type="button" onclick="loadBlenderTopic('combustion_engine')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>🚗 Motor 4 Tiempos (Ciclo Otto)</span>
+                </button>
+                <button type="button" onclick="loadBlenderTopic('automatic_transmission')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>⚙️ Transmisión Automática (Planetario)</span>
+                </button>
+                <button type="button" onclick="loadBlenderTopic('wankel_engine')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>🔄 Motor Wankel Rotativo</span>
+                </button>
+                <!-- Hardware & Computación (Inspirado en la imagen GPU) -->
+                <button type="button" onclick="loadBlenderTopic('gpu_vs_cpu')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 hover:border-emerald-400 text-emerald-200 text-[11px] transition flex items-center gap-1 font-semibold">
+                  <span>⚡ GPU vs CPU (Paralelismo Masivo en Gradas)</span>
+                </button>
+                <!-- Termodinámica & Fluidos -->
+                <button type="button" onclick="loadBlenderTopic('refrigerator_cycle')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>❄️ Ciclo Frigorífico (Joule-Thomson)</span>
+                </button>
+                <button type="button" onclick="loadBlenderTopic('turbofan_jet')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>✈️ Turbofán Aeronáutico (Reacción)</span>
+                </button>
+                <!-- Robótica y Energía -->
+                <button type="button" onclick="loadBlenderTopic('printer_3d_fdm')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>🖨️ Impresora 3D FDM (Cinemática CoreXY)</span>
+                </button>
+                <button type="button" onclick="loadBlenderTopic('nuclear_reactor')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-[11px] transition flex items-center gap-1">
+                  <span>⚛️ Reactor Nuclear PWR (Circuito Doble)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tarjeta Didáctica Desplegable: ¿Cómo funciona este mecanismo? -->
+            <div id="blenderTopicExplainerCard" class="p-4 rounded-xl bg-slate-950/95 border border-cyan-500/30 space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                <div class="flex items-center gap-2">
+                  <span id="blenderTopicCardIcon" class="text-xl">🔥</span>
+                  <div>
+                    <h4 id="blenderTopicCardTitle" class="text-xs font-bold text-cyan-200 uppercase tracking-wider">
+                      Turbocompresor Automotriz (Flujo Dual Inconel & Boost)
+                    </h4>
+                    <span id="blenderTopicCardPrinciple" class="text-[10px] text-amber-300 font-mono">
+                      Principio: Termodinámica de Brayton modificada + Sobrealimentación forzada
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  id="btnInjectBlenderTopic"
+                  onclick="injectBlenderTopicToStudio()"
+                  class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-[11px] transition flex items-center gap-1.5 shadow-md whitespace-nowrap self-start sm:self-auto"
+                >
+                  <span>📝 Inyectar Guion al Estudio 3D</span>
+                </button>
+              </div>
+
+              <!-- Explicación de Funcionamiento Paso a Paso -->
+              <div class="space-y-2 text-xs">
+                <div>
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">¿Cómo Funciona?</span>
+                  <p id="blenderTopicCardDesc" class="text-slate-300 text-[11px] leading-relaxed mt-0.5">
+                    Los gases calientes de escape (~950°C) hacen girar el rodete de turbina Inconel a más de 150,000 RPM. A través de un eje central lubricado (CHRA), se acciona el rodete compresor de aluminio billet, aspirando y comprimiendo aire atmosférico fresco para inyectar oxígeno de alta densidad al motor. La válvula wastegate y blow-off evacuan el exceso de sobrepresión para proteger el bloque y prevenir choque de onda.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                  <!-- Componentes -->
+                  <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300">🧩 Componentes Clave:</span>
+                    <p id="blenderTopicCardComponents" class="text-[10px] text-slate-300 leading-tight">
+                      Caracola de escape Inconel, Turbina radial, Cartucho central CHRA a 150k RPM, Rodete compresor billet, Válvula wastegate con diafragma.
+                    </p>
+                  </div>
+
+                  <!-- Efectos Sonoros (SFX) -->
+                  <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300">🔊 Efectos Sonoros (SFX):</span>
+                    <p id="blenderTopicCardSFX" class="text-[10px] text-slate-300 leading-tight">
+                      Silbido agudo de cojinetes cerámicos a 150,000 RPM, soplido de inducción forzada, despiece metálico axial y descarga blow-off valve (pssshh-tututu).
+                    </p>
+                  </div>
+
+                  <!-- Tomas de Cámara 3D -->
+                  <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300">🎥 Tomas 3D Sugeridas:</span>
+                    <p id="blenderTopicCardCamera" class="text-[10px] text-slate-300 leading-tight">
+                      Exploded View (despiece axial de caracolas y eje), Cutaway 120° (flujo rojo/azul de calor) y Extreme Close-Up a los álabes del compresor.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Estudio de Renderizado Personalizado 3D -->
           <div class="space-y-4 pt-4 border-t border-slate-800">
             <div class="flex items-center justify-between">
@@ -603,9 +925,10 @@
               <div>
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Modelo 3D Procedural</label>
                 <select id="blenderModelSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
-                  <option value="combustion_engine" selected>🚗 Motor 4 Tiempos (Pistón, Biela, Cigüeñal, Válvulas, Bujía)</option>
-                  <option value="automatic_transmission">⚙️ Transmisión Automática (Tren Planetario Epicicloidal + Convertidor)</option>
+                  <option value="turbocharger" selected>🔥 Turbocompresor Automotriz (Turbina Inconel + Compresor Billet + CHRA + Wastegate)</option>
                   <option value="refrigerator_cycle">❄️ Refrigerador (Circuito Cerrado + Compresor Seccionado + Capilar)</option>
+                  <option value="combustion_engine">🚗 Motor 4 Tiempos (Pistón, Biela, Cigüeñal, Válvulas, Bujía)</option>
+                  <option value="automatic_transmission">⚙️ Transmisión Automática (Tren Planetario Epicicloidal + Convertidor)</option>
                   <option value="printer_3d_fdm">🖨️ Impresora 3D FDM (Pórtico V-Slot + Correas GT2 + Hotend + Capas)</option>
                 </select>
               </div>
@@ -641,6 +964,34 @@
                   <option value="draft" selected>⚡ Draft (~0.3s/frame · 15fps · 8 muestras)</option>
                   <option value="standard">⚖️ Estándar (~0.8s/frame · 24fps · 16 muestras)</option>
                   <option value="high">💎 Alta Calidad (~1.5s/frame · 30fps · 32 muestras)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Controles de Ritmo y Duración Dinámica (1 a 3 Minutos) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1 flex items-center justify-between">
+                  <span>⏱️ Duración de Video (1 a 3 Minutos)</span>
+                  <span class="text-[9px] text-amber-400 font-mono">Retención TikTok/Shorts</span>
+                </label>
+                <select id="blenderDurationSelect" class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white">
+                  <option value="75">⚡ 1:15 min (75s · Viral Ágil / Alto CTR)</option>
+                  <option value="105">🎯 1:45 min (105s · Despiece Completo)</option>
+                  <option value="132" selected>🔥 2:12 min (132s · 14 Tomas Dinámicas ★ Recomendado)</option>
+                  <option value="180">🎓 3:00 min (180s · Masterclass Técnica Máxima)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-1 flex items-center justify-between">
+                  <span>🎬 Ritmo Cinemático de Cámara</span>
+                  <span class="text-[9px] text-cyan-400 font-mono">Multi-Toma</span>
+                </label>
+                <select id="blenderPacingSelect" class="w-full rounded-xl bg-slate-950 border border-cyan-500/40 px-3 py-2 text-xs text-white">
+                  <option value="ultra_dynamic" selected>⚡ Ultra-Dinámico (Cortes cada 6-8s · 14 tomas · Cero planos estáticos ★)</option>
+                  <option value="standard">⚖️ Dinámico Moderado (Cortes cada 10-12s · 8 tomas)</option>
+                  <option value="documentary">🎥 Documental Suave (Tomas largas de 15-20s)</option>
                 </select>
               </div>
             </div>
@@ -719,6 +1070,75 @@
                 <span>🔄</span>
                 <span>Re-Renderizar Benchmark Completo (8 Escenas)</span>
               </button>
+            </div>
+
+            <!-- MEJORAS ARQUITECTÓNICAS MCP-FOR-BLENDER -->
+            <div class="p-3.5 rounded-xl bg-slate-950/90 border border-teal-500/40 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold text-teal-300">⚡ Calidad de Producción MCP-Blender: Inspección 2x2, Poly Haven PBR y Socket Bridge</span>
+                <span id="blenderBridgeBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Verificando Socket...</span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Herramienta 1: Inspección Visual Multi-Ángulo -->
+                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-white">🔍 Inspección Multi-Ángulo (4 Vistas)</span>
+                    <span class="text-[10px] text-teal-400">Hero · Front · Top · Side</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    Genera una hoja de contacto técnica 2x2 de alta resolución para auditar proporciones, simetría y mallas del modelo seleccionado antes del render de video.
+                  </p>
+                  <button
+                    type="button"
+                    onclick="inspectBlenderModelMultiAngle()"
+                    id="btnInspectMultiAngle"
+                    class="w-full px-3 py-2 rounded-lg bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/40 text-teal-200 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>📸 Generar Hoja de Contacto 2x2</span>
+                  </button>
+                </div>
+
+                <!-- Herramienta 2: Catálogo de Materiales PBR Poly Haven -->
+                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-white">🎨 Materiales PBR Poly Haven (CC0)</span>
+                    <span class="text-[10px] text-amber-400">850+ Texturas Gratuitas</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <input
+                      id="polyhavenSearchInput"
+                      type="text"
+                      placeholder="Buscar: metal, steel, iron, dark..."
+                      value="metal"
+                      class="flex-1 rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1 text-xs text-white"
+                    />
+                    <button
+                      type="button"
+                      onclick="searchPolyhavenPBR()"
+                      class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold"
+                    >
+                      Buscar
+                    </button>
+                  </div>
+                  <div class="flex gap-2 items-center">
+                    <select id="polyhavenTextureSelect" class="flex-1 rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1 text-xs text-white">
+                      <option value="metal_plate">Metal Plate (Industrial · usada en renders)</option>
+                      <option value="metal_plate_02">Metal Plate 02 (Industrial)</option>
+                      <option value="rusty_metal_02">Rusty Metal 02 (Desgaste)</option>
+                    </select>
+                    <button
+                      type="button"
+                      onclick="downloadSelectedPolyhavenPBR()"
+                      id="btnDownloadPBR"
+                      class="px-2.5 py-1 rounded-lg bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/40 text-amber-200 text-xs font-bold transition"
+                    >
+                      📥 Descargar PBR
+                    </button>
+                  </div>
+                  <div id="polyhavenStatusMsg" class="text-[10px] text-slate-400 truncate">Listo para consultar API de Poly Haven.</div>
+                </div>
+              </div>
             </div>
 
             <!-- Barra de Progreso y Mensajes -->
@@ -1812,10 +2232,10 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     });
 
     function switchMode(mode) {
-      const panels = { explainer: "panelExplainer", blender: "panelBlender", tts: "panelTTS", youtube: "panelYouTube", fruti: "panelFruti" };
-      const tabs = { explainer: "tabBtnExplainer", blender: "tabBtnBlender", tts: "tabBtnTTS", youtube: "tabBtnYT", fruti: "tabBtnFruti" };
-      const active = "px-4 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow";
-      const inactive = "px-4 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white";
+      const panels = { blender: "panelBlender", opuscar: "panelOpuscar", shorts: "panelShorts", youtube: "panelYouTube", tts: "panelTTS", fruti: "panelFruti" };
+      const tabs = { blender: "tabBtnBlender", opuscar: "tabBtnOpuscar", shorts: "tabBtnShorts", youtube: "tabBtnYT", tts: "tabBtnTTS", fruti: "tabBtnFruti" };
+      const active = "px-3.5 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow flex items-center gap-1.5";
+      const inactive = "px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white flex items-center gap-1.5";
       Object.keys(panels).forEach((k) => {
         const pEl = document.getElementById(panels[k]);
         const tEl = document.getElementById(tabs[k]);
@@ -3268,7 +3688,55 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     </div>
   </div>
 
+  <!-- Modal de Inspección Multi-Ángulo 2x2 (mcp-for-blender) -->
+  <div id="blenderInspectionModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-teal-500/40 rounded-2xl max-w-3xl w-full p-5 space-y-4 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-teal-400 text-lg">🔍</span>
+          <h3 id="blenderInspectionModalTitle" class="text-sm font-bold text-white uppercase tracking-wider">Auditoría Técnica Multi-Ángulo 2x2</h3>
+        </div>
+        <button onclick="closeBlenderInspectionModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div class="flex-1 overflow-auto flex items-center justify-center bg-black/50 rounded-xl p-2 border border-slate-800">
+        <img id="blenderInspectionModalImg" src="" alt="Hoja de Contacto 2x2" class="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg" />
+      </div>
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-400">
+        <span>Vistas: Hero 3/4 · Frontal · Superior · Lateral</span>
+        <div class="flex gap-2">
+          <a id="blenderInspectionDownloadLink" href="#" download class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold transition">Descargar PNG</a>
+          <button onclick="closeBlenderInspectionModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Video Lemo-Opuscar -->
+  <div id="opuscarVideoModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-indigo-500/40 rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">✨</span>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Video Cinemático Lemo-Opuscar (100% en Código)</h3>
+        </div>
+        <button onclick="closeOpuscarVideoModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div>
+        <video id="opuscarModalVideo" controls src="/projects/opuscar_chapultepec/chapultepec_diorama_9_16.mp4" class="w-full max-h-[460px] rounded-xl bg-black border border-indigo-500/30 object-contain"></video>
+      </div>
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-400">
+        <span>Renderizado determinista + Edge TTS + Subtítulos ASS</span>
+        <div class="flex gap-2">
+          <a id="opuscarDownloadLink" href="#" download class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition">Descargar MP4</a>
+          <button onclick="closeOpuscarVideoModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/opuscar.js?v=2.1.0"></script>
   <script src="/static/fruti.js"></script>
-  <script src="/static/explainer.js?v=2.5.3"></script>
+  <script src="/static/shorts_studio.js?v=1.0.0"></script>
+  <script src="/static/explainer.js?v=2.6.0"></script>
 </body>
 </html>

@@ -39,6 +39,9 @@ from studio.blender.models_library.printer_3d_fdm import (
     create_printer_3d_3d,
     build_printer_3d_keyframes,
 )
+from studio.blender.models_library.turbocharger_specialized import (
+    build_specialized_turbocharger_model,
+)
 from studio.blender.animation_controller import build_4_stroke_cycle_keyframes
 from studio.blender.camera_director import setup_studio_lighting, setup_camera_for_shot
 from studio.blender.camera_plans import apply_camera_plan
@@ -320,6 +323,8 @@ def run_blender_render(spec: dict) -> None:
         data = create_refrigerator_cycle_3d(center_z=2.2)
         build_refrigerator_keyframes(fridge_data=data, start_frame=1, end_frame=total_frames,
                                      scene_phase=cycle_phase, highlight_component=highlight_comp)
+    elif model_type in ("turbocharger", "turbo", "turbocompresor"):
+        data = build_specialized_turbocharger_model(center_z=1.25)
     elif model_type == "printer_3d_fdm":
         data = create_printer_3d_3d(center_z=2.0)
         build_printer_3d_keyframes(printer_data=data, start_frame=1, end_frame=total_frames,
@@ -333,6 +338,17 @@ def run_blender_render(spec: dict) -> None:
     # Aplicar Dirección Visual (Modo A con imagen de referencia o Modo B autónomo sin referencia)
     qc["visual_direction"] = apply_visual_direction_to_blender_scene(visual_direction, lights_dict)
 
+    # Mejoras de calidad automáticas para TODOS los modelos (Poly Haven PBR + HDRI de reflejos)
+    quality_on = bool(spec.get("quality_enhancements", True))
+    if quality_on:
+        try:
+            from studio.blender import quality_enhancer as qe
+            qc["quality_pbr"] = qe.apply_pbr_detail_to_scene(strength=float(spec.get("pbr_strength", 0.15)))
+            qc["quality_hdri"] = qe.apply_hdri_reflections(strength=float(spec.get("hdri_strength", 0.65)))
+        except Exception as exc:  # nunca bloquear el render por un asset externo
+            qc["quality_error"] = str(exc)
+            print(f"[BLENDER_WORKER] Mejoras de calidad omitidas: {exc}")
+
     # Sincronización de beats audiovisuales (etiquetas al segundo exacto de la voz y resaltados por beat)
     qc["audiovisual_sync"] = synchronize_audiovisual_beats_in_scene(data, audiovisual_beats, fps, total_frames)
 
@@ -342,6 +358,12 @@ def run_blender_render(spec: dict) -> None:
     qc["motion"] = check_animation_motion(1, total_frames) if total_frames > 1 else {"has_functional_motion": True, "ok": True}
 
     # Cámara inteligente (con soporte multi-beat cuando la escena cambia de sujeto)
+    if not camera_plan and spec.get("auto_frame_camera", True):
+        try:
+            from studio.blender import quality_enhancer as _qe
+            camera_plan = _qe.build_default_camera_plan(composition_type, data)
+        except Exception as exc:
+            qc["auto_frame_error"] = str(exc)
     if camera_plan:
         qc["camera"] = apply_camera_plan(camera_plan, data, width, height, 1, total_frames)
     else:
@@ -350,6 +372,17 @@ def run_blender_render(spec: dict) -> None:
 
     scene.frame_set(1)
     scene.render.image_settings.file_format = "PNG"
+
+    # Hoja de inspección multi-ángulo previa al render (control de calidad visual)
+    if spec.get("quality_contact_sheet"):
+        try:
+            from studio.blender import quality_enhancer as qe
+            qc["contact_sheet"] = qe.render_inspection_tiles(output_dir / "_qc_tiles", data=data)
+        except Exception as exc:
+            qc["contact_sheet_error"] = str(exc)
+        scene.frame_set(1)
+        scene.render.image_settings.file_format = "PNG"
+
     scene.render.filepath = str(output_dir / "frame_")
 
     print(f"[BLENDER_WORKER] Renderizando {total_frames} fotogramas a {width}x{height} ({profile_key}) fase={cycle_phase}")

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Lemo-Opuscar — Pipeline Paper-Cut Maestro (Valeriana en Campeche)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0b0f19;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #canvasWrapper {
+      position: relative;
+      width: 720px;
+      height: 1280px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+      background: #fbf5e8;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvasWrapper">
+    <canvas id="c" width="720" height="1280"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const W = 720;
+    const H = 1280;
+
+    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+    function easeOutBack(t, s = 1.70158) {
+      const p = clamp(t, 0, 1);
+      return 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+    }
+    function easeInOutQuad(t) {
+      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    // Sticker Paper-Cut artesanal: Borde blanco, sombra suave 2.5D y entrada pop-in
+    function drawPaperSticker(ctx, x, y, scale, angle, drawFn) {
+      if (scale <= 0.001) return;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.scale(scale, scale);
+
+      ctx.save();
+      ctx.shadowColor = "rgba(15, 23, 42, 0.28)";
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetX = 4;
+      ctx.shadowOffsetY = 8;
+      drawFn(ctx);
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // Fondo cálido con cuadrícula milimétrica artesanal
+    function drawJungleEnvironment(ctx, t, drought = 0) {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      if (drought > 0) {
+        grad.addColorStop(0, `rgb(${Math.floor(251 - drought * 40)}, ${Math.floor(245 - drought * 60)}, ${Math.floor(232 - drought * 80)})`);
+        grad.addColorStop(0.55, `rgb(${Math.floor(244 - drought * 50)}, ${Math.floor(235 - drought * 70)}, ${Math.floor(215 - drought * 90)})`);
+        grad.addColorStop(1, `rgb(${Math.floor(230 - drought * 60)}, ${Math.floor(210 - drought * 70)}, ${Math.floor(180 - drought * 80)})`);
+      } else {
+        grad.addColorStop(0, "#fbf5e8");
+        grad.addColorStop(0.55, "#f4ebd7");
+        grad.addColorStop(1, "#e6dcbf");
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Cuadrícula técnica sutil
+      ctx.strokeStyle = "rgba(180, 160, 130, 0.14)";
+      ctx.lineWidth = 1;
+      for (let y = 0; y < H; y += 60) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      for (let x = 0; x < W; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+    }
+
+    // Árbol de selva tropical con micro-animación de balanceo natural (Idle Motion)
+    function drawJungleTree(ctx, x, y, scale, baseAngle, t, delay = 0, wireframe = 0) {
+      const idleSway = Math.sin(t * 2.2 + delay) * 0.035;
+      const angle = baseAngle + idleSway;
+
+      drawPaperSticker(ctx, x, y, scale, angle, (c) => {
+        if (wireframe > 0.85) return;
+        const alpha = 1.0 - clamp(wireframe * 1.4, 0, 1);
+        c.globalAlpha = alpha;
+
+        // Borde blanco de recorte
+        c.fillStyle = "#ffffff";
+        c.beginPath();
+        c.rect(-18, -6, 36, 120);
+        c.arc(-46, -95, 60, 0, Math.PI * 2);
+        c.arc(46, -95, 60, 0, Math.PI * 2);
+        c.arc(0, -155, 72, 0, Math.PI * 2);
+        c.fill();
+
+        // Tronco
+        c.fillStyle = "#78350f";
+        c.beginPath();
+        c.roundRect(-10, 0, 20, 110, 6);
+        c.fill();
+
+        // Follaje de papel por capas
+        c.fillStyle = "#15803d";
+        c.beginPath(); c.arc(-42, -95, 54, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#16a34a";
+        c.beginPath(); c.arc(42, -95, 54, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#22c55e";
+        c.beginPath(); c.arc(0, -150, 66, 0, Math.PI * 2); c.fill();
+
+        c.strokeStyle = "#14532d";
+        c.lineWidth = 3;
+        c.stroke();
+        c.globalAlpha = 1.0;
+      });
+    }
+
+    // Pirámide Maya con escalinatas y templo superior
+    function drawMayanPyramid(ctx, x, y, scale, lidarReveal = 0) {
+      drawPaperSticker(ctx, x, y, scale, 0, (c) => {
+        const tiers = 6;
+        const baseW = 490;
+        const tierH = 46;
+
+        // Borde exterior blanco de sticker
+        c.fillStyle = "#ffffff";
+        c.beginPath();
+        for (let i = 0; i < tiers; i++) {
+          const tw = baseW - i * 66;
+          const ty = -(i * tierH);
+          c.roundRect(-tw / 2 - 8, ty - tierH - 5, tw + 16, tierH + 10, 8);
+        }
+        c.roundRect(-74, -(tiers * tierH) - 90, 148, 96, 10);
+        c.fill();
+
+        // Bloques de piedra escalonada
+        for (let i = 0; i < tiers; i++) {
+          const tw = baseW - i * 66;
+          const ty = -(i * tierH);
+          const stoneColor = (i % 2 === 0) ? "#d97706" : "#b45309";
+          c.fillStyle = (lidarReveal > 0) ? (i % 2 === 0 ? "#059669" : "#047857") : stoneColor;
+          c.beginPath();
+          c.roundRect(-tw / 2, ty - tierH, tw, tierH, 6);
+          c.fill();
+          c.strokeStyle = (lidarReveal > 0) ? "#34d399" : "#78350f";
+          c.lineWidth = 2.5;
+          c.stroke();
+        }
+
+        // Escalinata central ceremonial
+        const stairW = 88;
+        c.fillStyle = (lidarReveal > 0) ? "#10b981" : "#f59e0b";
+        c.beginPath();
+        c.moveTo(-stairW / 2, 0);
+        c.lineTo(-stairW / 2 + 10, -(tiers * tierH));
+        c.lineTo(stairW / 2 - 10, -(tiers * tierH));
+        c.lineTo(stairW / 2, 0);
+        c.closePath();
+        c.fill();
+        c.strokeStyle = "#ffffff";
+        c.lineWidth = 2;
+        c.stroke();
+
+        // Templo superior
+        const templeY = -(tiers * tierH);
+        c.fillStyle = (lidarReveal > 0) ? "#047857" : "#92400e";
+        c.beginPath();
+        c.roundRect(-64, templeY - 58, 128, 58, 6);
+        c.fill();
+        c.strokeStyle = (lidarReveal > 0) ? "#6ee7b7" : "#451a03";
+        c.lineWidth = 3;
+        c.stroke();
+
+        // Puerta del templo
+        c.fillStyle = "#1e293b";
+        c.beginPath();
+        c.roundRect(-20, templeY - 48, 40, 48, 4);
+        c.fill();
+
+        // Crestería maya superior
+        c.fillStyle = (lidarReveal > 0) ? "#065f46" : "#78350f";
+        c.beginPath();
+        c.moveTo(-48, templeY - 58);
+        c.lineTo(-32, templeY - 84);
+        c.lineTo(0, templeY - 68);
+        c.lineTo(32, templeY - 84);
+        c.lineTo(48, templeY - 58);
+        c.closePath();
+        c.fill();
+      });
+    }
+
+    // Regla / Cota animada de altura vertical (Regla 3: Visualización de Cifras)
+    function drawDimensionRuler(ctx, x, yBase, heightPx, label, progress) {
+      if (progress <= 0.01) return;
+      const curH = heightPx * easeOutCubic(progress);
+
+      ctx.save();
+      ctx.translate(x, yBase);
+
+      // Línea vertical amarilla de cota
+      ctx.strokeStyle = "#ea580c";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -curH);
+      ctx.stroke();
+
+      // Topes superior e inferior
+      ctx.beginPath();
+      ctx.moveTo(-16, 0); ctx.lineTo(16, 0);
+      ctx.moveTo(-16, -curH); ctx.lineTo(16, -curH);
+      ctx.stroke();
+
+      // Flechas de cota
+      ctx.fillStyle = "#ea580c";
+      ctx.beginPath();
+      ctx.moveTo(0, -curH); ctx.lineTo(-6, -curH + 12); ctx.lineTo(6, -curH + 12); ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(-6, -12); ctx.lineTo(6, -12); ctx.closePath(); ctx.fill();
+
+      // Etiqueta en sticker de papel
+      if (progress > 0.4) {
+        const pTag = clamp((progress - 0.4) / 0.6, 0, 1);
+        const scTag = easeOutBack(pTag);
+        drawPaperSticker(ctx, 58, -curH / 2, scTag, 0, (c) => {
+          c.fillStyle = "#ffffff";
+          c.beginPath(); c.roundRect(-52, -22, 104, 44, 10); c.fill();
+          c.fillStyle = "#ea580c";
+          c.beginPath(); c.roundRect(-48, -18, 96, 36, 8); c.fill();
+          c.fillStyle = "#ffffff";
+          c.font = 'bold 15px sans-serif';
+          c.textAlign = "center";
+          c.textBaseline = "middle";
+          c.fillText(label, 0, 0);
+        });
+      }
+
+      ctx.restore();
+    }
+
+    // Contador numérico animado en sticker (Regla 3: Cifras Dinámicas)
+    function drawAnimatedCounter(ctx, x, y, maxVal, unitLabel, progress, color = "#0284c7") {
+      if (progress <= 0.01) return;
+      const pScale = easeOutBack(clamp(progress / 0.35, 0, 1));
+      const curNum = Math.floor(clamp(progress, 0, 1) * maxVal);
+
+      drawPaperSticker(ctx, x, y, pScale, 0, (c) => {
+        const pw = 360;
+        const ph = 96;
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.roundRect(-pw / 2 - 4, -ph / 2 - 4, pw + 8, ph + 8, 18); c.fill();
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.roundRect(-pw / 2, -ph / 2, pw, ph, 14); c.fill();
+        c.strokeStyle = color; c.lineWidth = 3.5; c.stroke();
+
+        c.fillStyle = color;
+        c.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText(curNum.toLocaleString(), 0, -14);
+
+        c.fillStyle = "#475569";
+        c.font = 'bold 13px sans-serif';
+        c.fillText(unitLabel.toUpperCase(), 0, 22);
+      });
+    }
+
+    // Cancha del sagrado Juego de Pelota (Pok-ta-pok)
+    function drawBallCourt(ctx, x, y, scale, t) {
+      drawPaperSticker(ctx, x, y, scale, 0, (c) => {
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.roundRect(-245, -95, 490, 190, 16); c.fill();
+
+        c.fillStyle = "#f1f5f9";
+        c.beginPath(); c.roundRect(-235, -85, 470, 170, 12); c.fill();
+        c.strokeStyle = "#94a3b8"; c.lineWidth = 2.5; c.stroke();
+
+        // Taludes laterales inclinados
+        [-1, 1].forEach((dir) => {
+          c.fillStyle = "#d97706";
+          c.beginPath();
+          c.moveTo(dir * 225, -75);
+          c.lineTo(dir * 125, -75);
+          c.lineTo(dir * 85, 75);
+          c.lineTo(dir * 225, 75);
+          c.closePath();
+          c.fill();
+          c.strokeStyle = "#78350f"; c.lineWidth = 3; c.stroke();
+        });
+
+        // Anillo de piedra tallado central
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.arc(0, -20, 34, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#475569";
+        c.beginPath(); c.arc(0, -20, 29, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.arc(0, -20, 14, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#0f172a";
+        c.beginPath(); c.arc(0, -20, 10, 0, Math.PI * 2); c.fill();
+
+        // Pelota de hule con rebote animado (Idle Motion)
+        const ballBounce = Math.abs(Math.sin(t * 4.5)) * 28;
+        const ballX = Math.sin(t * 2.0) * 90;
+        c.fillStyle = "#0f172a";
+        c.beginPath(); c.arc(ballX, 48 - ballBounce, 13, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.arc(ballX - 3, 45 - ballBounce, 3.5, 0, Math.PI * 2); c.fill();
+      });
+    }
+
+    // Calzada ceremonial Sacbé trazada en perspectiva
+    function drawSacbeRoad(ctx, x, y, scale, progress = 1.0) {
+      drawPaperSticker(ctx, x, y, scale, 0, (c) => {
+        const curLen = clamp(progress, 0, 1);
+        c.fillStyle = "#ffffff";
+        c.beginPath();
+        c.moveTo(-50, -170);
+        c.lineTo(50, -170);
+        c.lineTo(-50 + 280 * curLen, -170 + 310 * curLen);
+        c.lineTo(50 - 280 * curLen, -170 + 310 * curLen);
+        c.closePath();
+        c.fill();
+
+        c.fillStyle = "#fef3c7";
+        c.beginPath();
+        c.moveTo(-42, -162);
+        c.lineTo(42, -162);
+        c.lineTo(-42 + 265 * curLen, -162 + 295 * curLen);
+        c.lineTo(42 - 265 * curLen, -162 + 295 * curLen);
+        c.closePath();
+        c.fill();
+        c.strokeStyle = "#d97706"; c.lineWidth = 3; c.stroke();
+      });
+    }
+
+    // Reservorio de agua prehispánica (Aguada) con ondas concéntricas animadas
+    function drawAguadaReservoir(ctx, x, y, scale, t) {
+      drawPaperSticker(ctx, x, y, scale, 0, (c) => {
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.ellipse(0, 0, 84, 52, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#0284c7";
+        c.beginPath(); c.ellipse(0, 0, 78, 46, 0, 0, Math.PI * 2); c.fill();
+
+        // Ondas de agua concéntricas
+        for (let i = 0; i < 3; i++) {
+          const wavePhase = (t * 1.8 + i * 0.33) % 1.0;
+          const rX = 20 + wavePhase * 50;
+          const rY = 12 + wavePhase * 30;
+          const alpha = 1.0 - wavePhase;
+          c.strokeStyle = `rgba(165, 243, 252, ${alpha})`;
+          c.lineWidth = 2;
+          c.beginPath(); c.ellipse(0, 0, rX, rY, 0, 0, Math.PI * 2); c.stroke();
+        }
+      });
+    }
+
+    // Dron científico LiDAR con flotación continua (Idle Motion)
+    function drawLidarDrone(ctx, x, y, scale, t) {
+      const droneBob = Math.sin(t * 3.5) * 8;
+      drawPaperSticker(ctx, x, y + droneBob, scale, Math.sin(t * 2.0) * 0.04, (c) => {
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.roundRect(-84, -34, 168, 68, 14); c.fill();
+
+        c.fillStyle = "#0f172a";
+        c.beginPath(); c.roundRect(-76, -28, 152, 56, 10); c.fill();
+
+        // Rotores con hélices giratorias seguras (sin radio negativo)
+        const rotPhase = (t * 40) % (Math.PI * 2);
+        [-54, 54].forEach((rx) => {
+          c.fillStyle = "#64748b";
+          c.fillRect(rx - 4, -42, 8, 22);
+          c.fillStyle = "#ffffff";
+          c.beginPath();
+          const radX = Math.max(1.0, Math.abs(34 * Math.cos(rotPhase)));
+          c.ellipse(rx, -42, radX, 5, 0, 0, Math.PI * 2);
+          c.fill();
+        });
+
+        // Lente láser LiDAR en la base
+        c.fillStyle = "#06b6d4";
+        c.beginPath(); c.arc(0, 26, 14, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#a5f3fc";
+        c.beginPath(); c.arc(0, 26, 7, 0, Math.PI * 2); c.fill();
+      });
+    }
+
+    // Haz láser LiDAR emitiendo barridos volumétricos
+    function drawLidarLaserBeam(ctx, sourceX, sourceY, t) {
+      ctx.save();
+      const spread = 250 + Math.sin(t * 7) * 35;
+      const beamGrad = ctx.createLinearGradient(sourceX, sourceY + 25, sourceX, sourceY + 480);
+      beamGrad.addColorStop(0, "rgba(6, 182, 212, 0.75)");
+      beamGrad.addColorStop(0.65, "rgba(16, 185, 129, 0.4)");
+      beamGrad.addColorStop(1, "rgba(16, 185, 129, 0.0)");
+
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(sourceX - 10, sourceY + 25);
+      ctx.lineTo(sourceX + 10, sourceY + 25);
+      ctx.lineTo(sourceX + spread, sourceY + 490);
+      ctx.lineTo(sourceX - spread, sourceY + 490);
+      ctx.closePath();
+      ctx.fill();
+
+      // Líneas de pulso láser
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2.5;
+      for (let i = 0; i < 4; i++) {
+        const off = ((t * 3.5 + i * 0.25) % 1.0) * 450;
+        const curSpread = (off / 450) * spread;
+        ctx.beginPath();
+        ctx.moveTo(sourceX - curSpread, sourceY + 30 + off);
+        ctx.lineTo(sourceX + curSpread, sourceY + 30 + off);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Personaje de arqueólogo explorador
+    function drawArchaeologist(ctx, x, y, scale, t = 0) {
+      const breathSway = Math.sin(t * 2.5) * 2;
+      drawPaperSticker(ctx, x, y + breathSway, scale, 0, (c) => {
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.roundRect(-36, -96, 72, 108, 12); c.fill();
+
+        // Sombrero
+        c.fillStyle = "#d97706";
+        c.beginPath(); c.ellipse(0, -78, 30, 8, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.roundRect(-16, -92, 32, 16, 4); c.fill();
+
+        // Cabeza
+        c.fillStyle = "#fed7aa";
+        c.beginPath(); c.arc(0, -62, 15, 0, Math.PI * 2); c.fill();
+
+        // Camisa
+        c.fillStyle = "#0284c7";
+        c.beginPath(); c.roundRect(-18, -46, 36, 34, 6); c.fill();
+
+        // Tablet encendida
+        c.fillStyle = "#0f172a";
+        c.beginPath(); c.roundRect(8, -42, 22, 28, 4); c.fill();
+        c.fillStyle = "#38bdf8";
+        c.fillRect(11, -39, 16, 22);
+
+        // Pantalón
+        c.fillStyle = "#b45309";
+        c.fillRect(-14, -12, 12, 18);
+        c.fillRect(2, -12, 12, 18);
+      });
+    }
+
+    // Placa superior pedagógica estilo sticker artesanal (Regla 4)
+    function drawPlaque(ctx, x, y, text1, text2 = null, accentColor = "#10b981", scale = 1.0) {
+      drawPaperSticker(ctx, x, y, scale, 0, (c) => {
+        const pw = 620;
+        const ph = text2 ? 96 : 64;
+
+        c.fillStyle = "#ffffff";
+        c.beginPath(); c.roundRect(-pw / 2 - 4, -ph / 2 - 4, pw + 8, ph + 8, 18); c.fill();
+        c.fillStyle = "#fffbeb";
+        c.beginPath(); c.roundRect(-pw / 2, -ph / 2, pw, ph, 14); c.fill();
+        c.strokeStyle = accentColor; c.lineWidth = 3; c.stroke();
+
+        c.fillStyle = accentColor;
+        c.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        if (text2) {
+          c.fillText(text1.toUpperCase(), 0, -18);
+          c.fillStyle = "#1e293b";
+          c.font = 'bold 15px "Segoe UI", Arial, sans-serif';
+          c.fillText(text2.toUpperCase(), 0, 18);
+        } else {
+          c.fillText(text1.toUpperCase(), 0, 0);
+        }
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // MOTOR DE ESCENAS DINÁMICAS (10 ESCENAS · 77.0 SEGUNDOS)
+    // Sincronización Estricta 1:1, Pop-In Escalonado y Movimiento Ken Burns
+    // -------------------------------------------------------------------------
+    function renderScene(t) {
+      ctx.clearRect(0, 0, W, H);
+
+      // Movimiento continuo de cámara Ken Burns (Regla 2: 2% slow zoom continuo)
+      const globalZoom = 1.0 + 0.02 * Math.sin((t / 77.0) * Math.PI);
+      const globalPanY = Math.sin(t * 0.15) * 8;
+
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(globalZoom, globalZoom);
+      ctx.translate(-W / 2, -H / 2 + globalPanY);
+
+      // ESCENA 1: (0.0s - 7.5s) GANCHO INMEDIATO - La Selva Monumental
+      // Narrador: "¡Bajo la densa selva de Campeche existía una ciudad maya monumental y nadie la había visto!"
+      if (t < 7.5) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t;
+
+        // Entradas escalonadas (Staggered Pop-In)
+        const pPlaque = easeOutBack(clamp(relT / 0.8, 0, 1));
+        const pTreesBack = easeOutBack(clamp((relT - 0.15) / 0.8, 0, 1));
+        const pTreesFront = easeOutBack(clamp((relT - 0.30) / 0.8, 0, 1));
+        const pDrone = easeOutBack(clamp((relT - 0.45) / 0.9, 0, 1));
+
+        // Árboles traseros y delanteros
+        drawJungleTree(ctx, W / 2 - 130, 740, 0.88 * pTreesBack, 0.02, t, 0.5);
+        drawJungleTree(ctx, W / 2 + 140, 740, 0.88 * pTreesBack, -0.02, t, 1.2);
+        drawJungleTree(ctx, 110, 780, 1.12 * pTreesFront, -0.05, t, 0.0);
+        drawJungleTree(ctx, W - 100, 780, 1.12 * pTreesFront, 0.05, t, 2.0);
+
+        // Dron sobrevolando la selva
+        const droneX = 140 + relT * 50;
+        const droneY = 320 + Math.sin(t * 2.5) * 14;
+        drawLidarDrone(ctx, droneX, droneY, 0.95 * pDrone, t);
+        drawLidarLaserBeam(ctx, droneX, droneY, t);
+
+        drawPlaque(ctx, W / 2, 160, "SELVA DE CAMPECHE", "UNA CIUDAD MONUMENTAL OCULTA", "#16a34a", pPlaque);
+      }
+
+      // ESCENA 2: (7.5s - 15.0s) LA EXPEDICIÓN CIENTÍFICA (Tulane & INAH)
+      // Narrador: "El arqueólogo Luke Auld-Thomas de la Universidad de Tulane analizó datos del sensor láser LiDAR."
+      else if (t < 15.0) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 7.5;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pTrees = easeOutBack(clamp((relT - 0.15) / 0.7, 0, 1));
+        const pTable = easeOutBack(clamp((relT - 0.3) / 0.8, 0, 1));
+        const pArch1 = easeOutBack(clamp((relT - 0.45) / 0.7, 0, 1));
+        const pArch2 = easeOutBack(clamp((relT - 0.60) / 0.7, 0, 1));
+
+        drawJungleTree(ctx, 80, 800, 0.95 * pTrees, -0.06, t, 0.3);
+        drawJungleTree(ctx, W - 80, 800, 0.95 * pTrees, 0.06, t, 1.5);
+
+        // Mesa de campaña
+        drawPaperSticker(ctx, W / 2, 850, pTable, 0, (c) => {
+          c.fillStyle = "#ffffff";
+          c.beginPath(); c.roundRect(-160, -35, 320, 70, 12); c.fill();
+          c.fillStyle = "#78350f";
+          c.beginPath(); c.roundRect(-152, -29, 304, 58, 8); c.fill();
+          c.strokeStyle = "#451a03"; c.lineWidth = 2; c.stroke();
+          // Mapas satelitales
+          c.fillStyle = "#ffffff"; c.fillRect(-120, -22, 100, 44);
+          c.strokeStyle = "#0284c7"; c.lineWidth = 1.5; c.strokeRect(-120, -22, 100, 44);
+          // Computadora de análisis
+          c.fillStyle = "#334155"; c.fillRect(30, -24, 70, 48);
+          c.fillStyle = "#38bdf8"; c.fillRect(34, -20, 62, 40);
+        });
+
+        drawArchaeologist(ctx, W / 2 - 110, 820, 1.15 * pArch1, t);
+        drawArchaeologist(ctx, W / 2 + 110, 820, 1.15 * pArch2, t + 1.0);
+
+        drawPlaque(ctx, W / 2, 160, "INVESTIGACIÓN CIENTÍFICA", "LUKE AULD-THOMAS · TULANE E INAH", "#0284c7", pPlaque);
+      }
+
+      // ESCENA 3: (15.0s - 22.5s) ESCANEO LÁSER MULTIESPECTRAL
+      // Narrador: "Los pulsos de luz traspasaron la vegetación tropical, revelando el suelo en tres dimensiones."
+      else if (t < 22.5) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 15.0;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pDrone = easeOutBack(clamp((relT - 0.2) / 0.8, 0, 1));
+
+        // Dron en primer plano con barrido
+        const droneX = W / 2 + Math.sin(relT * 2.2) * 110;
+        const droneY = 320 + Math.cos(relT * 2.2) * 22;
+        drawLidarDrone(ctx, droneX, droneY, 1.25 * pDrone, t);
+        drawLidarLaserBeam(ctx, droneX, droneY, t);
+
+        // Copas de árboles siendo escaneadas con ligera transparencia progresiva (Causa y Efecto)
+        const scanProgress = clamp(relT / 4.0, 0, 1);
+        drawJungleTree(ctx, 90, 860, 1.15, -0.05, t, 0.4, scanProgress * 0.6);
+        drawJungleTree(ctx, W - 90, 860, 1.15, 0.05, t, 1.8, scanProgress * 0.6);
+        drawJungleTree(ctx, W / 2, 900, 1.25, 0.0, t, 0.9, scanProgress * 0.8);
+
+        drawPlaque(ctx, W / 2, 160, "ESCANEO LÁSER LIDAR", "PENETRACIÓN TOTAL DE LA VEGETACIÓN", "#06b6d4", pPlaque);
+      }
+
+      // ESCENA 4: (22.5s - 30.0s) CONTADOR DINÁMICO: 6,674 ESTRUCTURAS
+      // Narrador: "Aparecieron seis mil seiscientas setenta y cuatro estructuras prehispánicas ocultas por más de mil años."
+      else if (t < 30.0) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 22.5;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pPyramid = easeOutBack(clamp((relT - 0.2) / 0.8, 0, 1));
+        const countProgress = clamp((relT - 0.4) / 4.0, 0, 1);
+
+        // Pirámide emergiendo en wireframe esmeralda
+        drawMayanPyramid(ctx, W / 2, 780, 0.92 * pPyramid, 1.0 - countProgress * 0.5);
+
+        // Árboles retirados a los costados
+        drawJungleTree(ctx, 75, 820, 0.9, -0.08, t, 0.2, 0.5);
+        drawJungleTree(ctx, W - 75, 820, 0.9, 0.08, t, 1.4, 0.5);
+
+        // CONTADOR NUMÉRICO DINÁMICO EN TIEMPO REAL (Regla 3)
+        drawAnimatedCounter(ctx, W / 2, 360, 6674, "Estructuras Descubiertas", countProgress, "#059669");
+
+        drawPlaque(ctx, W / 2, 160, "TOPOGRAFÍA DIGITAL", "REVELACIÓN ARQUEOLÓGICA MASIVA", "#10b981", pPlaque);
+      }
+
+      // ESCENA 5: (30.0s - 37.5s) GRAN ACRÓPOLIS & COTA DE ALTURA (15 METROS)
+      // Narrador: "Bautizada como Valeriana, su Gran Acrópolis alberga pirámides templo de quince metros de altura."
+      else if (t < 37.5) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 30.0;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pPyramid = easeOutBack(clamp((relT - 0.2) / 0.8, 0, 1));
+        const rulerProgress = clamp((relT - 0.4) / 3.0, 0, 1);
+
+        // Pirámide monumental central
+        drawMayanPyramid(ctx, W / 2 - 30, 760, 1.05 * pPyramid, 0);
+
+        // Pirámide lejana
+        drawMayanPyramid(ctx, 110, 710, 0.42 * pPyramid, 0);
+
+        // COTA / REGLA DE ALTURA ANIMADA VERTICAL: 15 METROS (Regla 3)
+        drawDimensionRuler(ctx, W / 2 + 250, 760, 310, "15 METROS", rulerProgress);
+
+        drawArchaeologist(ctx, W / 2 - 150, 850, 1.0, t);
+
+        drawPlaque(ctx, W / 2, 160, "METRÓPOLIS DE VALERIANA", "GRAN ACRÓPOLIS MONUMENTAL", "#d97706", pPlaque);
+      }
+
+      // ESCENA 6: (37.5s - 45.0s) CANCHA SAGRADA DEL JUEGO DE PELOTA
+      // Narrador: "Encontraron una cancha reglamentaria para el juego de pelota pok-ta-pok y plazas de gobernantes."
+      else if (t < 45.0) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 37.5;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pCourt = easeOutBack(clamp((relT - 0.2) / 0.8, 0, 1));
+        const pPyramidBack = easeOutBack(clamp((relT - 0.35) / 0.8, 0, 1));
+
+        // Pirámide en perspectiva de fondo
+        drawMayanPyramid(ctx, W / 2, 520, 0.40 * pPyramidBack, 0);
+
+        // Cancha de juego de pelota central con pelota botando
+        drawBallCourt(ctx, W / 2, 740, 1.05 * pCourt, t);
+
+        drawArchaeologist(ctx, W / 2 - 190, 840, 1.0, t);
+
+        drawPlaque(ctx, W / 2, 160, "JUEGO DE PELOTA POK-TA-POK", "CANCHA CEREMONIAL Y ARQUITECTURA DE ÉLITE", "#ea580c", pPlaque);
+      }
+
+      // ESCENA 7: (45.0s - 52.5s) CALZADAS SACBÉOB & INGENIERÍA HIDRÁULICA
+      // Narrador: "Calzadas elevadas de piedra blanca conectaban los complejos urbanos con terrazas y reservas de agua."
+      else if (t < 52.5) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 45.0;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pRoad = clamp((relT - 0.2) / 2.5, 0, 1);
+        const pAguada = easeOutBack(clamp((relT - 0.4) / 0.8, 0, 1));
+
+        // Templo de destino en el horizonte
+        drawMayanPyramid(ctx, W / 2, 540, 0.48, 0);
+
+        // Camino blanco Sacbé trazándose progresivamente (Causa y Efecto)
+        drawSacbeRoad(ctx, W / 2, 760, 1.0, pRoad);
+
+        // Reservorio de agua con ondas concéntricas animadas
+        drawAguadaReservoir(ctx, W - 120, 810, 0.92 * pAguada, t);
+
+        drawPlaque(ctx, W / 2, 160, "CALZADAS SACBÉOB Y AGUADAS", "INGENIERÍA HIDRÁULICA Y URBANISMO", "#0284c7", pPlaque);
+      }
+
+      // ESCENA 8: (52.5s - 60.5s) CONTADOR DINÁMICO DE POBLACIÓN: 40,000 HABITANTES
+      // Narrador: "Se calcula que más de cuarenta mil personas habitaron esta metrópolis durante su apogeo maya."
+      else if (t < 60.5) {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 52.5;
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const popProgress = clamp((relT - 0.3) / 4.0, 0, 1);
+
+        // Pirámide y terrazas de fondo
+        drawMayanPyramid(ctx, W / 2, 750, 0.95, 0);
+
+        // CONTADOR NUMÉRICO ANIMADO DE HABITANTES (Regla 3)
+        drawAnimatedCounter(ctx, W / 2, 350, 40000, "Habitantes en su Apogeo", popProgress, "#059669");
+
+        // Glifos mayas flotantes de jade (K'IN, AJAW, CH'EN, YAX)
+        const glyphs = ["K'IN", "AJAW", "CH'EN", "YAX"];
+        glyphs.forEach((gl, idx) => {
+          const gx = 110 + idx * 165;
+          const gy = 860 + Math.sin(t * 2.8 + idx * 1.5) * 12;
+          drawPaperSticker(ctx, gx, gy, 0.95, Math.sin(t + idx) * 0.06, (c) => {
+            c.fillStyle = "#ffffff";
+            c.beginPath(); c.roundRect(-48, -24, 96, 48, 10); c.fill();
+            c.fillStyle = "#047857";
+            c.beginPath(); c.roundRect(-44, -20, 88, 40, 8); c.fill();
+            c.strokeStyle = "#064e3b"; c.lineWidth = 2; c.stroke();
+            c.fillStyle = "#ffffff";
+            c.font = 'bold 15px sans-serif';
+            c.textAlign = "center";
+            c.textBaseline = "middle";
+            c.fillText(gl, 0, 0);
+          });
+        });
+
+        drawPlaque(ctx, W / 2, 160, "ESCALA DEMOGRÁFICA", "DENSIDAD SUPERADA SOLO POR CALAKMUL", "#059669", pPlaque);
+      }
+
+      // ESCENA 9: (60.5s - 68.5s) MEGASEQUÍAS DEL 900 D.C. Y RECONQUISTA DE LA SELVA
+      // Narrador: "Hacia el año novecientos, severas megasequías provocaron su colapso y la selva devoró la ciudad."
+      else if (t < 68.5) {
+        const relT = t - 60.5;
+        const droughtFactor = clamp(relT / 3.5, 0, 1);
+        drawJungleEnvironment(ctx, t, droughtFactor);
+
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pSun = easeOutBack(clamp((relT - 0.2) / 0.8, 0, 1));
+
+        // Pirámide en tono árido
+        drawMayanPyramid(ctx, W / 2, 750, 0.95, 0);
+
+        // Árboles avanzando sobre las estructuras
+        drawJungleTree(ctx, 90, 770, 1.08, -0.05, t, 0.0);
+        drawJungleTree(ctx, W - 90, 770, 1.08, 0.05, t, 1.2);
+
+        // Sol ardiente de sequía pulsando (Idle Motion)
+        const sunPulse = 1.0 + Math.sin(t * 3.5) * 0.06;
+        drawPaperSticker(ctx, W / 2, 330, pSun * sunPulse, 0, (c) => {
+          c.fillStyle = "#ffffff";
+          c.beginPath(); c.arc(0, 0, 52, 0, Math.PI * 2); c.fill();
+          c.fillStyle = "#ea580c";
+          c.beginPath(); c.arc(0, 0, 46, 0, Math.PI * 2); c.fill();
+          // Rayos de sol geométricos de papel
+          c.fillStyle = "#f59e0b";
+          for (let r = 0; r < 8; r++) {
+            c.save();
+            c.rotate(r * Math.PI / 4 + t * 0.3);
+            c.fillRect(-4, -68, 8, 16);
+            c.restore();
+          }
+        });
+
+        drawPlaque(ctx, W / 2, 160, "MEGASEQUÍAS DEL 900 D.C.", "COLAPSO Y RECONQUISTA DE LA SELVA", "#dc2626", pPlaque);
+      }
+
+      // ESCENA 10: (68.5s - 77.0s) CIERRE Y VOTACIÓN INTERACTIVA (Regla 1 & Regla 5)
+      // Narrador: "Hoy es la segunda urbe maya más grande de la región. ¿Crees que aún hay más ciudades ocultas?"
+      else {
+        drawJungleEnvironment(ctx, t);
+        const relT = t - 68.5;
+
+        // La pregunta y las tarjetas entran exactamente cuando el narrador formula la pregunta (t >= 71.5s)
+        const isQuestionTime = relT >= 2.5;
+        const pPlaque = easeOutBack(clamp(relT / 0.7, 0, 1));
+        const pQuestion = isQuestionTime ? easeOutBack(clamp((relT - 2.5) / 0.6, 0, 1)) : 0.0;
+        const pBtnA = isQuestionTime ? easeOutBack(clamp((relT - 2.8) / 0.6, 0, 1)) : 0.0;
+        const pBtnB = isQuestionTime ? easeOutBack(clamp((relT - 3.0) / 0.6, 0, 1)) : 0.0;
+
+        // Pirámide en plano medio
+        drawMayanPyramid(ctx, W / 2, 730, 0.85, 0);
+
+        if (!isQuestionTime) {
+          drawPlaque(ctx, W / 2, 180, "VALERIANA EN CAMPECHE", "SEGUNDA CIUDAD MÁS DENSA TRAS CALAKMUL", "#0284c7", pPlaque);
+        } else {
+          // Pregunta viral final sincronizada al milisegundo (Regla 1)
+          drawPlaque(ctx, W / 2, 210, "¿HAY MÁS CIUDADES OCULTAS?", "¡COMENTA TU TEORÍA!", "#e11d48", pQuestion);
+
+          // Botón Izquierdo: ¡Cientos más!
+          drawPaperSticker(ctx, W / 2 - 145, 400, pBtnA, -0.05, (c) => {
+            c.fillStyle = "#ffffff";
+            c.beginPath(); c.roundRect(-110, -35, 220, 70, 16); c.fill();
+            c.fillStyle = "#16a34a";
+            c.beginPath(); c.roundRect(-104, -29, 208, 58, 12); c.fill();
+            c.strokeStyle = "#14532d"; c.lineWidth = 3; c.stroke();
+            c.fillStyle = "#ffffff";
+            c.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+            c.textAlign = "center";
+            c.textBaseline = "middle";
+            c.fillText("¡CIENTOS MÁS!", 0, -8);
+            c.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+            c.fillText("98% de votos", 0, 14);
+          });
+
+          // Botón Derecho: Ya se descubrió todo
+          drawPaperSticker(ctx, W / 2 + 145, 400, pBtnB, 0.05, (c) => {
+            c.fillStyle = "#ffffff";
+            c.beginPath(); c.roundRect(-110, -35, 220, 70, 16); c.fill();
+            c.fillStyle = "#e11d48";
+            c.beginPath(); c.roundRect(-104, -29, 208, 58, 12); c.fill();
+            c.strokeStyle = "#881337"; c.lineWidth = 3; c.stroke();
+            c.fillStyle = "#ffffff";
+            c.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+            c.textAlign = "center";
+            c.textBaseline = "middle";
+            c.fillText("YA SE DESCUBRIÓ TODO", 0, -8);
+            c.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+            c.fillText("2% de votos", 0, 14);
+          });
+        }
+
+        // Máscara maya dorada sonriente en el centro con balanceo
+        const maskPulse = 1.0 + Math.sin(t * 3.0) * 0.05;
+        drawPaperSticker(ctx, W / 2, 570, pPlaque * maskPulse, 0, (c) => {
+          c.fillStyle = "#ffffff";
+          c.beginPath(); c.arc(0, 0, 52, 0, Math.PI * 2); c.fill();
+          c.fillStyle = "#fbbf24";
+          c.beginPath(); c.arc(0, 0, 46, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = "#78350f"; c.lineWidth = 3; c.stroke();
+          c.fillStyle = "#1e382b";
+          c.fillRect(-22, -14, 14, 8);
+          c.fillRect(8, -14, 14, 8);
+          c.beginPath(); c.arc(0, 12, 18, 0, Math.PI); c.fill();
+        });
+      }
+
+      ctx.restore();
+    }
+
+    // Modo interactivo en navegador vs modo Playwright headless
+    window.manualMode = false;
+    window.renderFrame = function(timeSeconds) {
+      renderScene(timeSeconds);
+    };
+
+    let startAnim = null;
+    function loop(now) {
+      if (!window.manualMode) {
+        if (!startAnim) startAnim = now;
+        const elapsed = (now - startAnim) / 1000.0;
+        const loopTime = elapsed % 77.0;
+        renderScene(loopTime);
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

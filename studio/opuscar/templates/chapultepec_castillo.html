@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Lemo-Opuscar — El Castillo de Chapultepec (9 Escenas Dinámicas Paper-Cut 1080x1920 @ 60fps)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #070a13;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #canvasWrapper {
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.9);
+      background: #fbf5e8;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvasWrapper">
+    <canvas id="c" width="1080" height="1920"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const W = 1080;
+    const H = 1920;
+
+    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+    function easeOutBack(t, s = 1.70158) {
+      const p = clamp(t, 0, 1);
+      return 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+    }
+    function easeInOutQuad(t) {
+      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    // Sticker Paper-Cut artesanal: Borde blanco, sombra suave 2.5D y entrada pop-in
+    function drawPaperSticker(ctx, x, y, scale, angle, drawFn) {
+      if (scale <= 0.001) return;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.scale(scale, scale);
+
+      ctx.save();
+      ctx.shadowColor = "rgba(15, 23, 42, 0.28)";
+      ctx.shadowBlur = 22;
+      ctx.shadowOffsetX = 6;
+      ctx.shadowOffsetY = 12;
+      drawFn(ctx);
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // Fondo cálido con cuadrícula milimétrica artesanal
+    function drawPaperBackground(ctx, t) {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, "#fbf5e8");
+      grad.addColorStop(0.55, "#f4ebd7");
+      grad.addColorStop(1, "#e6dcbf");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Cuadrícula técnica sutil milimétrica
+      ctx.strokeStyle = "rgba(180, 160, 130, 0.18)";
+      ctx.lineWidth = 1.5;
+      for (let y = 0; y < H; y += 90) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      for (let x = 0; x < W; x += 90) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+
+      // Nubes paper-cut flotando suavemente en bucle (Idle Motion)
+      drawPaperCloud(ctx, ((t * 22) % (W + 300)) - 150, 360, 1.0);
+      drawPaperCloud(ctx, (((t * 16) + 500) % (W + 300)) - 150, 480, 0.75);
+    }
+
+    function drawPaperCloud(ctx, x, y, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "rgba(180, 165, 145, 0.3)";
+      ctx.beginPath();
+      ctx.arc(4, 8, 45, 0, Math.PI * 2);
+      ctx.arc(44, 8, 35, 0, Math.PI * 2);
+      ctx.arc(-36, 8, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(0, 0, 45, 0, Math.PI * 2);
+      ctx.arc(40, 0, 35, 0, Math.PI * 2);
+      ctx.arc(-40, 0, 30, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Placa superior estilo diorama (sticker con borde blanco) en zona segura
+    function drawHeaderPlaque(ctx, title, subtitle) {
+      ctx.save();
+      const px = 60, py = 70, pw = W - 120, ph = 138;
+
+      ctx.fillStyle = "rgba(180, 165, 145, 0.55)";
+      ctx.beginPath();
+      ctx.roundRect(px + 6, py + 9, pw, ph, 26);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.roundRect(px - 5, py - 5, pw + 10, ph + 10, 30);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.roundRect(px, py, pw, ph, 24);
+      ctx.fill();
+
+      ctx.fillStyle = "#d97706";
+      ctx.beginPath();
+      ctx.roundRect(px + 20, py + 22, 9, ph - 44, 4);
+      ctx.fill();
+
+      ctx.fillStyle = "#b45309";
+      ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText(subtitle.toUpperCase(), px + 44, py + 50);
+
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "900 32px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText(title.toUpperCase(), px + 44, py + 98);
+
+      ctx.restore();
+    }
+
+    // Árboles del Bosque de Chapultepec (Ahuehuetes) con mecido suave
+    function drawForestTree(ctx, x, y, scale, baseAngle, t, delay = 0) {
+      const idleSway = Math.sin(t * 2.2 + delay) * 0.035;
+      const angle = baseAngle + idleSway;
+
+      drawPaperSticker(ctx, x, y, scale * 1.5, angle, (c) => {
+        c.fillStyle = "#ffffff";
+        c.beginPath();
+        c.rect(-16, -4, 32, 110);
+        c.arc(-38, -85, 52, 0, Math.PI * 2);
+        c.arc(38, -85, 52, 0, Math.PI * 2);
+        c.arc(0, -140, 64, 0, Math.PI * 2);
+        c.fill();
+
+        c.fillStyle = "#78350f";
+        c.beginPath();
+        c.roundRect(-12, 0, 24, 100, 6);
+        c.fill();
+
+        c.fillStyle = "#15803d";
+        c.beginPath();
+        c.arc(-35, -82, 48, 0, Math.PI * 2);
+        c.arc(35, -82, 48, 0, Math.PI * 2);
+        c.fill();
+
+        c.fillStyle = "#16a34a";
+        c.beginPath();
+        c.arc(0, -136, 60, 0, Math.PI * 2);
+        c.fill();
+
+        c.fillStyle = "#4ade80";
+        c.beginPath();
+        c.arc(-14, -150, 18, 0, Math.PI * 2);
+        c.arc(22, -125, 14, 0, Math.PI * 2);
+        c.fill();
+      });
+    }
+
+    // Bandera Mexicana ondeando sobre el Alcázar (60 fps fluido)
+    function drawWavingMexicanFlag(ctx, x, y, scale, t) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(-6, -165, 12, 180);
+      ctx.fillStyle = "#64748b";
+      ctx.fillRect(-3, -162, 6, 174);
+      ctx.fillStyle = "#d97706";
+      ctx.beginPath();
+      ctx.arc(0, -165, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      const fw = 112, fh = 69;
+      ctx.save();
+      ctx.translate(3, -162);
+
+      const wave1 = Math.sin(t * 6.0) * 6.0;
+      const wave2 = Math.sin(t * 6.0 + 1.2) * 7.5;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(-3, -3);
+      ctx.lineTo(fw + 4, -3 + wave1);
+      ctx.lineTo(fw + 4, fh + 4 + wave2);
+      ctx.lineTo(-3, fh + 4);
+      ctx.closePath();
+      ctx.fill();
+
+      const secW = fw / 3;
+      ctx.fillStyle = "#16a34a";
+      ctx.fillRect(0, 0, secW, fh);
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(secW, 0, secW, fh);
+      ctx.fillStyle = "#dc2626";
+      ctx.fillRect(secW * 2, 0, secW, fh);
+
+      ctx.fillStyle = "#b45309";
+      ctx.beginPath();
+      ctx.arc(secW * 1.5, fh / 2, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // Badge de Año histórico en relieve
+    function drawYearBadge(ctx, yearNum, label, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W - 220, 290);
+      ctx.scale(p, p);
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.25)";
+      ctx.beginPath(); ctx.roundRect(-140 + 6, -55 + 9, 280, 110, 24); ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-145, -60, 290, 120, 26); ctx.fill();
+
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.roundRect(-140, -55, 280, 110, 22); ctx.fill();
+
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "900 44px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`${yearNum}`, 0, 8);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "bold 15px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText(label.toUpperCase(), 0, 36);
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 1: VISTA PANORÁMICA EXTERIOR (Cerro del Chapulín & Castillo)
+    // =========================================================================
+    function drawScene1_Panorama(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 980);
+      ctx.scale(p, p);
+
+      // 1. Cerro del Chapulín
+      ctx.fillStyle = "rgba(160, 140, 115, 0.4)";
+      ctx.beginPath(); ctx.ellipse(6, 220, 480, 220, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.ellipse(0, 200, 475, 215, 0, 0, Math.PI * 2); ctx.fill();
+
+      const hillGrad = ctx.createLinearGradient(0, 50, 0, 400);
+      hillGrad.addColorStop(0, "#22c55e");
+      hillGrad.addColorStop(0.5, "#16a34a");
+      hillGrad.addColorStop(1, "#15803d");
+      ctx.fillStyle = hillGrad;
+      ctx.beginPath(); ctx.ellipse(0, 200, 465, 205, 0, 0, Math.PI * 2); ctx.fill();
+
+      // 2. Castillo Neoclásico en la cumbre
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-305, -115, 610, 260, 24); ctx.fill();
+      ctx.fillStyle = "#f8fafc";
+      ctx.beginPath(); ctx.roundRect(-295, -105, 590, 240, 20); ctx.fill();
+
+      // Torreón central
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-85, -200, 170, 110, 14); ctx.fill();
+      ctx.fillStyle = "#e2e8f0";
+      ctx.beginPath(); ctx.roundRect(-80, -195, 160, 105, 12); ctx.fill();
+      for (let i = -70; i <= 60; i += 28) {
+        ctx.fillStyle = "#cbd5e1";
+        ctx.fillRect(i, -208, 16, 14);
+      }
+
+      // Bandera en la torre
+      drawWavingMexicanFlag(ctx, 0, -205, 1.1, t);
+
+      // Arcadas y ventanales neoclásicos
+      const numArches = 7;
+      for (let i = 0; i < numArches; i++) {
+        const ax = -210 + i * 70;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.roundRect(ax - 22, -25, 44, 85, [18, 18, 4, 4]); ctx.fill();
+        ctx.fillStyle = "#1e293b";
+        ctx.beginPath(); ctx.roundRect(ax - 19, -22, 38, 80, [16, 16, 2, 2]); ctx.fill();
+      }
+
+      // Balaustrada superior
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(-280, -50, 560, 16);
+
+      ctx.restore();
+
+      // Árboles meciéndose a los costados
+      drawForestTree(ctx, 150, 1180, 1.2, -0.06, t, 0);
+      drawForestTree(ctx, W - 150, 1180, 1.2, 0.06, t, 1.2);
+    }
+
+    // =========================================================================
+    // ESCENA 2: LA CONSTRUCCIÓN VIRREINAL 1785 (Plano Arquitectónico & Gálvez)
+    // =========================================================================
+    function drawScene2_Construction(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 940);
+      ctx.scale(p, p);
+
+      // Gran Plano Arquitectónico Colonial en papel pergamino
+      const pw = 740, ph = 520;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.35)";
+      ctx.beginPath(); ctx.roundRect(-pw/2 + 8, -ph/2 + 12, pw, ph, 26); ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-pw/2 - 6, -ph/2 - 6, pw + 12, ph + 12, 28); ctx.fill();
+
+      // Pergamino sepia
+      ctx.fillStyle = "#fef3c7";
+      ctx.beginPath(); ctx.roundRect(-pw/2, -ph/2, pw, ph, 22); ctx.fill();
+      ctx.strokeStyle = "#d97706"; ctx.lineWidth = 3; ctx.stroke();
+
+      // Boceto arquitectónico en tinta del plano original de 1785
+      ctx.strokeStyle = "#92400e";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      // Muralla y almenas
+      ctx.strokeRect(-280, -140, 560, 260);
+      ctx.strokeRect(-100, -210, 200, 100);
+      // Ejes y líneas de compás
+      ctx.setLineDash([12, 8]);
+      ctx.beginPath();
+      ctx.moveTo(-320, 0); ctx.lineTo(320, 0);
+      ctx.moveTo(0, -230); ctx.lineTo(0, 140);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Bloques de cantera rosa siendo colocados en la base
+      const blockColors = ["#fca5a5", "#fecdd3", "#fda4af"];
+      for (let bx = -240; bx <= 200; bx += 88) {
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.roundRect(bx - 3, 150 - 3, 80, 46, 6); ctx.fill();
+        ctx.fillStyle = blockColors[Math.abs(bx) % 3];
+        ctx.beginPath(); ctx.roundRect(bx, 150, 74, 40, 4); ctx.fill();
+        ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // Andamio y grúa de madera colonial
+      ctx.strokeStyle = "#78350f"; ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(180, -120); ctx.lineTo(260, 150);
+      ctx.moveTo(260, -120); ctx.lineTo(180, 150);
+      ctx.moveTo(160, -120); ctx.lineTo(280, -120);
+      ctx.stroke();
+
+      // Sello de cera real carmesí del Virrey Bernardo de Gálvez
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(-220, 100, 50, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#b91c1c";
+      ctx.beginPath(); ctx.arc(-220, 100, 46, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "900 16px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("SELLO REAL", -220, 96);
+      ctx.fillText("1785", -220, 118);
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 3: CORTE TOPOGRÁFICO Y ALTITUD MILITAR (2,325 METROS S.N.M.)
+    // =========================================================================
+    function drawScene3_Altitude(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 950);
+      ctx.scale(p, p);
+
+      // Corte topográfico de la montaña
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(-360, 320);
+      ctx.lineTo(-200, -80);
+      ctx.lineTo(200, -80);
+      ctx.lineTo(360, 320);
+      ctx.closePath();
+      ctx.fill();
+
+      // Capas geológicas de roca volcánica y cantera
+      const topoGrad = ctx.createLinearGradient(0, -80, 0, 320);
+      topoGrad.addColorStop(0, "#22c55e");
+      topoGrad.addColorStop(0.2, "#854d0e");
+      topoGrad.addColorStop(0.6, "#713f12");
+      topoGrad.addColorStop(1, "#3f6212");
+      ctx.fillStyle = topoGrad;
+      ctx.beginPath();
+      ctx.moveTo(-350, 315);
+      ctx.lineTo(-195, -75);
+      ctx.lineTo(195, -75);
+      ctx.lineTo(350, 315);
+      ctx.closePath();
+      ctx.fill();
+
+      // Manantial de agua dulce en la base (Histórico acueducto a Tenochtitlan)
+      ctx.fillStyle = "#38bdf8";
+      ctx.beginPath(); ctx.roundRect(-160, 240, 320, 40, 12); ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("MANANTIALES HISTÓRICOS DE AGUA DULCE", 0, 266);
+
+      // Regla vertical técnica de cota
+      const val = Math.floor(clamp(progress * 1.2, 0, 1) * 2325);
+      ctx.strokeStyle = "#eab308"; ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(-300, 320); ctx.lineTo(-300, -140);
+      ctx.stroke();
+
+      // Tarjeta de Altitud
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-270, -180, 340, 95, 18); ctx.fill();
+      ctx.strokeStyle = "#eab308"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "900 40px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`${val.toLocaleString()} M`, -240, -135);
+      ctx.fillStyle = "#ca8a04";
+      ctx.font = "bold 15px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText("ALTITUD S.N.M. // ESTRATEGIA MILITAR", -240, -104);
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 4: 1847 · COLEGIO MILITAR (Almenas, Cañones y Humo de Pólvora)
+    // =========================================================================
+    function drawScene4_Battle1847(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 940);
+      ctx.scale(p, p);
+
+      // Murallón defensivo de piedra del Colegio Militar
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-365, 30, 730, 280, 20); ctx.fill();
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath(); ctx.roundRect(-355, 40, 710, 260, 16); ctx.fill();
+
+      // Almenas del parapeto
+      for (let x = -340; x <= 280; x += 110) {
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.roundRect(x - 4, -40, 88, 85, 8); ctx.fill();
+        ctx.fillStyle = "#64748b";
+        ctx.beginPath(); ctx.roundRect(x, -36, 80, 80, 6); ctx.fill();
+      }
+
+      // Dos cañones de bronce en batería frontal
+      for (let side of [-180, 180]) {
+        ctx.save();
+        ctx.translate(side, 30);
+        // Tubo de cañón
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.roundRect(-60, -25, 120, 50, 10); ctx.fill();
+        ctx.fillStyle = "#b45309";
+        ctx.beginPath(); ctx.roundRect(-56, -21, 112, 42, 8); ctx.fill();
+        // Rueda de cureña
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(0, 35, 36, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#78350f";
+        ctx.beginPath(); ctx.arc(0, 35, 32, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // Nubes de humo de pólvora animadas
+        const smokeOffset = (t * 28 + side) % 80;
+        ctx.fillStyle = "rgba(241, 245, 249, 0.75)";
+        ctx.beginPath();
+        ctx.arc(side + 30 + smokeOffset * 0.4, -60 - smokeOffset * 0.6, 28 + smokeOffset * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Escudo del Heroico Colegio Militar central
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-105, -165, 210, 150, 18); ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.roundRect(-100, -160, 200, 140, 14); ctx.fill();
+
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "900 24px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("1847", 0, -105);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText("COLEGIO MILITAR", 0, -75);
+      ctx.fillText("DEFENSA NACIONAL", 0, -50);
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 5: JARDINES COLGANTES Y ALCÁZAR IMPERIAL 1864 (Maximiliano & Carlota)
+    // =========================================================================
+    function drawScene5_ImperialPalace(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 940);
+      ctx.scale(p, p);
+
+      // Terraza neoclásica con balaustrada de mármol blanco
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-370, 80, 740, 220, 20); ctx.fill();
+      ctx.fillStyle = "#f1f5f9";
+      ctx.beginPath(); ctx.roundRect(-360, 90, 720, 200, 16); ctx.fill();
+
+      // Columnas jónicas/corintias
+      for (let cx = -310; cx <= 310; cx += 100) {
+        ctx.fillStyle = "#cbd5e1";
+        ctx.fillRect(cx - 10, 100, 20, 180);
+      }
+
+      // Fuente de mármol ornamental en el centro
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.ellipse(0, 160, 130, 50, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#38bdf8";
+      ctx.beginPath(); ctx.ellipse(0, 160, 120, 42, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Ondas concéntricas de agua en la fuente
+      const ripple = (t * 3.5) % 35;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(0, 160, ripple * 2.8, ripple * 0.9, 0, 0, Math.PI * 2); ctx.stroke();
+
+      // Corona Imperial de Maximiliano y Carlota en relieve 3D flotando
+      const crownBob = Math.sin(t * 3.0) * 12;
+      ctx.save();
+      ctx.translate(0, -90 + crownBob);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(-110, 50); ctx.lineTo(110, 50); ctx.lineTo(95, -50);
+      ctx.lineTo(45, -10); ctx.lineTo(0, -75); ctx.lineTo(-45, -10); ctx.lineTo(-95, -50);
+      ctx.closePath(); ctx.fill();
+
+      ctx.fillStyle = "#f59e0b";
+      ctx.beginPath();
+      ctx.moveTo(-102, 44); ctx.lineTo(102, 44); ctx.lineTo(88, -42);
+      ctx.lineTo(42, -6); ctx.lineTo(0, -68); ctx.lineTo(-42, -6); ctx.lineTo(-88, -42);
+      ctx.closePath(); ctx.fill();
+
+      // Gemas rubí y esmeralda
+      ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#16a34a"; ctx.beginPath(); ctx.arc(-55, 10, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(55, 10, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 6: PASEO DE LA REFORMA Y CARRUAJE IMPERIAL EN MOVIMIENTO
+    // =========================================================================
+    function drawScene6_ReformaCarriage(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 940);
+      ctx.scale(p, p);
+
+      // Avenida arbolada en perspectiva
+      ctx.fillStyle = "#cbd5e1";
+      ctx.beginPath();
+      ctx.moveTo(-420, 240); ctx.lineTo(-120, -100); ctx.lineTo(120, -100); ctx.lineTo(420, 240);
+      ctx.closePath(); ctx.fill();
+
+      // Líneas centrales de calzada
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 5; ctx.setLineDash([25, 18]);
+      ctx.beginPath(); ctx.moveTo(0, -90); ctx.lineTo(0, 230); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Farolas victorianas de gas a los costados
+      for (let fx of [-220, 220]) {
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(fx - 4, -40, 8, 160);
+        ctx.fillStyle = "#fef08a";
+        ctx.beginPath(); ctx.arc(fx, -45, 16, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // El Castillo de Chapultepec visible al fondo en el horizonte (en miniatura)
+      ctx.fillStyle = "#64748b";
+      ctx.beginPath(); ctx.roundRect(-90, -160, 180, 60, 8); ctx.fill();
+      ctx.fillStyle = "#15803d";
+      ctx.beginPath(); ctx.ellipse(0, -95, 140, 45, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Carruaje Imperial negro y oro en movimiento sobre la avenida
+      const carX = -260 + ((t * 85) % 520);
+      const carBob = Math.sin(t * 8.0) * 4.0;
+      ctx.save();
+      ctx.translate(carX, 100 + carBob);
+
+      // Cabina
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-85, -55, 170, 95, 16); ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.roundRect(-80, -50, 160, 85, 12); ctx.fill();
+      ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 4; ctx.stroke();
+
+      // Ventanilla
+      ctx.fillStyle = "#fef08a";
+      ctx.beginPath(); ctx.roundRect(-30, -35, 60, 45, 6); ctx.fill();
+
+      // Ruedas giratorias con rayos
+      const rot = t * 10.0;
+      for (let wx of [-55, 55]) {
+        ctx.save();
+        ctx.translate(wx, 45);
+        ctx.rotate(rot);
+        ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#d97706"; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#451a03"; ctx.lineWidth = 2.5;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a)*20, Math.sin(a)*20); ctx.stroke();
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 7: MUSEO NACIONAL DE HISTORIA 1939 (Lázaro Cárdenas & Pueblo)
+    // =========================================================================
+    function drawScene7_NationalMuseum1939(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 940);
+      ctx.scale(p, p);
+
+      // Pórtico Monumental con columnas
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-360, -140, 720, 360, 20); ctx.fill();
+      ctx.fillStyle = "#f8fafc";
+      ctx.beginPath(); ctx.roundRect(-350, -130, 700, 340, 16); ctx.fill();
+
+      // Gran letrero dorado en relieve
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.roundRect(-260, -100, 520, 60, 12); ctx.fill();
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "900 24px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("MUSEO NACIONAL DE HISTORIA", 0, -62);
+
+      // Pergamino del Decreto Presidencial de Lázaro Cárdenas
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-185, -20, 370, 180, 14); ctx.fill();
+      ctx.fillStyle = "#fef3c7";
+      ctx.beginPath(); ctx.roundRect(-180, -15, 360, 170, 10); ctx.fill();
+
+      ctx.fillStyle = "#b45309";
+      ctx.font = "bold 15px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText("DECRETO PRESIDENCIAL · 1939", 0, 22);
+
+      ctx.fillStyle = "#1e293b";
+      ctx.font = "600 13px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText("«El Castillo de Chapultepec se entrega", 0, 58);
+      ctx.fillText("al pueblo de México como custodio", 0, 84);
+      ctx.fillText("de su memoria y soberanía nacional.»", 0, 110);
+
+      // Siluetas del pueblo con banderas
+      ctx.fillStyle = "#16a34a";
+      for (let px = -280; px <= 280; px += 80) {
+        ctx.beginPath(); ctx.arc(px, 180, 18, 0, Math.PI * 2); ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 8: INTERIORES DEL ALCÁZAR Y GALERÍA DE LOS VITRALES
+    // =========================================================================
+    function drawScene8_StainedGlassInterior(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 940);
+      ctx.scale(p, p);
+
+      // Salón interior con piso ajedrezado en perspectiva
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-370, -210, 740, 440, 20); ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.roundRect(-360, -200, 720, 420, 16); ctx.fill();
+
+      // Piso de mosaico ajedrezado blanco y negro
+      const cols = 8, rows = 4;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          ctx.fillStyle = (r + c) % 2 === 0 ? "#f8fafc" : "#1e293b";
+          ctx.fillRect(-340 + c * 85, 40 + r * 38, 85, 38);
+        }
+      }
+
+      // 3 Grandes Vitrales Franceses Emplomados con Luz Colorida
+      const windowX = [-200, 0, 200];
+      const glassGradients = [
+        ["#38bdf8", "#818cf8"],
+        ["#fbbf24", "#f87171"],
+        ["#34d399", "#60a5fa"]
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        const wx = windowX[i];
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.roundRect(wx - 75, -170, 150, 190, [35, 35, 4, 4]); ctx.fill();
+
+        const g = ctx.createLinearGradient(wx, -160, wx, 10);
+        g.addColorStop(0, glassGradients[i][0]);
+        g.addColorStop(1, glassGradients[i][1]);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.roundRect(wx - 70, -165, 140, 180, [32, 32, 2, 2]); ctx.fill();
+
+        // Emplomado geométrico del vitral
+        ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(wx, -165); ctx.lineTo(wx, 15);
+        ctx.moveTo(wx - 70, -75); ctx.lineTo(wx + 70, -75);
+        ctx.stroke();
+      }
+
+      // Candelabro de cristal imperial colgando del techo
+      const candelBob = Math.sin(t * 2.5) * 0.04;
+      ctx.save();
+      ctx.translate(0, -200);
+      ctx.rotate(candelBob);
+      ctx.strokeStyle = "#eab308"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 45); ctx.stroke();
+      ctx.fillStyle = "#fef08a";
+      ctx.beginPath(); ctx.arc(0, 50, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // ESCENA 9: ARENA DE VOTACIÓN INTERACTIVA A vs B
+    // =========================================================================
+    function drawScene9_InteractivePoll(ctx, t, progress) {
+      const p = easeOutBack(clamp(progress, 0, 1));
+      if (p <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(W / 2, 920);
+      ctx.scale(p, p);
+
+      const cw = 700, ch = 480;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
+      ctx.beginPath(); ctx.roundRect(-cw / 2 + 8, -ch / 2 + 12, cw, ch, 28); ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.roundRect(-cw / 2 - 5, -ch / 2 - 5, cw + 10, ch + 10, 30); ctx.fill();
+
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 24); ctx.fill();
+
+      // Título
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("🏰 DEBATE HISTÓRICO // PARTICIPA EN COMENTARIOS", 0, -ch / 2 + 50);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 30px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText("¿QUÉ PARTE TE IMPACTA MÁS?", 0, -ch / 2 + 100);
+
+      // Opción A: Jardines y Terraza
+      const optY1 = -ch / 2 + 180;
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.roundRect(-300, optY1 - 38, 600, 90, 18); ctx.fill();
+      ctx.fillStyle = "#15803d"; ctx.beginPath(); ctx.roundRect(-295, optY1 - 33, 590, 80, 15); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.font = "900 24px -apple-system, BlinkMacSystemFont, sans-serif"; ctx.textAlign = "left";
+      ctx.fillText("A   🌿 JARDINES COLGANTES & TERRAZA", -260, optY1 + 16);
+
+      // Opción B: Salones y Vitrales
+      const optY2 = -ch / 2 + 300;
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.roundRect(-300, optY2 - 38, 600, 90, 18); ctx.fill();
+      ctx.fillStyle = "#b45309"; ctx.beginPath(); ctx.roundRect(-295, optY2 - 33, 590, 80, 15); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.font = "900 24px -apple-system, BlinkMacSystemFont, sans-serif"; ctx.textAlign = "left";
+      ctx.fillText("B   👑 SALONES REALES & VITRALES", -260, optY2 + 16);
+
+      // Llamado a comentar con flecha pulsante
+      const arrowBounce = Math.sin(t * 8.0) * 8;
+      ctx.fillStyle = "#fef08a";
+      ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`Deja tu voto 'A' o 'B' en los comentarios 👇`, 0, ch / 2 - 40 + arrowBounce);
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // FUNCIÓN PRINCIPAL DE RENDERIZADO DETERMINISTA (EVALUADA EN FUNCIÓN DE T)
+    // =========================================================================
+    window.renderFrame = function(t) {
+      ctx.clearRect(0, 0, W, H);
+
+      // Movimiento continuo de cámara Ken Burns
+      const kenZoom = 1.0 + 0.025 * Math.sin(t * 0.12);
+      const kenPanY = Math.sin(t * 0.08) * 12.0;
+
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(kenZoom, kenZoom);
+      ctx.translate(-W / 2, -H / 2 + kenPanY);
+
+      // 1. Fondo texturizado artesanal con cuadrícula y nubes flotantes
+      drawPaperBackground(ctx, t);
+
+      // 2. ORQUESTACIÓN DE LAS 9 ESCENAS INDEPENDIENTES (Directriz Maestra #3):
+      // ESCENA 1 (t: 0 - 9.4s): Vista Panorámica Exterior
+      if (t >= 0 && t < 9.4) {
+        drawHeaderPlaque(ctx, "El Castillo de Chapultepec", "Único Alcázar Real de América");
+        const p = clamp(t / 0.8, 0, 1);
+        drawScene1_Panorama(ctx, t, p);
+      }
+      // ESCENA 2 (t: 9.4 - 18.9s): La Construcción Virreinal 1785 (Gálvez & Cantera)
+      else if (t >= 9.4 && t < 18.9) {
+        drawHeaderPlaque(ctx, "Virreinato de Nueva España", "1785 · Bernardo de Gálvez");
+        const p = clamp((t - 9.4) / 0.8, 0, 1);
+        drawScene2_Construction(ctx, t, p);
+        drawYearBadge(ctx, 1785, "Fundación", p);
+      }
+      // ESCENA 3 (t: 18.9 - 27.0s): Corte Topográfico y Altitud (2,325 Metros)
+      else if (t >= 18.9 && t < 27.0) {
+        drawHeaderPlaque(ctx, "Estratégica Altura Militar", "2,325 Metros sobre el Mar");
+        const p = clamp((t - 18.9) / 0.8, 0, 1);
+        drawScene3_Altitude(ctx, t, p);
+      }
+      // ESCENA 4 (t: 27.0 - 35.6s): Colegio Militar 1847 (Almenas & Cañones)
+      else if (t >= 27.0 && t < 35.6) {
+        drawHeaderPlaque(ctx, "Defensa de la Soberanía", "1847 · Colegio Militar");
+        const p = clamp((t - 27.0) / 0.8, 0, 1);
+        drawScene4_Battle1847(ctx, t, p);
+        drawYearBadge(ctx, 1847, "Colegio Militar", p);
+      }
+      // ESCENA 5 (t: 35.6 - 46.5s): Jardines Colgantes Imperiales 1864 (Maximiliano & Carlota)
+      else if (t >= 35.6 && t < 46.5) {
+        drawHeaderPlaque(ctx, "Segundo Imperio Mexicano", "1864 · Maximiliano & Carlota");
+        const p = clamp((t - 35.6) / 0.8, 0, 1);
+        drawScene5_ImperialPalace(ctx, t, p);
+        drawYearBadge(ctx, 1864, "Alcázar Imperial", p);
+      }
+      // ESCENA 6 (t: 46.5 - 56.3s): Paseo de la Reforma y Carruaje Imperial en Movimiento
+      else if (t >= 46.5 && t < 56.3) {
+        drawHeaderPlaque(ctx, "Paseo de la Reforma", "La Gran Calzada");
+        const p = clamp((t - 46.5) / 0.8, 0, 1);
+        drawScene6_ReformaCarriage(ctx, t, p);
+      }
+      // ESCENA 7 (t: 56.3 - 67.8s): Museo Nacional de Historia 1939 (Lázaro Cárdenas)
+      else if (t >= 56.3 && t < 67.8) {
+        drawHeaderPlaque(ctx, "Museo Nacional de Historia", "1939 · Lázaro Cárdenas");
+        const p = clamp((t - 56.3) / 0.8, 0, 1);
+        drawScene7_NationalMuseum1939(ctx, t, p);
+        drawYearBadge(ctx, 1939, "Decreto Histórico", p);
+      }
+      // ESCENA 8 (t: 67.8 - 76.6s): Interiores del Alcázar y Galería de Vitrales
+      else if (t >= 67.8 && t < 76.6) {
+        drawHeaderPlaque(ctx, "Patrimonio de México", "Galería de los Vitrales");
+        const p = clamp((t - 67.8) / 0.8, 0, 1);
+        drawScene8_StainedGlassInterior(ctx, t, p);
+      }
+      // ESCENA 9 (t: 76.6 - 88.1s): Arena de Votación Interactiva A vs B
+      else if (t >= 76.6) {
+        drawHeaderPlaque(ctx, "¿Cuál Lugar Visitarías?", "Vota en los Comentarios");
+        const p = clamp((t - 76.6) / 0.8, 0, 1);
+        drawScene9_InteractivePoll(ctx, t, p);
+      }
+
+      ctx.restore();
+    };
+
+    let animTime = 0;
+    function loop() {
+      if (!window.manualMode) {
+        animTime += 1 / 60;
+        if (animTime > 88.0) animTime = 0;
+        window.renderFrame(animTime);
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

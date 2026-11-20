@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>El Truco del Chile y la Capsaicina — Paper Cutout Diorama</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1e1b18;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      max-width: 540px;
+      max-height: 960px;
+      object-fit: contain;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+      background: #fbf5e8;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="720" height="1280"></canvas>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const W = 720;
+    const H = 1280;
+
+    // Helper math easing functions
+    function easeOutBack(x) {
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+    }
+    function easeOutBounce(x) {
+      const n1 = 7.5625;
+      const d1 = 2.75;
+      if (x < 1 / d1) return n1 * x * x;
+      if (x < 2 / d1) return n1 * (x -= 1.5 / d1) * x + 0.75;
+      if (x < 2.5 / d1) return n1 * (x -= 2.25 / d1) * x + 0.9375;
+      return n1 * (x -= 2.625 / d1) * x + 0.984375;
+    }
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    // Dibujado del Entorno Diorama (Pared de azulejos crema + Piso en cuadrícula cálida)
+    function drawDioramaRoom(ctx) {
+      // 1. Pared superior cálida (tipo estudio)
+      const gradWall = ctx.createLinearGradient(0, 0, W, 700);
+      gradWall.addColorStop(0, '#fcedd4');
+      gradWall.addColorStop(1, '#f3dcb8');
+      ctx.fillStyle = gradWall;
+      ctx.fillRect(0, 0, W, 820);
+
+      // Líneas de azulejos sutiles en la pared
+      ctx.strokeStyle = 'rgba(210, 180, 140, 0.35)';
+      ctx.lineWidth = 2;
+      for (let x = 40; x < W; x += 75) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 820); ctx.stroke();
+      }
+      for (let y = 40; y < 820; y += 75) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      // Luz solar desde la derecha superior
+      const sunGrad = ctx.createRadialGradient(W - 40, 100, 10, W - 40, 100, 600);
+      sunGrad.addColorStop(0, 'rgba(255, 250, 220, 0.6)');
+      sunGrad.addColorStop(1, 'rgba(255, 250, 220, 0)');
+      ctx.fillStyle = sunGrad;
+      ctx.fillRect(0, 0, W, 820);
+
+      // 2. Piso en perspectiva (tablero de cuadros terracota/crema)
+      const gradFloor = ctx.createLinearGradient(0, 820, 0, H);
+      gradFloor.addColorStop(0, '#c97a5b');
+      gradFloor.addColorStop(1, '#a85b3d');
+      ctx.fillStyle = gradFloor;
+      ctx.fillRect(0, 820, W, H - 820);
+
+      // Zócalo de madera divisorio
+      ctx.fillStyle = '#6e3822';
+      ctx.fillRect(0, 810, W, 14);
+      ctx.fillStyle = '#fcead2';
+      ctx.fillRect(0, 820, W, 4);
+
+      // Cuadrícula de piso en perspectiva
+      ctx.strokeStyle = 'rgba(90, 40, 20, 0.4)';
+      ctx.lineWidth = 3;
+      for (let x = -200; x < W + 400; x += 110) {
+        ctx.beginPath();
+        ctx.moveTo(x, 824);
+        ctx.lineTo(x * 1.6 - W * 0.3, H);
+        ctx.stroke();
+      }
+      for (let y = 824; y < H; y += 75) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+    }
+
+    // Helper: Placas de texto estilo cartel / matrícula con remaches y auto-ajuste inteligente de texto
+    function drawPlate(ctx, text, x, y, prefWidth = 260, prefHeight = 70, subtext = '') {
+      // 1. Medir texto y determinar tamaños de fuente óptimos para que NUNCA desborde
+      let titleFontSize = 24;
+      let subFontSize = 14;
+
+      ctx.save();
+      ctx.font = `900 ${titleFontSize}px "Arial Black", Impact, sans-serif`;
+      let titleWidth = ctx.measureText(text).width;
+
+      let subWidth = 0;
+      if (subtext) {
+        ctx.font = `bold ${subFontSize}px Arial, sans-serif`;
+        subWidth = ctx.measureText(subtext).width;
+      }
+      ctx.restore();
+
+      // Ancho mínimo necesario con margen seguro para remaches y esquinas redondeadas
+      const contentWidth = Math.max(titleWidth, subWidth);
+      const minRequiredWidth = contentWidth + 64;
+      let width = Math.max(prefWidth || 0, minRequiredWidth);
+
+      // Limitar al ancho visible del diorama (dejando 24px de margen a los bordes)
+      const maxAllowedWidth = Math.min(680, W - 48);
+      if (width > maxAllowedWidth) {
+        width = maxAllowedWidth;
+      }
+
+      // Si el texto aún supera el ancho interior utilizable, escalar fuentes proporcionalmente hacia abajo
+      const maxInnerWidth = width - 56;
+      if (titleWidth > maxInnerWidth) {
+        titleFontSize = Math.max(12, Math.floor(titleFontSize * (maxInnerWidth / titleWidth)));
+      }
+      if (subWidth > maxInnerWidth) {
+        subFontSize = Math.max(10, Math.floor(subFontSize * (maxInnerWidth / subWidth)));
+      }
+
+      // Altura segura
+      let height = prefHeight || (subtext ? 82 : 62);
+      if (subtext && height < 76) height = 76;
+
+      // Centrado seguro en pantalla (evita que la placa se corte a los extremos izquierdo/derecho en coordenadas de mundo)
+      const safeX = (Math.abs(x) > 40) ? Math.max(width / 2 + 20, Math.min(W - width / 2 - 20, x)) : x;
+
+      ctx.save();
+      ctx.translate(safeX, y);
+
+      // Sombra proyectada suave
+      ctx.fillStyle = 'rgba(40, 20, 10, 0.28)';
+      ctx.beginPath();
+      ctx.roundRect(-width / 2 + 5, -height / 2 + 7, width, height, 16);
+      ctx.fill();
+
+      // Borde exterior grueso blanco (sticker outline)
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(-width / 2 - 5, -height / 2 - 5, width + 10, height + 10, 22);
+      ctx.fill();
+
+      // Placa crema / marfil
+      ctx.fillStyle = '#fdfbf2';
+      ctx.beginPath();
+      ctx.roundRect(-width / 2, -height / 2, width, height, 16);
+      ctx.fill();
+
+      // Borde interior
+      ctx.strokeStyle = '#2c4a4f';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(-width / 2 + 6, -height / 2 + 6, width - 12, height - 12, 12);
+      ctx.stroke();
+
+      // Remaches en las 4 esquinas
+      const rx = width / 2 - 16;
+      const ry = height / 2 - 16;
+      ctx.fillStyle = '#475569';
+      [[-rx, -ry], [rx, -ry], [-rx, ry], [rx, ry]].forEach(([px, py]) => {
+        ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath(); ctx.arc(px - 1, py - 1, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#475569';
+      });
+
+      // Texto Principal
+      ctx.fillStyle = '#0f766e';
+      ctx.font = `900 ${titleFontSize}px "Arial Black", Impact, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const textY = subtext ? -Math.round(subFontSize * 0.6) : 0;
+      ctx.fillText(text, 0, textY);
+
+      // Subtexto (si existe)
+      if (subtext) {
+        ctx.fillStyle = '#b91c1c';
+        ctx.font = `bold ${subFontSize}px Arial, sans-serif`;
+        ctx.fillText(subtext, 0, textY + Math.round(titleFontSize * 0.6 + subFontSize + 3));
+      }
+      ctx.restore();
+    }
+
+    // Helper: Dibuja stickers con contorno blanco y sombra de papel recortado
+    function drawStickerShape(ctx, x, y, scale, rotation, drawInner) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.rotate(rotation);
+
+      // 1. Sombra de papel recortado
+      ctx.save();
+      ctx.shadowColor = 'rgba(30, 15, 5, 0.35)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 4;
+      ctx.shadowOffsetY = 8;
+      // Dibuja silueta para sombra
+      drawInner(ctx, 'shadow');
+      ctx.restore();
+
+      // 2. Borde exterior blanco de sticker grueso
+      ctx.save();
+      drawInner(ctx, 'outline');
+      ctx.restore();
+
+      // 3. Contenido interior a color
+      ctx.save();
+      drawInner(ctx, 'fill');
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // Sticker 1: Chile Habanero / Jalapeño con carita divertida
+    function drawChileSticker(ctx, x, y, scale = 1, rot = 0, isAngry = false) {
+      drawStickerShape(ctx, x, y, scale, rot, (c, pass) => {
+        c.beginPath();
+        // Cuerpo del chile curvo
+        c.moveTo(-35, -70);
+        c.bezierCurveTo(-75, -20, -70, 70, 0, 105);
+        c.bezierCurveTo(70, 70, 65, -20, 25, -70);
+        c.closePath();
+
+        if (pass === 'shadow') {
+          c.fillStyle = '#ffffff';
+          c.fill();
+          return;
+        }
+        if (pass === 'outline') {
+          c.lineWidth = 18;
+          c.strokeStyle = '#ffffff';
+          c.lineJoin = 'round';
+          c.stroke();
+          // Tronco / pedúnculo
+          c.beginPath();
+          c.moveTo(-10, -70);
+          c.bezierCurveTo(-25, -115, 20, -125, 10, -70);
+          c.lineWidth = 14;
+          c.strokeStyle = '#ffffff';
+          c.stroke();
+          return;
+        }
+
+        // Pass 'fill'
+        const grad = c.createLinearGradient(-40, -50, 40, 90);
+        if (isAngry) {
+          grad.addColorStop(0, '#dc2626');
+          grad.addColorStop(0.7, '#ea580c');
+          grad.addColorStop(1, '#facc15');
+        } else {
+          grad.addColorStop(0, '#16a34a');
+          grad.addColorStop(0.5, '#ea580c');
+          grad.addColorStop(1, '#dc2626');
+        }
+        c.fillStyle = grad;
+        c.fill();
+        c.lineWidth = 4;
+        c.strokeStyle = '#450a0a';
+        c.stroke();
+
+        // Tallo verde
+        c.beginPath();
+        c.moveTo(-8, -70);
+        c.bezierCurveTo(-20, -110, 18, -120, 8, -70);
+        c.fillStyle = '#15803d';
+        c.fill();
+        c.stroke();
+
+        // Corona del tallo
+        c.beginPath();
+        c.moveTo(-30, -70);
+        c.lineTo(-10, -60);
+        c.lineTo(0, -72);
+        c.lineTo(12, -60);
+        c.lineTo(25, -70);
+        c.lineTo(0, -62);
+        c.closePath();
+        c.fillStyle = '#166534';
+        c.fill();
+        c.stroke();
+
+        // Ojos de sticker
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.ellipse(-18, -15, 12, 16, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.beginPath(); c.ellipse(18, -15, 12, 16, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+
+        // Pupilas
+        c.fillStyle = '#0f172a';
+        c.beginPath(); c.arc(-16, -13, 6, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(16, -13, 6, 0, Math.PI * 2); c.fill();
+        // Brillo blanco
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.arc(-18, -16, 2.5, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(14, -16, 2.5, 0, Math.PI * 2); c.fill();
+
+        // Boca divertida o ardiente
+        c.beginPath();
+        if (isAngry) {
+          c.arc(0, 30, 22, 0, Math.PI);
+          c.fillStyle = '#7f1d1d';
+          c.fill();
+          c.stroke();
+          // Dientes
+          c.fillStyle = '#ffffff';
+          c.fillRect(-12, 30, 24, 7);
+        } else {
+          c.arc(0, 20, 16, 0.1, Math.PI - 0.1);
+          c.lineWidth = 4;
+          c.stroke();
+        }
+      });
+    }
+
+    // Sticker 2: Gradas tipo estadio con personajes masivos (HOMENAJE EXACTO a tu imagen de referencia)
+    function drawBleachersWithSensors(ctx, t, progress) {
+      const startY = 320;
+      const rows = 8;
+      const cols = 15;
+
+      for (let r = 0; r < rows; r++) {
+        const rowProgress = r / rows;
+        const y = startY + r * 55;
+        const width = 380 + r * 38;
+        const leftX = (W - width) / 2;
+
+        // Grada roja y borde blanco (como en la imagen de referencia)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(leftX - 8, y + 16, width + 16, 32, 10);
+        ctx.fill();
+
+        ctx.fillStyle = '#dc2626'; // Rojo de la grada
+        ctx.beginPath();
+        ctx.roundRect(leftX - 4, y + 18, width + 8, 26, 8);
+        ctx.fill();
+
+        // Filas de personajitos con gorrito blanco y linterna roja (sensores TRPV1)
+        const itemSpacing = width / cols;
+        for (let c = 0; c < cols; c++) {
+          const px = leftX + c * itemSpacing + itemSpacing / 2;
+          const py = y + 8;
+          const charIndex = r * cols + c;
+          const isFired = charIndex < (progress * rows * cols * 1.25);
+
+          ctx.save();
+          ctx.translate(px, py);
+
+          // Escala perspectiva
+          const sc = 0.55 + (r * 0.05);
+          ctx.scale(sc, sc);
+
+          // Borde blanco exterior del personajito
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, -18, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(-12, -8, 24, 20);
+
+          // Ropita verde (como en la imagen del usuario)
+          ctx.fillStyle = '#0d9488';
+          ctx.beginPath();
+          ctx.roundRect(-10, -6, 20, 18, 4);
+          ctx.fill();
+
+          // Cabeza y gorrito blanco
+          ctx.fillStyle = '#fed7aa'; // Piel
+          ctx.beginPath();
+          ctx.arc(0, -18, 11, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#f8fafc'; // Gorro/casco de cocinero/vigilante
+          ctx.beginPath();
+          ctx.arc(0, -23, 11, Math.PI, Math.PI * 2);
+          ctx.fill();
+
+          // Ojitos
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(-4, -18, 2.5, 3);
+          ctx.fillRect(2, -18, 2.5, 3);
+
+          // Brazo levantando linterna / alarma (como los cocineros levantando cuchillos)
+          const armWave = isFired ? Math.sin(t * 12 + charIndex) * 6 : 0;
+          ctx.beginPath();
+          ctx.moveTo(8, -4);
+          ctx.lineTo(16, -26 + armWave);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 6;
+          ctx.stroke();
+          ctx.strokeStyle = '#0d9488';
+          ctx.lineWidth = 3.5;
+          ctx.stroke();
+
+          // Linterna de alarma roja encendida / cuchillo
+          if (isFired) {
+            // Luz roja parpadeante
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(17, -30 + armWave, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(16, -31 + armWave, 2, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(16, -28, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+    }
+
+    // Sticker 3: Rostro cutout con sudor, lágrimas y rubor extremo
+    function drawSweatingFace(ctx, x, y, scale = 1, t = 0) {
+      drawStickerShape(ctx, x, y, scale, 0, (c, pass) => {
+        // Cabeza redonda
+        c.beginPath();
+        c.arc(0, 0, 95, 0, Math.PI * 2);
+
+        if (pass === 'shadow') { c.fillStyle = '#ffffff'; c.fill(); return; }
+        if (pass === 'outline') {
+          c.lineWidth = 20;
+          c.strokeStyle = '#ffffff';
+          c.stroke();
+          return;
+        }
+
+        // Color de piel súper sonrojado / caliente
+        const redness = 0.5 + 0.5 * Math.sin(t * 6);
+        const r_col = Math.floor(255);
+        const g_col = Math.floor(180 - redness * 90);
+        const b_col = Math.floor(150 - redness * 80);
+        c.fillStyle = `rgb(${r_col}, ${g_col}, ${b_col})`;
+        c.fill();
+        c.lineWidth = 4.5;
+        c.strokeStyle = '#331505';
+        c.stroke();
+
+        // Chapitas rojas súper intensas
+        c.fillStyle = 'rgba(239, 68, 68, 0.65)';
+        c.beginPath(); c.arc(-55, 20, 24, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(55, 20, 24, 0, Math.PI * 2); c.fill();
+
+        // Ojos cerrados de desesperación picoso (en forma de ><)
+        c.lineWidth = 6;
+        c.strokeStyle = '#1e1b18';
+        // Ojo izq
+        c.beginPath();
+        c.moveTo(-60, -25); c.lineTo(-35, -12); c.lineTo(-60, 0); c.stroke();
+        // Ojo der
+        c.beginPath();
+        c.moveTo(60, -25); c.lineTo(35, -12); c.lineTo(60, 0); c.stroke();
+
+        // Boca abierta en O exhalando calor
+        c.fillStyle = '#450a0a';
+        c.beginPath();
+        c.arc(0, 45, 28, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+        // Lengua roja afuera
+        c.fillStyle = '#f43f5e';
+        c.beginPath();
+        c.arc(0, 52, 16, 0, Math.PI);
+        c.fill();
+        c.stroke();
+      });
+
+      // Gotas de sudor y lágrimas saliendo alrededor en patrón radial (stickers pequeños)
+      const numDrops = 8;
+      for (let i = 0; i < numDrops; i++) {
+        const ang = (i * Math.PI * 2 / numDrops) + t * 2;
+        const dist = 140 + Math.sin(t * 8 + i) * 35;
+        const dx = x + Math.cos(ang) * dist;
+        const dy = y + Math.sin(ang) * dist;
+
+        ctx.save();
+        ctx.translate(dx, dy);
+        ctx.rotate(ang + Math.PI / 2);
+
+        // Borde blanco de sticker
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0, Math.PI);
+        ctx.lineTo(0, -22);
+        ctx.closePath();
+        ctx.fill();
+
+        // Interior gota celeste
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI);
+        ctx.lineTo(0, -16);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // Sticker 4: Montaña de Comida Mexicana (Tacos, Elotes, Salsas) estilo diorama
+    function drawMexicanFiestaPile(ctx, x, y, scale = 1, t = 0) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      // Sombra general de la pila
+      ctx.fillStyle = 'rgba(20, 10, 5, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(0, 90, 220, 45, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 1. Plato o charola taquera base (debajo de la comida)
+      ctx.fillStyle = 'rgba(30, 15, 5, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(0, 45, 230, 36, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Borde grueso blanco de plato
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(-220, 10, 440, 55, 26);
+      ctx.fill();
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.roundRect(-214, 14, 428, 47, 22);
+      ctx.fill();
+
+      // Textura y acabado de plato artesanal de barro/madera
+      ctx.strokeStyle = '#c2410c';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-204, 20, 408, 35, 16);
+      ctx.stroke();
+
+      // 2. Rodajas de Limón / Aguacate (estilo recortes de la imagen de referencia)
+      drawStickerShape(ctx, -145, 0, 0.75, -0.3, (c, pass) => {
+        c.beginPath(); c.arc(0, 0, 34, 0, Math.PI * 2);
+        if (pass === 'shadow') { c.fillStyle = '#fff'; c.fill(); return; }
+        if (pass === 'outline') { c.lineWidth = 14; c.strokeStyle = '#fff'; c.stroke(); return; }
+        c.fillStyle = '#22c55e'; c.fill();
+        c.lineWidth = 3; c.strokeStyle = '#15803d'; c.stroke();
+        c.fillStyle = '#86efac'; c.beginPath(); c.arc(0, 0, 24, 0, Math.PI * 2); c.fill();
+        // Gajos
+        c.strokeStyle = '#15803d'; c.lineWidth = 2;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+          c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 23, Math.sin(a) * 23); c.stroke();
+        }
+      });
+      drawStickerShape(ctx, 145, 5, 0.75, 0.25, (c, pass) => {
+        c.beginPath(); c.arc(0, 0, 34, 0, Math.PI * 2);
+        if (pass === 'shadow') { c.fillStyle = '#fff'; c.fill(); return; }
+        if (pass === 'outline') { c.lineWidth = 14; c.strokeStyle = '#fff'; c.stroke(); return; }
+        c.fillStyle = '#16a34a'; c.fill();
+        c.lineWidth = 3; c.strokeStyle = '#14532d'; c.stroke();
+        c.fillStyle = '#bbf7d0'; c.beginPath(); c.arc(0, 0, 24, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#14532d'; c.lineWidth = 2;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+          c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 23, Math.sin(a) * 23); c.stroke();
+        }
+      });
+
+      // 2. Taco al pastor con borde blanco
+      drawStickerShape(ctx, -90, -10, 0.9, -0.2, (c, pass) => {
+        c.beginPath();
+        c.arc(0, 0, 70, Math.PI, Math.PI * 2);
+        c.closePath();
+        if (pass === 'shadow') { c.fillStyle = '#ffffff'; c.fill(); return; }
+        if (pass === 'outline') { c.lineWidth = 16; c.strokeStyle = '#ffffff'; c.stroke(); return; }
+        c.fillStyle = '#fef08a'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#854d0e'; c.stroke();
+        // Carne al pastor roja
+        c.fillStyle = '#dc2626';
+        c.beginPath(); c.ellipse(0, -10, 55, 20, 0, 0, Math.PI * 2); c.fill();
+        // Piña y cilantro
+        c.fillStyle = '#fde047';
+        c.beginPath(); c.arc(-15, -18, 10, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#22c55e';
+        c.beginPath(); c.arc(20, -15, 6, 0, Math.PI * 2); c.fill();
+      });
+
+      // 3. Elote preparado
+      drawStickerShape(ctx, 80, -20, 0.85, 0.3, (c, pass) => {
+        c.beginPath();
+        c.roundRect(-25, -70, 50, 120, 20);
+        if (pass === 'shadow') { c.fillStyle = '#ffffff'; c.fill(); return; }
+        if (pass === 'outline') { c.lineWidth = 16; c.strokeStyle = '#ffffff'; c.stroke(); return; }
+        c.fillStyle = '#eab308'; c.fill();
+        c.lineWidth = 3; c.strokeStyle = '#713f12'; c.stroke();
+        // Palito
+        c.fillStyle = '#d97706'; c.fillRect(-6, 45, 12, 40);
+        // Mayonesa y queso
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.roundRect(-20, -60, 40, 80, 15); c.fill();
+        // Chile piquín rojo espolvoreado
+        c.fillStyle = '#dc2626';
+        for (let i = 0; i < 15; i++) {
+          c.fillRect(-15 + (i * 7) % 30, -50 + (i * 11) % 65, 3, 3);
+        }
+      });
+
+      // 4. Botella de Salsa Picante al centro
+      drawStickerShape(ctx, 0, -60, 0.95, 0.05 * Math.sin(t * 6), (c, pass) => {
+        c.beginPath();
+        c.roundRect(-26, -50, 52, 100, 10);
+        c.roundRect(-12, -90, 24, 45, 5);
+        if (pass === 'shadow') { c.fillStyle = '#ffffff'; c.fill(); return; }
+        if (pass === 'outline') { c.lineWidth = 18; c.strokeStyle = '#ffffff'; c.stroke(); return; }
+        // Cuerpo de vidrio con salsa roja
+        c.fillStyle = '#b91c1c'; c.fill();
+        c.lineWidth = 3.5; c.strokeStyle = '#450a0a'; c.stroke();
+        // Tapa amarilla
+        c.fillStyle = '#facc15'; c.fillRect(-12, -90, 24, 18);
+        // Etiqueta
+        c.fillStyle = '#fef08a'; c.fillRect(-20, -25, 40, 45);
+        c.fillStyle = '#7f1d1d'; c.font = 'bold 9px sans-serif'; c.fillText('SALSA', -16, -5);
+      });
+
+      ctx.restore();
+    }
+
+    // Sticker 5: Duelo de stickers (Team Picante vs Team Tranqui)
+    function drawVersusBattle(ctx, t) {
+      const cx = W / 2;
+      const cy = 600;
+
+      // Izquierda: Team Picante
+      const pulseLeft = 1.0 + 0.06 * Math.sin(t * 8);
+      drawChileSticker(ctx, cx - 175, cy - 40, 1.15 * pulseLeft, -0.15, true);
+      drawPlate(ctx, "🔥 TEAM PICANTE", cx - 175, cy + 150, 310, 76, "¡ÉCHALE MÁS SALSA!");
+
+      // Centro: Círculo VS gigante
+      ctx.save();
+      ctx.translate(cx, cy - 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, 52, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 38px Impact, Arial Black, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('VS', 0, 3);
+      ctx.restore();
+
+      // Derecha: Team Tranqui (Vaso de leche y taco sin chile)
+      const pulseRight = 1.0 + 0.06 * Math.cos(t * 8);
+      ctx.save();
+      ctx.translate(cx + 175, cy - 40);
+      ctx.scale(pulseRight, pulseRight);
+      // Vaso de leche con popote
+      drawStickerShape(ctx, 0, 0, 1.1, 0.1, (c, pass) => {
+        c.beginPath();
+        c.moveTo(-35, -50); c.lineTo(35, -50);
+        c.lineTo(25, 60); c.lineTo(-25, 60);
+        c.closePath();
+        if (pass === 'shadow') { c.fillStyle = '#ffffff'; c.fill(); return; }
+        if (pass === 'outline') { c.lineWidth = 18; c.strokeStyle = '#ffffff'; c.stroke(); return; }
+        c.fillStyle = '#f8fafc'; c.fill();
+        c.lineWidth = 3.5; c.strokeStyle = '#0284c7'; c.stroke();
+        // Leche blanca
+        c.fillStyle = '#e0f2fe'; c.fillRect(-22, -10, 44, 65);
+        // Popote azul
+        c.strokeStyle = '#0284c7'; c.lineWidth = 6;
+        c.beginPath(); c.moveTo(0, 20); c.lineTo(20, -75); c.lineTo(38, -85); c.stroke();
+      });
+      ctx.restore();
+      drawPlate(ctx, "🥛 TEAM TRANQUI", cx + 175, cy + 150, 310, 76, "SIN SALSA, POR FAVOR");
+    }
+
+    // -------------------------------------------------------------
+    // MOTOR PRINCIPAL DE ANIMACIÓN DETERMINISTA: renderFrame(t)
+    // -------------------------------------------------------------
+    window.renderFrame = function(timeSec) {
+      ctx.clearRect(0, 0, W, H);
+
+      // Fondo diorama permanente
+      drawDioramaRoom(ctx);
+
+      const t = Math.max(0, timeSec);
+
+      // =========================================================
+      // ESCENA 1: Gancho [0:00 - 5.64s]
+      // =========================================================
+      if (t < 5.64) {
+        const localT = t;
+        const enterProgress = clamp(localT / 1.2, 0, 1);
+        const bounceScale = easeOutBack(enterProgress);
+
+        // Sticker chile rebotando al centro
+        const chileY = 560 + Math.sin(localT * 4) * 12;
+        drawChileSticker(ctx, W / 2, chileY, bounceScale * 1.35, Math.sin(localT * 3) * 0.1, false);
+
+        // Placa superior de "¿FUEGO REAL? NO"
+        const plateY = -120 + easeOutBounce(clamp((localT - 0.4) / 0.8, 0, 1)) * 340;
+        drawPlate(ctx, "¿FUEGO REAL?", W / 2, plateY, 380, 84, "¡EN REALIDAD NO QUEMA!");
+
+        // Termómetro con 22°C (ambiente)
+        if (localT > 1.8) {
+          const thermProgress = clamp((localT - 1.8) / 0.6, 0, 1);
+          ctx.save();
+          ctx.translate(560, 560);
+          ctx.scale(easeOutBack(thermProgress), easeOutBack(thermProgress));
+          drawPlate(ctx, "22°C", 0, 0, 190, 64, "TEMPERATURA REAL");
+          ctx.restore();
+        }
+      }
+
+      // =========================================================
+      // ESCENA 2: El truco biológico [5.64s - 16.08s]
+      // =========================================================
+      else if (t >= 5.64 && t < 16.08) {
+        const localT = t - 5.64;
+        const dur = 10.44;
+        const progress = localT / dur;
+
+        // Gradas masivas con vigilantes activándose en cascada (HOMENAJE EXACTO a tu imagen)
+        drawBleachersWithSensors(ctx, localT, progress);
+
+        // Placa superior derecha estilo matrícula (exacto como "GPU: todos juntos")
+        drawPlate(ctx, "ALERTA: ¡TODOS JUNTOS!", W - 225, 125, 430, 80, "RECEPTORES TRPV1 ENGAÑADOS");
+
+        // Capsaicina volando hacia las gradas como molécula traviesa
+        const molX = 140 + Math.sin(localT * 2.5) * 40;
+        const molY = 320 + (localT * 35) % 450;
+        drawStickerShape(ctx, molX, molY, 0.8, localT * 3, (c, pass) => {
+          c.beginPath();
+          c.arc(0, 0, 28, 0, Math.PI * 2);
+          if (pass === 'shadow') { c.fillStyle = '#fff'; c.fill(); return; }
+          if (pass === 'outline') { c.lineWidth = 14; c.strokeStyle = '#fff'; c.stroke(); return; }
+          c.fillStyle = '#f97316'; c.fill(); c.stroke();
+          c.fillStyle = '#fff'; c.font = 'bold 10px sans-serif'; c.fillText('CAPSAICINA', -24, 4);
+        });
+
+        // Sticker de chile pequeño observando complacido al costado de las gradas (despejando zona de subtítulos)
+        drawChileSticker(ctx, 110, 770, 0.75, 0.15, true);
+      }
+
+      // =========================================================
+      // ESCENA 3: La reacción en cadena [16.08s - 25.25s]
+      // =========================================================
+      else if (t >= 16.08 && t < 25.25) {
+        const localT = t - 16.08;
+
+        // Placa superior
+        drawPlate(ctx, "MODO ENFRIAMIENTO", W / 2, 130, 420, 82, "SUDOR + LÁGRIMAS + VASODILATACIÓN");
+
+        // Rostro cutout sudando y llorando con gotas radiales
+        const faceY = 560 + Math.sin(localT * 8) * 8;
+        drawSweatingFace(ctx, W / 2, faceY, 1.3, localT);
+
+        // Rótulos técnicos flotantes con flechas apuntando
+        if (localT > 1.2) {
+          drawPlate(ctx, "💧 SUDOR FRÍO", 180, 360, 220, 60);
+          drawPlate(ctx, "😭 LAGRIMEO", W - 180, 360, 220, 60);
+          drawPlate(ctx, "🔴 CARA ROJA", W / 2, 820, 320, 72, "VASOS SANGUÍNEOS ABIERTOS");
+        }
+      }
+
+      // =========================================================
+      // ESCENA 4: El giro mexicano [25.25s - 33.99s]
+      // =========================================================
+      else if (t >= 25.25 && t < 33.99) {
+        const localT = t - 25.25;
+
+        // Placa superior
+        drawPlate(ctx, "¡ADICCIÓN DELICIOSA!", W / 2, 130, 440, 82, "ENDORFINAS AL RESCATE DEL DOLOR");
+
+        // Lluvia de endorfinas doradas (cerebros y corazones felices)
+        for (let i = 0; i < 7; i++) {
+          const ex = 90 + i * 90;
+          const ey = 220 + ((localT * 90 + i * 80) % 360);
+          ctx.save();
+          ctx.translate(ex, ey);
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 16px sans-serif';
+          ctx.fillText('✨', -7, 6);
+          ctx.restore();
+        }
+
+        // Gran pila de comida mexicana en primer plano (elevada para dejar libre la franja de subtítulos)
+        const pileScale = easeOutBack(clamp(localT / 0.8, 0, 1));
+        drawMexicanFiestaPile(ctx, W / 2, 735, pileScale * 1.25, localT);
+
+        // Chile feliz comiendo tacos
+        drawChileSticker(ctx, W / 2, 390 + Math.sin(localT * 4) * 10, 1.05, Math.sin(localT * 3) * 0.1, false);
+      }
+
+      // =========================================================
+      // ESCENA 5: Cierre / CTA [33.99s - 38.30s]
+      // =========================================================
+      else {
+        const localT = t - 33.99;
+
+        // Placa superior de pregunta
+        drawPlate(ctx, "¿DE QUÉ TEAM ERES TÚ?", W / 2, 140, 480, 85, "COMENTA: ¿AGUANTAS EL PICANTE?");
+
+        // Duelo de stickers (Team Picante vs Team Tranqui)
+        drawVersusBattle(ctx, localT);
+
+        // Indicador inferior para redes sociales
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(W / 2 - 200, H - 180, 400, 56, 28);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('👇 ¡DÉJALO EN LOS COMENTARIOS! 👇', W / 2, H - 152);
+      }
+    };
+
+    // Auto-loop interactivo si se abre directamente en el navegador
+    let startTime = performance.now();
+    let animId = null;
+    function loop(now) {
+      if (window.manualMode) return;
+      const elapsed = (now - startTime) / 1000;
+      const t = elapsed % 38.3;
+      window.renderFrame(t);
+      animId = requestAnimationFrame(loop);
+    }
+    animId = requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

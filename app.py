@@ -1957,8 +1957,12 @@ def fruti_render_endpoint(project_id: str, req: FrutiRenderRequest):
 
 
 from studio.api import init_studio_router
+from studio.opuscar.api import router as opuscar_router
+from studio.animated_shorts.api import router as animated_shorts_router
 
 app.include_router(init_studio_router(PROJECTS_DIR, _synthesize_segment_samples))
+app.include_router(opuscar_router)
+app.include_router(animated_shorts_router)
 
 app.mount("/projects", StaticFiles(directory=str(PROJECTS_DIR)), name="projects")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

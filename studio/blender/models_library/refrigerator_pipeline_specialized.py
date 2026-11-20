@@ -24,6 +24,8 @@ from studio.blender.educational_vertical_framework import (
     AdaptiveLabelsEngine,
     Educational916FrameworkConfig,
     create_adaptive_3d_label,
+    create_compartment_led_light,
+    create_hinged_appliance_door,
 )
 from studio.blender.materials import get_or_create_material, hex_to_rgba, setup_engine_materials
 from studio.blender.models_library import _common as C
@@ -39,7 +41,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "1. Gancho y extracción de calor",
         "time_range": (0.0, 19.5),
         "frame_range": (1, 468),
-        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 18.0, "el": 10.0, "dist": 10.0, "tx": 0.15, "ty": 0.0, "tz": 1.95, "lens": 48.0},
         "active_labels": [],  # Ninguna etiqueta al inicio para mantener plano limpio
         "description": "Plano general completo del refrigerador en corte 3/4. Reconocible de inmediato.",
     },
@@ -48,7 +50,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "2. Presentación de los 5 componentes",
         "time_range": (19.5, 30.5),
         "frame_range": (469, 732),
-        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 18.0, "el": 10.0, "dist": 10.0, "tx": 0.15, "ty": 0.0, "tz": 1.95, "lens": 48.0},
         "active_labels": [
             "overview_compressor",
             "overview_condenser",
@@ -63,7 +65,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "3. Compresor hermético",
         "time_range": (30.5, 47.5),
         "frame_range": (733, 1140),
-        "camera": {"az": 18.0, "el": 12.0, "dist": 3.2, "tx": 0.0, "ty": 0.05, "tz": 0.38, "lens": 56.0},
+        "camera": {"az": 18.0, "el": 12.0, "dist": 3.4, "tx": 0.0, "ty": 0.0, "tz": 0.36, "lens": 54.0},
         "active_labels": ["close_compressor"],  # ÚNICAMENTE compresor
         "description": "Acercamiento a la base, animación de bombeo mecánico y compresión.",
     },
@@ -100,7 +102,7 @@ REFRIGERATOR_TIMELINE_CUES = [
         "name": "7. Retorno y cierre del ciclo",
         "time_range": (96.5, 105.0),
         "frame_range": (2317, 2520),
-        "camera": {"az": 22.0, "el": 10.0, "dist": 9.6, "tx": 0.0, "ty": 0.0, "tz": 1.95, "lens": 54.0},
+        "camera": {"az": 18.0, "el": 10.0, "dist": 10.0, "tx": 0.15, "ty": 0.0, "tz": 1.95, "lens": 48.0},
         "active_labels": [],  # Cierre limpio sin etiquetas que obstruyan la animación
         "description": "Pull-back al plano general mostrando el ciclo termodinámico continuo.",
     },
@@ -181,26 +183,102 @@ def build_specialized_refrigerator_model(
     freezer_div = C.box("Freezer_Divider", (1.40, 0.95, 0.12), (0.0, 0.05, z_freeze_div), m_white, bev=0.01)
     grp("cabinet", freezer_div)
 
-    # Elementos de identidad de refrigerador:
-    # Tiradores dobles cromados en la puerta
-    handle_top = C.cylinder("Handle_Freezer", 0.022, 0.45, (0.76, -0.56, Z(3.15)), "Z", m_dark_metal, 16)
-    handle_bot = C.cylinder("Handle_Fridge", 0.022, 0.70, (0.76, -0.56, Z(1.75)), "Z", m_dark_metal, 16)
-    hinge_top = C.cylinder("Hinge_Top", 0.035, 0.06, (0.74, -0.52, zt + 0.06), "Z", m_dark_metal, 16)
-    hinge_mid = C.cylinder("Hinge_Mid", 0.035, 0.06, (0.74, -0.52, z_freeze_div), "Z", m_dark_metal, 16)
+    # Elementos de identidad de refrigerador (Fieles a la referencia visual y modulares):
+    # 1. Puerta Superior ABIERTA a la derecha (Compartimento Congelador)
+    door_top_w = 1.18
+    door_top_h = zt - z_freeze_div - 0.04
+    door_top_z = z_freeze_div + door_top_h / 2 + 0.02
+    top_door = create_hinged_appliance_door(
+        name="Door_Top",
+        hinge_pos=(0.80, -0.525, door_top_z),
+        width=door_top_w,
+        height=door_top_h,
+        open_angle_deg=38.0,
+        mat_outer=m_white,
+        mat_liner=m_liner,
+        mat_gasket=m_dark_metal,
+        num_bins=1,
+        bev_outer=0.035,
+        bev_liner=0.030,
+    )
+
+    # 2. Puerta Inferior ABIERTA a la derecha (Compartimento Conservador)
+    door_bot_w = 1.18
+    door_bot_h = z_freeze_div - zb - 0.04
+    door_bot_z = zb + door_bot_h / 2 + 0.02
+    bot_door = create_hinged_appliance_door(
+        name="Door_Bottom",
+        hinge_pos=(0.80, -0.525, door_bot_z),
+        width=door_bot_w,
+        height=door_bot_h,
+        open_angle_deg=42.0,
+        mat_outer=m_white,
+        mat_liner=m_liner,
+        mat_gasket=m_dark_metal,
+        num_bins=3,
+        bev_outer=0.035,
+        bev_liner=0.030,
+    )
+
+    # Botellas en balconets de la puerta inferior abierta
+    d_bot_bottle1 = C.cylinder("Door_Bot_Bottle_1", 0.04, 0.22, (0, 0, 0), "Z", m_frost, 16)
+    d_bot_bottle1.parent = bot_door["hinge"]
+    d_bot_bottle1.matrix_parent_inverse.identity()
+    d_bot_bottle1.location = (door_bot_w * 0.32, -0.055, -door_bot_h / 2 + 0.29)
+
+    d_bot_bottle2 = C.cylinder("Door_Bot_Bottle_2", 0.038, 0.20, (0, 0, 0), "Z", m_copper, 16)
+    d_bot_bottle2.parent = bot_door["hinge"]
+    d_bot_bottle2.matrix_parent_inverse.identity()
+    d_bot_bottle2.location = (door_bot_w * 0.62, -0.055, -door_bot_h / 2 + 0.28)
+
+    # Bisagras metálicas cilíndricas en el eje derecho y patas niveladoras
+    hinge_top = C.cylinder("Hinge_Top", 0.035, 0.08, (0.82, -0.525, zt + 0.04), "Z", m_dark_metal, 16)
+    hinge_mid = C.cylinder("Hinge_Mid", 0.035, 0.08, (0.82, -0.525, z_freeze_div), "Z", m_dark_metal, 16)
+    hinge_bot = C.cylinder("Hinge_Bot", 0.035, 0.08, (0.82, -0.525, zb), "Z", m_dark_metal, 16)
     feet_l = C.cylinder("Foot_Left", 0.045, 0.08, (-0.68, -0.45, Z(0.04)), "Z", m_dark_metal, 16)
     feet_r = C.cylinder("Foot_Right", 0.045, 0.08, (0.68, -0.45, Z(0.04)), "Z", m_dark_metal, 16)
-    grp("cabinet", handle_top, handle_bot, hinge_top, hinge_mid, feet_l, feet_r)
+    grp(
+        "cabinet",
+        top_door["outer"], top_door["liner"], top_door["gasket"], *top_door["bins"],
+        bot_door["outer"], bot_door["liner"], bot_door["gasket"], *bot_door["bins"],
+        d_bot_bottle1, d_bot_bottle2,
+        hinge_top, hinge_mid, hinge_bot, feet_l, feet_r
+    )
 
-    # Estantes interiores y alimentos
+    # Luz LED interior para iluminar la cavidad abierta del conservador
+    create_compartment_led_light(
+        name="Interior_Fridge_LED",
+        location=(0.0, -0.15, z_freeze_div - 0.12),
+        energy=28.0,
+        color_rgb=(1.0, 0.98, 0.92),
+        radius=0.15,
+    )
+
+    # Estante divisor horizontal en el congelador
+    fz_shelf = C.box("Freezer_Shelf", (1.30, 0.85, 0.025), (0.0, 0.05, (z_freeze_div + zt) / 2 + 0.02), m_liner)
+    grp("cabinet", fz_shelf)
+
+    # Estantes interiores y alimentos realistas para la cavidad del conservador abierta
     shelf1 = C.box("Shelf_1", (1.30, 0.85, 0.025), (0.0, 0.05, Z(1.95)), m_glass)
     shelf2 = C.box("Shelf_2", (1.30, 0.85, 0.025), (0.0, 0.05, Z(1.35)), m_glass)
     crisper = C.box("Crisper_Drawer", (1.30, 0.85, 0.45), (0.0, 0.05, Z(0.92)), m_glass, bev=0.01)
     grp("cabinet", shelf1, shelf2, crisper)
 
+    # Props en estante 1 (lácteos, bebidas, envase)
     bottle1 = C.cylinder("Bottle_1", 0.06, 0.32, (-0.40, -0.15, Z(1.53)), "Z", m_frost, 16)
     bottle2 = C.cylinder("Bottle_2", 0.05, 0.28, (-0.25, -0.15, Z(1.51)), "Z", m_copper, 16)
-    fruit1 = C.sphere("Fruit_1", 0.09, (0.30, 0.0, Z(1.44)), get_or_create_material("Mat_Orange", hex_to_rgba("#EA580C"), roughness=0.4))
-    grp("cabinet", bottle1, bottle2, fruit1)
+    cheese_box = C.box("Cheese_Box", (0.24, 0.20, 0.11), (0.28, -0.10, Z(1.42)), m_liner, bev=0.015)
+    grp("cabinet", bottle1, bottle2, cheese_box)
+
+    # Props en estante 2 (frutas frescas y yogures)
+    m_orange = get_or_create_material("Mat_Orange", hex_to_rgba("#EA580C"), roughness=0.38)
+    m_green_apple = get_or_create_material("Mat_GreenApple", hex_to_rgba("#84CC16"), roughness=0.35)
+    fruit1 = C.sphere("Fruit_Orange_1", 0.085, (0.30, 0.0, Z(1.44)), m_orange)
+    fruit2 = C.sphere("Fruit_Orange_2", 0.075, (0.16, 0.06, Z(1.43)), m_orange)
+    fruit3 = C.sphere("Fruit_Apple", 0.080, (-0.30, 0.0, Z(1.44)), m_green_apple)
+    yogurt1 = C.cylinder("Yogurt_Cup_1", 0.045, 0.10, (-0.12, 0.05, Z(1.42)), "Z", m_white, 16)
+    yogurt2 = C.cylinder("Yogurt_Cup_2", 0.045, 0.10, (0.02, 0.05, Z(1.42)), "Z", m_frost, 16)
+    grp("cabinet", fruit1, fruit2, fruit3, yogurt1, yogurt2)
 
     # Plinto / Compartimento de máquinas inferior
     plinth_floor = C.box("Plinth_Floor", (1.64, 1.15, 0.08), (0.0, 0.05, Z(0.04)), m_liner, bev=0.01)
@@ -209,12 +287,35 @@ def build_specialized_refrigerator_model(
 
     # 2. Compresor Hermético (montado en la base plinth)
     comp_root = C.empty("Compressor_Root", (0.0, 0.05, Z(0.35)))
-    shell = C.cylinder("Compressor_Shell", 0.26, 0.36, (0, 0, 0), "Z", m_cast_iron, 32, parent=comp_root)
-    cap_top = C.cylinder("Compressor_Cap_Top", 0.25, 0.08, (0, 0, 0.20), "Z", m_cast_iron, 32, parent=comp_root, r2=0.17)
-    cap_bot = C.cylinder("Compressor_Cap_Bot", 0.25, 0.08, (0, 0, -0.20), "Z", m_cast_iron, 32, parent=comp_root, r2=0.25)
-    rotor_root = C.empty("Comp_Rotor_Root", (0, 0, 0), parent=comp_root)
-    crank = C.cylinder("Comp_CrankPin", 0.035, 0.16, (0.06, 0, 0), "Z", m_copper, 16, parent=rotor_root)
-    piston = C.cylinder("Comp_Piston", 0.065, 0.12, (0, 0, -0.15), "X", m_copper, 16, parent=comp_root)
+    shell = C.cylinder("Compressor_Shell", 0.26, 0.36, (0, 0, 0), "Z", m_cast_iron, 32)
+    shell.parent = comp_root
+    shell.matrix_parent_inverse.identity()
+    shell.location = (0, 0, 0)
+
+    cap_top = C.cylinder("Compressor_Cap_Top", 0.25, 0.08, (0, 0, 0), "Z", m_cast_iron, 32, r2=0.17)
+    cap_top.parent = comp_root
+    cap_top.matrix_parent_inverse.identity()
+    cap_top.location = (0, 0, 0.20)
+
+    cap_bot = C.cylinder("Compressor_Cap_Bot", 0.25, 0.08, (0, 0, 0), "Z", m_cast_iron, 32, r2=0.25)
+    cap_bot.parent = comp_root
+    cap_bot.matrix_parent_inverse.identity()
+    cap_bot.location = (0, 0, -0.20)
+
+    rotor_root = C.empty("Comp_Rotor_Root", (0, 0, 0))
+    rotor_root.parent = comp_root
+    rotor_root.matrix_parent_inverse.identity()
+    rotor_root.location = (0, 0, 0)
+
+    crank = C.cylinder("Comp_CrankPin", 0.035, 0.16, (0, 0, 0), "Z", m_copper, 16)
+    crank.parent = rotor_root
+    crank.matrix_parent_inverse.identity()
+    crank.location = (0.06, 0, 0)
+
+    piston = C.cylinder("Comp_Piston", 0.065, 0.12, (0, 0, 0), "X", m_copper, 16)
+    piston.parent = comp_root
+    piston.matrix_parent_inverse.identity()
+    piston.location = (0, 0, -0.15)
     grp("compressor", shell, cap_top, cap_bot, crank, piston)
 
     data["compressor_parts"] = {
@@ -222,8 +323,8 @@ def build_specialized_refrigerator_model(
         "piston": piston,
         "piston_base_x": 0.0,
     }
-    # Anclaje exacto en la cúpula superior del compresor
-    data["anchors_3d"]["compressor"] = Vector((0.0, 0.05, Z(0.53)))
+    # Anclaje exacto en la cúpula frontal visible del compresor
+    data["anchors_3d"]["compressor"] = Vector((0.0, -0.15, Z(0.48)))
 
     # 3. Serpentín del Condensador (Rejilla montada en la parte trasera exterior)
     cond_x0, cond_x1 = -0.62, 0.62
@@ -362,26 +463,28 @@ def generate_refrigerator_adaptive_labels(
         cam_o.data.lens = config.camera.lens_mm
         bpy.context.view_layer.update()
 
-    # 1. Conjunto Overview (5 componentes ordenados en 2 columnas laterales seguras)
+    # 1. Conjunto Overview (5 componentes ordenados en 2 columnas laterales seguras sobre fondo limpio)
     overview_specs = {
-        "condenser":  ("CONDENSADOR", 0.74, 0.68),
-        "dryer":      ("FILTRO SECADOR", 0.74, 0.48),
-        "compressor": ("COMPRESOR", 0.74, 0.28),
-        "evaporator": ("EVAPORADOR", 0.26, 0.70),
-        "capillary":  ("TUBO CAPILAR", 0.26, 0.38),
+        "evaporator": ("EVAPORADOR", 0.22, 0.74),
+        "compressor": ("COMPRESOR", 0.22, 0.44),
+        "capillary":  ("TUBO CAPILAR", 0.22, 0.25),
+        "condenser":  ("CONDENSADOR", 0.78, 0.70),
+        "dryer":      ("FILTRO SECADOR", 0.78, 0.25),
     }
 
-    # Evaluar cámara para Stage 2 (Overview)
-    az_st2 = math.radians(22.0)
-    el_st2 = math.radians(10.0)
-    c_tgt_st2 = Vector((0.0, 0.0, 1.95))
+    # Evaluar cámara para Stage 2 (Overview) desde los cues sincronizados
+    cue_st2 = next(c for c in REFRIGERATOR_TIMELINE_CUES if c["id"] == "st2_architecture")
+    c_cfg2 = cue_st2["camera"]
+    az_st2 = math.radians(c_cfg2["az"])
+    el_st2 = math.radians(c_cfg2["el"])
+    c_tgt_st2 = Vector((c_cfg2["tx"], c_cfg2["ty"], c_cfg2["tz"]))
     d_st2 = Vector((math.sin(az_st2) * math.cos(el_st2), -math.cos(az_st2) * math.cos(el_st2), math.sin(el_st2)))
-    c_pos_st2 = c_tgt_st2 + d_st2 * 9.6
+    c_pos_st2 = c_tgt_st2 + d_st2 * c_cfg2["dist"]
 
     if cam_o:
         cam_o.location = c_pos_st2
         cam_o.rotation_euler = (c_tgt_st2 - c_pos_st2).to_track_quat("-Z", "Y").to_euler()
-        cam_o.data.lens = 54.0
+        cam_o.data.lens = c_cfg2["lens"]
         bpy.context.view_layer.update()
 
     for key, (txt_content, tu, tv) in overview_specs.items():
@@ -405,7 +508,7 @@ def generate_refrigerator_adaptive_labels(
     cond_y = 0.68
     close_specs = [
         # (etiqueta_key, comp_key, texto, target_u, target_v, az_deg, el_deg, dist, tx, ty, tz, lens)
-        ("close_compressor", "compressor", "COMPRESOR", 0.30, 0.72, 18.0, 12.0, 3.2, 0.0, 0.05, 0.38, 56.0),
+        ("close_compressor", "compressor", "COMPRESOR", 0.30, 0.72, 18.0, 12.0, 3.4, 0.0, 0.0, 0.36, 54.0),
         ("close_condenser",  "condenser",  "CONDENSADOR", 0.72, 0.72, 148.0, 12.0, 4.6, 0.0, cond_y, 2.35, 54.0),
         ("close_capillary",  "capillary",  "TUBO CAPILAR", 0.28, 0.36, 14.0, 8.0, 1.95, 0.36, -0.08, 0.38, 54.0),
         ("close_dryer",      "dryer",      "FILTRO SECADOR", 0.72, 0.70, 14.0, 8.0, 1.95, 0.36, -0.08, 0.38, 54.0),

@@ -108,12 +108,12 @@ SCRIPT_STAGES = [
     {
         "stage_id": "st7_closure",
         "name": "7. Síntesis & Cierre",
-        "start_sec": 98.0,
-        "rate": "+5%",
+        "start_sec": 96.5,
+        "rate": "+6%",
         "text": "Finalmente, el vapor retorna al compresor para repetir el ciclo sin fin. Así funciona la fascinante termodinámica en tu cocina.",
         "subs": [
-            (98.0, 101.5, "El vapor retorna al compresor", "para reiniciar el ciclo sin fin."),
-            (101.8, 104.8, "¡Así funciona la fascinante termodinámica", "en tu cocina!"),
+            (96.5, 100.5, "El vapor retorna al compresor", "para reiniciar el ciclo sin fin."),
+            (100.8, 104.5, "¡Así funciona la fascinante termodinámica", "en tu cocina!"),
         ],
     },
 ]
@@ -125,7 +125,7 @@ SCRIPT_STAGES = [
 async def generate_master_audio(output_wav: Path, target_total_sec: float = 105.0) -> None:
     import edge_tts
 
-    voice = "es-MX-JorgeNeural"
+    voice = "es-MX-DaliaNeural"
     sample_rate = 24000
     total_samples = int(target_total_sec * sample_rate)
     master_buffer = np.zeros(total_samples, dtype=np.float32)
@@ -133,14 +133,14 @@ async def generate_master_audio(output_wav: Path, target_total_sec: float = 105.
     tmp_dir = output_wav.parent / "_tts_tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"--> Generando narración TTS con voz {voice}...")
+    print(f"--> Generando narración TTS con voz {voice} (expresiva, amena, mexicana)...")
     for stage in SCRIPT_STAGES:
         st_id = stage["stage_id"]
         txt = stage["text"]
         rate = stage.get("rate", "+0%")
         st_file = tmp_dir / f"{st_id}.mp3"
 
-        communicate = edge_tts.Communicate(txt, voice, rate=rate)
+        communicate = edge_tts.Communicate(txt, voice, rate=rate, pitch="+2Hz")
         await communicate.save(str(st_file))
 
         data, sr = sf.read(str(st_file))
@@ -194,7 +194,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: EducationalSafe,Arial,30,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.4,2,65,65,300,1
+Style: EducationalSafe,Arial,28,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.8,1.4,2,65,65,150,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -321,11 +321,16 @@ def render_blender_frames(
         raise RuntimeError(f"Fallo el renderizado en Blender (codigo {proc.returncode}).")
     print("[OK] Cuadros renderizados en Blender. Normalizando secuencia contigua para FFmpeg...")
 
-    # Renombrar a secuencia estrictamente contigua seq_%04d.png para FFmpeg
+    # Renombrar a secuencia estrictamente contigua seq_%05d.png para FFmpeg
+    for old_seq in frames_dir.glob("seq_*.png"):
+        try:
+            old_seq.unlink(missing_ok=True)
+        except OSError:
+            pass
     raw_frames = sorted(frames_dir.glob("frame_*.png"))
     for idx, fpath in enumerate(raw_frames, start=1):
         target_name = frames_dir / f"seq_{idx:05d}.png"
-        fpath.rename(target_name)
+        fpath.replace(target_name)
 
     print(f"[OK] {len(raw_frames)} cuadros normalizados a secuencia contigua seq_%05d.png.")
 

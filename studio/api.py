@@ -1,4 +1,4 @@
-"""Router FastAPI modular para AI VIDEO STUDIO — EXPLAINER AI (¿CÓMO FUNCIONA?).
+﻿"""Router FastAPI modular para AI VIDEO STUDIO — EXPLAINER AI (¿CÓMO FUNCIONA?).
 
 Conecta las Fases 2 a 20 reutilizando el motor de voz, imágenes, música y FFmpeg
 de app.py y video_pipeline.py sin alterar ninguna ruta existente.
@@ -34,7 +34,17 @@ from studio.models import (
     record_cost_event,
     save_platform_profiles,
 )
-from studio.blender.blender_gateway import get_blender_status
+from studio.blender.blender_gateway import (
+    get_blender_status,
+    is_blender_live_socket_running,
+    send_blender_socket_command,
+    execute_blender_code_live,
+)
+from studio.blender.polyhaven_library import (
+    search_polyhaven_textures,
+    download_pbr_texture_maps,
+)
+from studio.blender.visual_inspector import generate_multi_angle_inspection
 from studio.blender.render_profiles import get_render_profile
 from studio.blender.service import (
     render_scene_3d_still,
@@ -61,6 +71,9 @@ from studio.storyboard_engine import (
 from studio.video_providers import list_video_providers_status
 
 router = APIRouter(prefix="/api/explainer", tags=["Explainer AI Studio"])
+
+import logging as _logging
+logger = _logging.getLogger("studio.api")
 
 PROJECTS_DIR: Path = Path(__file__).resolve().parent.parent / "projects"
 _SYNTHESIZE_FN: Optional[Callable[..., tuple[np.ndarray, int]]] = None
@@ -317,6 +330,11 @@ class BlenderSceneRenderRequest(BaseModel):
     reference_image_path: Optional[str] = None
     reference_mode: str = "full"
     visual_profile_id: Optional[str] = None
+    voice: str = "es-MX-DaliaNeural"
+    quality_enhancements: bool = True   # PBR Poly Haven + HDRI de reflejos
+    quality_contact_sheet: bool = True  # hoja de inspección 2x2 previa
+    branding: bool = True               # intro/cierre Lemo-Opuscar
+    branding_style: str = "blueprint_cad"
 
 
 class VisualDirectionRequest(BaseModel):
@@ -421,7 +439,7 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
 
     if req.narration and req.narration.strip():
         text = req.narration.strip()
-        voice = "es-MX-JorgeNeural"
+        voice = req.voice
 
         async def _gen_audio():
             comm = edge_tts.Communicate(text, voice)
@@ -464,6 +482,8 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
         "duration_sec": dur_sec,
         "visual_direction": vis_dir,
         "diagram_spec": {"composition_type": req.composition, "phase": "full_cycle"},
+        "quality_enhancements": req.quality_enhancements,
+        "quality_contact_sheet": req.quality_contact_sheet,
     }
 
     raw_mp4 = target_dir / "custom_scene_raw.mp4"
@@ -497,7 +517,7 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
         ]
         if subtitles_path and subtitles_path.exists():
             cmd.extend([
-                "-vf", f"subtitles={subtitles_path.name}:force_style='FontSize=16,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2,Alignment=2,MarginV=60'",
+                "-vf", f"subtitles={subtitles_path.name}:force_style='FontSize=12,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2,Alignment=2,MarginV=110'",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-crf", "22",
@@ -514,12 +534,130 @@ def render_blender_scene_endpoint(req: BlenderSceneRenderRequest):
     else:
         shutil.copyfile(raw_mp4, final_mp4)
 
+    delivered = final_mp4
+    branded = False
+    if req.branding:
+        try:
+            from studio.opuscar.renderer import wrap_video_with_opuscar_branding
+            pretty = {
+                "turbocharger": "Turbocompresor", "refrigerator_cycle": "Refrigerador",
+                "combustion_engine": "Motor de 4 Tiempos", "automatic_transmission": "Transmisión Automática",
+                "printer_3d_fdm": "Impresora 3D",
+            }.get(req.model_name, req.model_name.replace("_", " ").title())
+            delivered = wrap_video_with_opuscar_branding(
+                main_video=final_mp4,
+                out_video=target_dir / "custom_scene_branded.mp4",
+                intro_title=f"¿Cómo funciona? {pretty}",
+                intro_subtitle="Animación 3D educativa",
+                style_id=req.branding_style,
+                width=width, height=height, fps=24,
+            )
+            branded = True
+        except Exception as exc:  # la marca nunca debe romper la entrega
+            logger.warning("Branding Opuscar omitido: %s", exc)
+
+    qc_sheet = target_dir / "custom_scene_raw_qc.png"
+    quality_info: dict[str, Any] = {}
+    status_file = target_dir / "_frames_custom" / "status.json"
+    if status_file.exists():
+        try:
+            import json as _json
+            q = _json.loads(status_file.read_text(encoding="utf-8")).get("qc", {})
+            quality_info = {
+                "pbr_materials": (q.get("quality_pbr") or {}).get("materials", []),
+                "pbr_asset": (q.get("quality_pbr") or {}).get("asset"),
+                "hdri": (q.get("quality_hdri") or {}).get("asset"),
+            }
+        except Exception:
+            pass
+
     return {
         "success": True,
-        "video_url": f"/projects/_prototype_blender_3d/{final_mp4.name}",
+        "video_url": f"/projects/_prototype_blender_3d/{delivered.name}",
+        "qc_sheet_url": f"/projects/_prototype_blender_3d/{qc_sheet.name}" if qc_sheet.exists() else None,
+        "branded": branded,
+        "quality": quality_info,
         "composition": req.composition,
         "duration_sec": dur_sec,
         "render_profile": req.render_profile,
+    }
+
+
+class PolyhavenDownloadRequest(BaseModel):
+    asset_id: str
+    resolution: str = "1k"
+
+
+class BlenderSocketExecuteRequest(BaseModel):
+    code: str
+
+
+@router.get("/blender/inspect-multi-angle/{model_type}")
+def get_blender_multi_angle_inspection_endpoint(model_type: str = "turbocharger"):
+    """Genera una hoja de contacto técnica 2x2 (Hero, Front, Top, Side) para inspección visual instantánea."""
+    try:
+        output_dir = PROJECTS_DIR / f"inspection_{model_type}"
+        img_path = generate_multi_angle_inspection(model_type=model_type, output_dir=output_dir)
+        return {
+            "status": "success",
+            "model_type": model_type,
+            "image_url": f"/projects/inspection_{model_type}/{img_path.name}",
+            "filename": img_path.name,
+            "views": [
+                "Perspectiva Hero (3/4)",
+                "Elevación Frontal",
+                "Vista Superior (Planta)",
+                "Perfil Lateral"
+            ]
+        }
+    except Exception as e:
+        logger.exception("Error al generar inspección multi-ángulo:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/blender/polyhaven/textures")
+def search_polyhaven_textures_endpoint(query: str = "", limit: int = 24):
+    """Busca texturas PBR gratuitas y CC0 en Poly Haven."""
+    results = search_polyhaven_textures(query=query, limit=limit)
+    return {
+        "status": "success",
+        "query": query,
+        "count": len(results),
+        "textures": results,
+    }
+
+
+@router.post("/blender/polyhaven/download")
+def download_polyhaven_texture_endpoint(req: PolyhavenDownloadRequest):
+    """Descarga los mapas PBR (Diffuse, Rough, Normal GL, Metal) a la caché local."""
+    try:
+        maps = download_pbr_texture_maps(asset_id=req.asset_id, resolution=req.resolution)
+        return {
+            "status": "success",
+            "asset_id": req.asset_id,
+            "resolution": req.resolution,
+            "maps": {k: str(v.name) for k, v in maps.items()},
+            "cached": len(maps) > 0,
+        }
+    except Exception as e:
+        logger.exception("Error descargando textura Poly Haven:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/blender/socket/execute")
+def execute_blender_socket_endpoint(req: BlenderSocketExecuteRequest):
+    """Ejecuta código Python en la sesión activa de Blender GUI mediante Socket TCP (<50ms)."""
+    if not is_blender_live_socket_running():
+        return {
+            "status": "error",
+            "connected": False,
+            "message": "Blender no tiene el add-on Live Socket activo en el puerto 9876. Usa el modo headless batch o inicia el add-on en Blender.",
+        }
+    res = execute_blender_code_live(req.code)
+    return {
+        "status": "success",
+        "connected": True,
+        "result": res,
     }
 
 

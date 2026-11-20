@@ -471,6 +471,20 @@ def setup_educational_scene_base(
     cam_data.clip_start = config.camera.clip_start
     cam_data.clip_end = config.camera.clip_end
 
+    # Configuracion tecnica de render 9:16 de alta fluidez (>= 24 fps + Motion Blur)
+    scene.render.fps = config.timeline.fps
+    scene.render.use_motion_blur = True
+    scene.render.motion_blur_shutter = 0.5
+    scene.render.motion_blur_position = 'CENTER'
+
+    if hasattr(scene, 'eevee'):
+        if hasattr(scene.eevee, 'taa_render_samples'):
+            scene.eevee.taa_render_samples = 16
+        if hasattr(scene.eevee, 'use_shadows'):
+            scene.eevee.use_shadows = True
+        if hasattr(scene.eevee, 'use_fast_gi'):
+            scene.eevee.use_fast_gi = True
+
     return {
         "scene": scene,
         "camera": cam_obj,
@@ -515,9 +529,7 @@ def create_adaptive_3d_label(
         frame_w = 0.125
         frame_h = 0.222
 
-    loc_x = (target_screen_u - 0.5) * frame_w
-    loc_y = (target_screen_v - 0.5) * frame_h
-    loc_z = -hud_dist
+# loc_x/loc_y recalculados con clamping mas abajo
 
     # Material texto blanco luminiscente
     mat_txt = bpy.data.materials.get("Mat_AdaptiveLabel_Text")
@@ -546,6 +558,22 @@ def create_adaptive_3d_label(
     char_w = font_size * 0.58
     badge_w = len(text) * char_w + font_size * 0.9
     badge_h = font_size * 1.55
+
+    # 2. Clamping estricto a Zonas Seguras 9:16 (10% a 90% ancho, y >= 26% alto para no chocar con subtitulos/UI)
+    half_w_norm = (badge_w * 0.5) / max(frame_w, 0.001)
+    half_h_norm = (badge_h * 0.5) / max(frame_h, 0.001)
+
+    min_u = max(0.10, half_w_norm + 0.02)
+    max_u = min(0.90, 1.0 - half_w_norm - 0.02)
+    clamped_u = max(min_u, min(max_u, target_screen_u))
+
+    min_v = max(0.26, half_h_norm + 0.02)  # Zona segura estricta >= 26% para subtitulos inferiores
+    max_v = min(0.88, 1.0 - half_h_norm - 0.02)  # Margen superior para UI de Reels/Shorts
+    clamped_v = max(min_v, min(max_v, target_screen_v))
+
+    loc_x = (clamped_u - 0.5) * frame_w
+    loc_y = (clamped_v - 0.5) * frame_h
+    loc_z = -hud_dist
 
     # Objeto Texto 3D parented a cámara
     txt_curve = bpy.data.curves.new(f"{name}_txt_curve", type="FONT")
@@ -598,32 +626,34 @@ def create_adaptive_3d_label(
             if "Emission Strength" in b_l.inputs:
                 b_l.inputs["Emission Strength"].default_value = config.labels.leader_line_emission
 
-    # Trazado de Línea Directriz en el espacio
+    # Trazado de Línea Directriz en espacio local de la cámara (Camera-Parented)
     right_offset = -badge_w * 0.5 if target_screen_u >= 0.5 else badge_w * 0.5
     start_cam_local = Vector((loc_x + right_offset, loc_y, loc_z))
     shelf_cam_local = Vector((loc_x + right_offset + (-0.008 if target_screen_u >= 0.5 else 0.008), loc_y, loc_z))
 
-    cam_mat = cam.matrix_world if cam else Matrix.Identity(4)
-    p0 = cam_mat @ start_cam_local
-    p1 = cam_mat @ shelf_cam_local
-    p2 = anchor_3d
+    cam_inv = cam.matrix_world.inverted() if cam else Matrix.Identity(4)
+    p0 = start_cam_local
+    p1 = shelf_cam_local
+    p2 = cam_inv @ anchor_3d
 
     curve_line = bpy.data.curves.new(f"{name}_leader_curve", type="CURVE")
     curve_line.dimensions = "3D"
-    curve_line.bevel_depth = font_size * 0.06
+    curve_line.bevel_depth = font_size * 0.05
     curve_line.bevel_resolution = 3
     curve_line.use_fill_caps = True
 
-    spline = curve_line.splines.new("BEZIER")
-    spline.bezier_points.add(2)
+    spline = curve_line.splines.new("POLY")
+    spline.points.add(2)
     pts = [p0, p1, p2]
     for i, p in enumerate(pts):
-        bp = spline.bezier_points[i]
-        bp.co = p
-        bp.handle_left_type = "VECTOR"
-        bp.handle_right_type = "VECTOR"
+        spline.points[i].co = (p.x, p.y, p.z, 1.0)
 
     line_obj = bpy.data.objects.new(f"Leader_{name}", curve_line)
+    if cam:
+        line_obj.parent = cam
+        line_obj.matrix_parent_inverse = Matrix.Identity(4)
+        line_obj.location = Vector((0, 0, 0))
+        line_obj.rotation_euler = (0, 0, 0)
     line_obj["role"] = "label"
     line_obj.visible_shadow = False
     line_obj.data.materials.append(mat_line)
@@ -645,3 +675,139 @@ def create_adaptive_3d_label(
     line_obj["dot_obj"] = dot_obj
 
     return (txt_obj, line_obj)
+
+
+# ==============================================================================
+# 9. CONSTRUCTORES MODULARES DE ALTA FIDELIDAD PARA MÚLTIPLES OBJETOS
+# ==============================================================================
+
+def create_hinged_appliance_door(
+    name: str,
+    hinge_pos: Tuple[float, float, float],
+    width: float,
+    height: float,
+    open_angle_deg: float = 38.0,
+    mat_outer: Any = None,
+    mat_liner: Any = None,
+    mat_gasket: Any = None,
+    num_bins: int = 2,
+    bev_outer: float = 0.035,
+    bev_liner: float = 0.030,
+) -> Dict[str, Any]:
+    """Crea un ensamblaje articulado modular de alta fidelidad para puertas/paneles de electrodomésticos
+    y maquinaria educativa, con jerarquía local limpia y sin desajustes de matrices.
+    
+    Incluye:
+    - Empty bisagra (pivot) en `hinge_pos` rotado según `open_angle_deg`.
+    - Carcasa exterior biselada de acabado electrodoméstico.
+    - Panel interior moldeado (liner) emparentado con matriz local.
+    - Burlete de goma perimetral (gasket seal).
+    - Balconetes interiores / estantes en la puerta (multi-tier bins).
+    """
+    if bpy is None:
+        return {}
+
+    from studio.blender.models_library import _common as C
+
+    hinge_empty = C.empty(f"{name}_Hinge", hinge_pos)
+    hinge_empty.rotation_euler = (0, 0, math.radians(open_angle_deg))
+
+    # 1. Carcasa exterior
+    door_outer = C.box(f"{name}_Outer", (width, 0.09, height), (0, 0, 0), mat_outer, bev=bev_outer)
+    door_outer.parent = hinge_empty
+    door_outer.matrix_parent_inverse.identity()
+    door_outer.location = (width / 2, 0.045, 0)
+
+    # 2. Panel interior moldeado (liner)
+    liner_w = max(0.1, width - 0.12)
+    liner_h = max(0.1, height - 0.12)
+    door_liner = C.box(f"{name}_Liner", (liner_w, 0.035, liner_h), (0, 0, 0), mat_liner, bev=bev_liner)
+    door_liner.parent = hinge_empty
+    door_liner.matrix_parent_inverse.identity()
+    door_liner.location = (width / 2, -0.015, 0)
+
+    # 3. Burlete perimetral de goma
+    gasket_w = max(0.1, width - 0.04)
+    gasket_h = max(0.1, height - 0.04)
+    door_gasket = C.box(f"{name}_Gasket", (gasket_w, 0.02, gasket_h), (0, 0, 0), mat_gasket, bev=0.01)
+    door_gasket.parent = hinge_empty
+    door_gasket.matrix_parent_inverse.identity()
+    door_gasket.location = (width / 2, -0.010, 0)
+
+    # 4. Balconetes interiores en la puerta (multi-tier bins)
+    bins = []
+    if num_bins > 0:
+        bin_spacing = (height - 0.30) / max(1, num_bins - 1) if num_bins > 1 else 0
+        bin_z_start = -height / 2 + 0.18
+        for i in range(num_bins):
+            bz = bin_z_start + i * bin_spacing if num_bins > 1 else 0
+            bin_obj = C.box(f"{name}_Bin_{i+1}", (width * 0.72, 0.07, 0.11), (0, 0, 0), mat_liner, bev=0.015)
+            bin_obj.parent = hinge_empty
+            bin_obj.matrix_parent_inverse.identity()
+            bin_obj.location = (width / 2, -0.055, bz)
+            bins.append(bin_obj)
+
+    return {
+        "hinge": hinge_empty,
+        "outer": door_outer,
+        "liner": door_liner,
+        "gasket": door_gasket,
+        "bins": bins,
+    }
+
+
+def create_compartment_led_light(
+    name: str,
+    location: Tuple[float, float, float],
+    energy: float = 22.0,
+    color_rgb: Tuple[float, float, float] = (1.0, 0.97, 0.92),
+    radius: float = 0.12,
+) -> Any:
+    """Crea una fuente de luz LED interna suave para cavidades de electrodomésticos y piezas mecánicas,
+    resaltando la profundidad de estantes y componentes."""
+    if bpy is None:
+        return None
+    light_data = bpy.data.lights.new(f"{name}_Data", 'POINT')
+    light_data.energy = energy
+    light_data.color = color_rgb
+    light_data.shadow_soft_size = radius
+    light_obj = bpy.data.objects.new(name, light_data)
+    light_obj.location = location
+    bpy.context.scene.collection.objects.link(light_obj)
+    return light_obj
+
+
+def animate_smooth_rotation(
+    obj: Any,
+    start_frame: int,
+    end_frame: int,
+    start_rot_z_deg: float,
+    end_rot_z_deg: float,
+) -> None:
+    """Añade animación de rotación en Z con interpolación Bézier suave (ease-in-out)."""
+    if obj is None or bpy is None:
+        return
+    obj.animation_data_create()
+    obj.rotation_euler = (0, 0, math.radians(start_rot_z_deg))
+    obj.keyframe_insert(data_path="rotation_euler", index=2, frame=start_frame)
+    obj.rotation_euler = (0, 0, math.radians(end_rot_z_deg))
+    obj.keyframe_insert(data_path="rotation_euler", index=2, frame=end_frame)
+    
+    # Asegurar interpolación Bézier suave
+    if obj.animation_data and obj.animation_data.action:
+        action = obj.animation_data.action
+        fcurves = getattr(action, "fcurves", None)
+        if not fcurves and hasattr(action, "layers"):
+            for layer in action.layers:
+                for strip in layer.strips:
+                    for cb in strip.channelbags:
+                        for fc in cb.fcurves:
+                            if fc.data_path == "rotation_euler" and fc.array_index == 2:
+                                for kp in fc.keyframe_points:
+                                    kp.interpolation = "BEZIER"
+        elif fcurves:
+            for fc in fcurves:
+                if fc.data_path == "rotation_euler" and fc.array_index == 2:
+                    for kp in fc.keyframe_points:
+                        kp.interpolation = "BEZIER"
+

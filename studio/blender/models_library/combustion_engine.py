@@ -425,34 +425,34 @@ def create_combustion_engine_3d(
     bpy.data.objects.remove(c_hb, do_unlink=True)
     _apply_bevel(head_base, width=0.016, segments=2)
 
-    # Conducto curvo de admisión negro (hacia la izquierda, -X)
+    # Conducto curvo de admisión negro (hacia la izquierda, -X, posicionado limpiamente sin colisiones)
     curve_in = bpy.data.curves.new("Intake_Manifold_Curve", type="CURVE")
     curve_in.dimensions = "3D"
-    curve_in.bevel_depth = 0.24
+    curve_in.bevel_depth = 0.22
     curve_in.bevel_resolution = 6
     spline_in = curve_in.splines.new("BEZIER")
     spline_in.bezier_points.add(2)
     p0 = spline_in.bezier_points[0]
-    p0.co = (-0.85, 0.10, head_z + 0.60)
-    p0.handle_left = (-1.10, 0.10, head_z + 0.60)
-    p0.handle_right = (-0.60, 0.10, head_z + 0.60)
+    p0.co = (-0.85, 0.35, head_z + 0.60)
+    p0.handle_left = (-1.10, 0.35, head_z + 0.60)
+    p0.handle_right = (-0.60, 0.35, head_z + 0.60)
     p1 = spline_in.bezier_points[1]
-    p1.co = (-1.85, 0.10, head_z + 0.75)
-    p1.handle_left = (-1.55, 0.10, head_z + 0.70)
-    p1.handle_right = (-2.15, 0.10, head_z + 0.80)
+    p1.co = (-1.85, 0.35, head_z + 0.75)
+    p1.handle_left = (-1.55, 0.35, head_z + 0.70)
+    p1.handle_right = (-2.15, 0.35, head_z + 0.80)
     p2 = spline_in.bezier_points[2]
-    p2.co = (-2.45, -0.05, head_z + 1.45)
-    p2.handle_left = (-2.40, 0.05, head_z + 1.15)
-    p2.handle_right = (-2.50, -0.15, head_z + 1.65)
+    p2.co = (-2.45, 0.25, head_z + 1.45)
+    p2.handle_left = (-2.40, 0.30, head_z + 1.15)
+    p2.handle_right = (-2.50, 0.20, head_z + 1.65)
 
     obj_in_pipe = bpy.data.objects.new("Intake_Manifold_Pipe", curve_in)
     obj_in_pipe.data.materials.append(mats["manifold_pipes"])
     add(obj_in_pipe)
 
-    # Cámara esférica del filtro de admisión superior izquierda (idéntica a la silueta CAD de referencia)
+    # Cámara esférica del filtro de admisión superior izquierda
     bpy.ops.mesh.primitive_uv_sphere_add(
-        radius=0.58,
-        location=(-2.45, 0.05, head_z + 1.62),
+        radius=0.55,
+        location=(-2.45, 0.25, head_z + 1.62),
         segments=32,
         ring_count=20,
     )
@@ -461,21 +461,21 @@ def create_combustion_engine_3d(
     flange_in.data.materials.append(mats["manifold_pipes"])
     add(flange_in)
 
-    # Conducto curvo de escape negro (hacia la derecha, +X)
+    # Conducto curvo de escape negro (hacia la derecha, +X, posicionado limpiamente sin colisiones)
     curve_ex = bpy.data.curves.new("Exhaust_Manifold_Curve", type="CURVE")
     curve_ex.dimensions = "3D"
-    curve_ex.bevel_depth = 0.24
+    curve_ex.bevel_depth = 0.22
     curve_ex.bevel_resolution = 6
     spline_ex = curve_ex.splines.new("BEZIER")
     spline_ex.bezier_points.add(1)
     ep0 = spline_ex.bezier_points[0]
-    ep0.co = (0.85, 0.10, head_z + 0.60)
-    ep0.handle_left = (0.60, 0.10, head_z + 0.60)
-    ep0.handle_right = (1.10, 0.10, head_z + 0.60)
+    ep0.co = (0.85, 0.35, head_z + 0.60)
+    ep0.handle_left = (0.60, 0.35, head_z + 0.60)
+    ep0.handle_right = (1.10, 0.35, head_z + 0.60)
     ep1 = spline_ex.bezier_points[1]
-    ep1.co = (2.25, 0.10, head_z + 0.45)
-    ep1.handle_left = (1.80, 0.10, head_z + 0.55)
-    ep1.handle_right = (2.50, 0.10, head_z + 0.40)
+    ep1.co = (2.25, 0.35, head_z + 0.45)
+    ep1.handle_left = (1.80, 0.35, head_z + 0.55)
+    ep1.handle_right = (2.50, 0.35, head_z + 0.40)
 
     obj_ex_pipe = bpy.data.objects.new("Exhaust_Manifold_Pipe", curve_ex)
     obj_ex_pipe.data.materials.append(mats["manifold_pipes"])
