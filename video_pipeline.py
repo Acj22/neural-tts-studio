@@ -1137,23 +1137,39 @@ def _generate_with_gemini_pro_web(
 
     async def _async_gen() -> tuple[Optional[Image.Image], str]:
         from gemini_webapi.utils import rotate_1psidts
+        import tempfile
+
+        # Limpiar cualquier caché residual de sesión no autenticada para evitar que opaque las cookies frescas
+        for cdir in (Path(tempfile.gettempdir()) / "gemini_webapi", Path(os.path.expandvars(r"%TEMP%\gemini_webapi"))):
+            try:
+                if cdir.exists():
+                    for f in cdir.glob(".cached_cookies_*.json"):
+                        f.unlink(missing_ok=True)
+            except Exception:
+                pass
 
         client = GeminiClient(psid or None, psidts)
+        osid_val = (IMAGE_SETTINGS.get("gemini_osid") or "").strip()
+
+        # Configurar cookies adicionales sin que cookies viejas sobreescriban las principales
         for c in extra_cookies:
             c_name = (c.get("name") or "").strip()
             c_val = (c.get("value") or "").strip()
             c_dom = (c.get("domain") or ".google.com").strip()
-            if c_name == "OSID" and any(x.get("name") == "__Secure-OSID" for x in extra_cookies):
+            if c_name in ("OSID", "__Secure-OSID", "__Secure-1PSID", "__Secure-1PSIDTS", "__Secure-3PSID", "__Secure-3PSIDTS"):
                 continue
             if c_name and c_val:
                 client._cookies.set(c_name, c_val, domain=c_dom, secure=True)
-        osid_val = (IMAGE_SETTINGS.get("gemini_osid") or "").strip()
-        if osid_val and not any(x.get("name") in ("__Secure-OSID", "OSID") for x in extra_cookies):
+
+        if osid_val:
             client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True)
+            client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True)
         if psid:
             client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True)
+            client._cookies.set("__Secure-3PSID", psid, domain=".google.com", secure=True)
         if psidts:
             client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True)
+            client._cookies.set("__Secure-3PSIDTS", psidts, domain=".google.com", secure=True)
 
         try:
             await client.init(timeout=30, auto_close=False, auto_refresh=False)
@@ -1162,20 +1178,36 @@ def _generate_with_gemini_pro_web(
             if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
                 return (
                     None,
-                    "Opera GX rotó __Secure-1PSIDTS mientras copiabas las cookies una por una. Para copiar las 18 cookies sincronizadas al mismo segundo: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, haz clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en la Caja 3 y pulsa Guardar.",
+                    "Google indica que las cookies expiraron o fueron rotadas. Para renovar todas las cookies sincronizadas en 1 clic: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en la Caja 3 y pulsa Guardar.",
                 )
 
             try:
                 if client.client is not None:
                     rotated_ts = await rotate_1psidts(client.client)
-                    if rotated_ts:
+                    if rotated_ts and rotated_ts != psidts:
                         IMAGE_SETTINGS["gemini_1psidts"] = rotated_ts
+                        for c in (IMAGE_SETTINGS.get("gemini_cookies_list") or []):
+                            if c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
+                                c["value"] = rotated_ts
                         sf = Path(__file__).parent / "settings.json"
                         sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception:
                 pass
 
             response = await client.generate_content(full_prompt, files=files, temporary=True)
+
+            # Sincronizar cookie de timestamp si Google la rotó en esta llamada
+            try:
+                live_ts = client.cookies.get("__Secure-1PSIDTS")
+                if live_ts and live_ts != IMAGE_SETTINGS.get("gemini_1psidts"):
+                    IMAGE_SETTINGS["gemini_1psidts"] = live_ts
+                    for c in (IMAGE_SETTINGS.get("gemini_cookies_list") or []):
+                        if c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
+                            c["value"] = live_ts
+                    sf = Path(__file__).parent / "settings.json"
+                    sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
             txt_first = (response.text or "").strip()
             if not response.images and (
                 "Solo soy una IA que trabaja con textos" in txt_first
@@ -1323,6 +1355,10 @@ def generate_image_for_scene(
             used_provider = eng
             break
         provider_errors.append(f"{eng}: {str(last_error)[:220]}")
+        if eng == "gemini_pro":
+            logger.warning(f"[GEMINI_PRO] Falló generación con Gemini Pro: {last_error}")
+            if allow_fallback:
+                logger.info("[GEMINI_PRO] Activando motor de respaldo automático (Pollinations / HF)...")
 
     # Respaldo opcional si el usuario activó allow_fallback
     if generated_img is None and allow_fallback and "pollinations" not in chain:

@@ -2230,12 +2230,18 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
                     <input id="geminiOsidInput" type="password" placeholder="Pega aquí __Secure-OSID, OSID o Copy as cURL" autocomplete="off"
                       class="w-full rounded-lg bg-slate-950 border border-amber-500/50 px-2.5 py-1.5 text-xs text-slate-100" />
                   </div>
-                  <div class="sm:col-span-2">
-                    <button type="button" onclick="saveImageSettings()" class="w-full py-1.5 px-3 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-500/40 text-indigo-100 text-xs font-semibold transition">
+                  <div class="sm:col-span-2 flex items-center gap-1.5">
+                    <button type="button" onclick="saveImageSettings()" class="flex-1 py-1.5 px-2 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-500/40 text-indigo-100 text-xs font-semibold transition text-center">
                       Guardar
+                    </button>
+                    <button type="button" id="btnVerifyGeminiCookies" onclick="verifyGeminiCookies()" class="py-1.5 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-semibold transition" title="Verificar si la sesión sigue activa con Google">
+                      ⚡ Probar
                     </button>
                   </div>
                 </div>
+
+                <!-- Banner de Verificación de Cookies en Vivo -->
+                <div id="geminiVerifyAlert" class="hidden p-2.5 rounded-xl text-xs transition"></div>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
@@ -4216,7 +4222,47 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
-      loadImageSettings();
+      await loadImageSettings();
+      if (psidVal || psidtsVal || osidVal) {
+        verifyGeminiCookies();
+      }
+    }
+
+    async function verifyGeminiCookies() {
+      const alertBox = document.getElementById("geminiVerifyAlert");
+      const btn = document.getElementById("btnVerifyGeminiCookies");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳...";
+      }
+      if (alertBox) {
+        alertBox.className = "p-2.5 rounded-xl text-xs bg-slate-900 border border-slate-700 text-slate-300 animate-pulse flex items-center gap-2";
+        alertBox.innerHTML = `<span>⏳</span><span>Verificando conexión en tiempo real con Google Gemini Pro...</span>`;
+        alertBox.classList.remove("hidden");
+      }
+      try {
+        const res = await fetch("/api/gemini-pro/verify-session", { method: "POST" });
+        const data = await res.json();
+        if (alertBox) {
+          if (data.valid) {
+            alertBox.className = "p-2.5 rounded-xl text-xs bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 flex items-center gap-2 shadow-sm";
+            alertBox.innerHTML = `<span>✅</span><span>${data.message}</span>`;
+          } else {
+            alertBox.className = "p-2.5 rounded-xl text-xs bg-amber-500/15 border border-amber-500/40 text-amber-200 flex flex-col gap-1 shadow-sm";
+            alertBox.innerHTML = `<div class="font-bold flex items-center gap-1.5"><span>⚠️</span><span>Atención: Las cookies no están autenticadas en Google</span></div><div class="text-[11px] text-amber-300/90">${data.message}</div>`;
+          }
+        }
+      } catch (err) {
+        if (alertBox) {
+          alertBox.className = "p-2.5 rounded-xl text-xs bg-rose-500/15 border border-rose-500/40 text-rose-200";
+          alertBox.textContent = "Error al contactar el servidor para verificar cookies: " + err.message;
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "⚡ Probar";
+        }
+      }
     }
 
     async function connectGeminiProBrowser() {
