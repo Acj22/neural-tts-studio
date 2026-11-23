@@ -1787,8 +1787,6 @@ def verify_gemini_pro_session_endpoint():
     if osid:
         session.cookies.set("__Secure-OSID", osid, domain="gemini.google.com")
         session.cookies.set("OSID", osid, domain="gemini.google.com")
-        session.cookies.set("__Secure-OSID", osid, domain=".google.com")
-        session.cookies.set("OSID", osid, domain=".google.com")
 
     try:
         r = session.get("https://gemini.google.com/app", timeout=12, allow_redirects=False)

@@ -1164,8 +1164,6 @@ def _generate_with_gemini_pro_web(
         if osid_val:
             client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True)
             client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True)
-            client._cookies.set("__Secure-OSID", osid_val, domain=".google.com", secure=True)
-            client._cookies.set("OSID", osid_val, domain=".google.com", secure=True)
         if psid:
             client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True)
             client._cookies.set("__Secure-3PSID", psid, domain=".google.com", secure=True)
