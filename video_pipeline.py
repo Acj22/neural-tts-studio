@@ -1176,7 +1176,7 @@ def _generate_with_gemini_pro_web(
             if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
                 return (
                     None,
-                    "Google indica que las cookies expiraron o fueron rotadas. Para renovar todas las cookies sincronizadas en 1 clic: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en el cuadro 'Opción 1: Pegar cURL' y pulsa Sincronizar Sesión.",
+                    "Google indica que la pestaña está en MODO INVITADO (sesión no iniciada). En gemini.google.com haz clic en el botón 'Sign in' / 'Iniciar sesión' en la esquina superior derecha (debe verse tu foto de perfil) y luego vuelve a copiar el cURL.",
                 )
 
             try:

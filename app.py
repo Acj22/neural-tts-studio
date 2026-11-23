@@ -1809,12 +1809,26 @@ def verify_gemini_pro_session_endpoint():
                     "cookies_count": len(clist),
                 }
 
-        # Si responde HTTP 200 en https://gemini.google.com/app:
-        has_token = "SNlM0e" in r.text
+        # Si responde HTTP 200 pero Google tiene la página en modo invitado (Sign in):
+        is_guest = (
+            ">Sign in<" in r.text
+            or ">Iniciar sesión<" in r.text
+            or "gemini.google.com/signin" in r.text
+            or "accounts.google.com/ServiceLogin" in r.text
+        )
+        if is_guest:
+            return {
+                "valid": False,
+                "status": "guest_mode",
+                "message": "⚠️ Google indica que estás en MODO INVITADO (sesión no iniciada). En la esquina superior derecha de gemini.google.com verás el botón 'Sign in' / 'Iniciar sesión': haz clic para entrar con tu cuenta de Google (debe verse tu foto de perfil) y luego vuelve a copiar el cURL.",
+                "cookies_count": len(clist),
+            }
+
+        has_token = "SNlM0e" in r.text or "AFWLbD" in r.text
         return {
             "valid": True,
             "status": "authenticated",
-            "message": f"✅ ¡Sesión de Gemini Pro verificada y activa con Google! ({len(clist)} cookies sincronizadas{' · Token SNlM0e confirmado' if has_token else ''}). Lista para generar imágenes en máxima resolución.",
+            "message": f"✅ ¡Sesión de Gemini Pro verificada y activa con Google! ({len(clist)} cookies sincronizadas{' · Token de seguridad confirmado' if has_token else ''}). Lista para generar imágenes en máxima resolución.",
             "cookies_count": len(clist),
         }
     except Exception as e:
