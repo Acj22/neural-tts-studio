@@ -2225,9 +2225,9 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
                     <span class="text-[10px] text-slate-400">Captura las 18 cookies sincronizadas al instante</span>
                   </div>
                   <p class="text-[10px] text-slate-400 leading-relaxed">
-                    1. En <strong>gemini.google.com</strong> abre <strong>F12 → pestaña Red (Network)</strong> y presiona <strong>F5</strong>.<br/>
-                    2. En la primera fila (<code>app</code> o <code>gemini.google.com</code>), clic derecho → <strong>Copiar → Copiar como cURL (cmd)</strong>.<br/>
-                    3. Pégalo aquí abajo y pulsa <strong>Sincronizar Sesión</strong>:
+                    1. En <strong>gemini.google.com</strong> (ya con tu sesión iniciada) abre <strong>F12 → pestaña Red (Network)</strong>.<br/>
+                    2. Escribe <strong>"hola"</strong> en el chat de Gemini (<strong>SIN presionar F5</strong>, porque F5 rota e invalida la cookie de la fila <code>app</code>).<br/>
+                    3. Haz clic derecho en la <strong>última fila</strong> que aparezca abajo (<code>batchexecute</code> o <code>StreamGenerate</code>) → <strong>Copy → Copy as cURL (cmd)</strong> (o <em>Copy as PowerShell</em>), pégalo aquí y pulsa <strong>Sincronizar Sesión</strong>:
                   </p>
                   <div class="flex gap-2">
                     <input
@@ -3815,7 +3815,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
               consecutiveFails = 0;
             } else {
               consecutiveFails++;
-              if (consecutiveFails >= 2) {
+              const curErr = (errBox.textContent || "").toLowerCase();
+              if (consecutiveFails >= 2 || curErr.includes("1psidts") || curErr.includes("batchexecute") || curErr.includes("sincronizar sesión")) {
                 break;
               }
             }

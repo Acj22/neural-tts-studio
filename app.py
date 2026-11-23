@@ -1523,11 +1523,6 @@ def get_settings_endpoint():
 
 
 def _clear_gemini_webapi_cache() -> None:
-    try:
-        import gemini_webapi.utils.get_access_token as _gat_mod
-        _gat_mod._ACCESS_TOKEN_RE = re.compile(r'"(?:SNlM0e|[a-zA-Z0-9_]+)":\s*"(AFWLbD[a-zA-Z0-9_-]+)"')
-    except Exception:
-        pass
     import tempfile
     for cdir in (
         Path(tempfile.gettempdir()) / "gemini_webapi",
@@ -1559,8 +1554,17 @@ def _parse_cookie_block(raw_text: str) -> list[dict[str, str]]:
     by_name: dict[str, dict[str, str]] = {}
 
     def _add_cookie(name: str, val: str, dom: str = "") -> None:
-        n = name.strip().strip("\"'^\\")
+        n = name.strip().strip("\"'^\\`")
         v = val.strip().strip("\"'^\\")
+        # Limpiar escapes de PowerShell (`$ -> $, `" -> ") y de Windows CMD (^$ -> $, ^& -> &, ^^ -> ^)
+        v = (
+            v.replace("`$", "$")
+            .replace('`"', '"')
+            .replace("^$", "$")
+            .replace("^&", "&")
+            .replace("^%", "%")
+            .replace("^^", "^")
+        )
         if not n or not v or n.lower() in ("cookie", "path", "domain", "expires", "max-age", "secure", "httponly", "samesite"):
             return
         if "cookie:" in n.lower():
@@ -1809,9 +1813,11 @@ def verify_gemini_pro_session_endpoint():
                     "cookies_count": len(clist),
                 }
 
-        # Si responde HTTP 200 pero Google tiene la página en modo invitado (Sign in):
+        # Si responde HTTP 200 pero Google rechazó __Secure-1PSIDTS o muestra Sign in (sin token autenticado SNlM0e):
+        has_snlm0e = '"SNlM0e"' in r.text
         is_guest = (
-            ">Sign in<" in r.text
+            not has_snlm0e
+            or ">Sign in<" in r.text
             or ">Iniciar sesión<" in r.text
             or "gemini.google.com/signin" in r.text
             or "accounts.google.com/ServiceLogin" in r.text
@@ -1819,25 +1825,24 @@ def verify_gemini_pro_session_endpoint():
         if is_guest:
             return {
                 "valid": False,
-                "status": "guest_mode",
-                "message": "⚠️ Google indica que estás en MODO INVITADO (sesión no iniciada). En la esquina superior derecha de gemini.google.com verás el botón 'Sign in' / 'Iniciar sesión': haz clic para entrar con tu cuenta de Google (debe verse tu foto de perfil) y luego vuelve a copiar el cURL.",
+                "status": "rotated_or_guest",
+                "message": (
+                    "⚠️ Aunque estés logueado en tu navegador, Google rechazó la cookie __Secure-1PSIDTS porque al presionar F5 "
+                    "la primera fila ('app') envía el token viejo y 1 segundo después el navegador lo rota automáticamente (RotateCookies), "
+                    "invalidando el de la fila 'app'. Solución: En gemini.google.com escribe 'hola' en el chat (SIN presionar F5), "
+                    "ve a F12 → Network (Red), haz clic derecho en la ÚLTIMA fila 'batchexecute' o 'StreamGenerate' → Copy → Copy as cURL "
+                    "(o Copy as PowerShell) y pégalo arriba; o usa el botón '🌐 Conectar Gemini Pro en 1 Clic (Captura Automática)'."
+                ),
                 "cookies_count": len(clist),
             }
 
-        has_token = "SNlM0e" in r.text or "AFWLbD" in r.text
         return {
             "valid": True,
             "status": "authenticated",
-            "message": f"✅ ¡Sesión de Gemini Pro verificada y activa con Google! ({len(clist)} cookies sincronizadas{' · Token de seguridad confirmado' if has_token else ''}). Lista para generar imágenes en máxima resolución.",
+            "message": f"✅ ¡Sesión de Gemini Pro verificada y activa con Google! ({len(clist)} cookies sincronizadas · Token SNlM0e confirmado). Lista para generar imágenes en máxima resolución.",
             "cookies_count": len(clist),
         }
     except Exception as e:
-        return {
-            "valid": False,
-            "status": "network_error",
-            "message": f"Error verificando cookies con Google: {e}",
-            "cookies_count": len(clist),
-        }
         return {
             "valid": False,
             "status": "network_error",
@@ -1912,8 +1917,9 @@ def gemini_pro_login_browser_endpoint():
 
     found_psid = ""
     found_psidts = ""
+    found_osid = ""
     found_cookies_list: list[dict[str, str]] = []
-    deadline = time.time() + 120.0
+    deadline = time.time() + 180.0
 
     try:
         while time.time() < deadline:
@@ -1935,20 +1941,37 @@ def gemini_pro_login_browser_endpoint():
                     if ws_url and on_gemini_app:
                         with curl_cffi.requests.Session() as sess:
                             ws = sess.ws_connect(ws_url)
-                            ws.send_json({"id": 1, "method": "Network.getAllCookies"})
-                            msg = ws.recv_json()
+                            # Verificar en el DOM vivo que la página tiene sesión autenticada real (WIZ_global_data.SNlM0e presente y sin botón Sign in)
+                            ws.send_json({
+                                "id": 1,
+                                "method": "Runtime.evaluate",
+                                "params": {
+                                    "expression": "Boolean(window.WIZ_global_data && window.WIZ_global_data.SNlM0e && !document.querySelector('a[href*=\"ServiceLogin\"]'))",
+                                    "returnByValue": True,
+                                },
+                            })
+                            eval_msg = ws.recv_json()
+                            is_live_auth = bool(((eval_msg.get("result") or {}).get("result") or {}).get("value"))
+                            if is_live_auth:
+                                # Esperar 2.5s a que RotateCookiesPage termine su rotación inicial de __Secure-1PSIDTS
+                                time.sleep(2.5)
+                                ws.send_json({"id": 2, "method": "Network.getAllCookies"})
+                                msg = ws.recv_json()
+                            else:
+                                msg = {}
                             ws.close()
+
                         cookies = (msg.get("result") or {}).get("cookies") or []
                         cmap = {
                             c.get("name"): c.get("value")
                             for c in cookies
                             if "google.com" in (c.get("domain") or "")
                         }
-                        # Verificar que esté autenticado en gemini.google.com (con OSID/__Secure-OSID y __Secure-1PSID)
                         has_gemini_osid = bool(cmap.get("OSID") or cmap.get("__Secure-OSID"))
-                        if cmap.get("__Secure-1PSID") and has_gemini_osid and (cmap.get("SID") or cmap.get("__Secure-1PAPISID") or cmap.get("SSID")):
+                        if is_live_auth and cmap.get("__Secure-1PSID") and has_gemini_osid and (cmap.get("SID") or cmap.get("__Secure-1PAPISID") or cmap.get("SSID")):
                             found_psid = cmap["__Secure-1PSID"]
                             found_psidts = cmap.get("__Secure-1PSIDTS", "")
+                            found_osid = cmap.get("__Secure-OSID") or cmap.get("OSID") or ""
                             found_cookies_list = [
                                 {
                                     "name": str(c.get("name")),
@@ -1971,12 +1994,14 @@ def gemini_pro_login_browser_endpoint():
     if not found_psid:
         raise HTTPException(
             status_code=400,
-            detail="No se detectó inicio de sesión completo en gemini.google.com antes de cerrar la ventana. Inténtalo de nuevo y espera a que cargue el chat de Gemini.",
+            detail="No se detectó inicio de sesión completo en gemini.google.com antes de cerrar la ventana. Inténtalo de nuevo y espera a que cargue el chat de Gemini con tu cuenta iniciada.",
         )
 
     _clear_gemini_webapi_cache()
     video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = found_psid
     video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = found_psidts
+    if found_osid:
+        video_pipeline.IMAGE_SETTINGS["gemini_osid"] = found_osid
     video_pipeline.IMAGE_SETTINGS["gemini_cookies_list"] = found_cookies_list
     video_pipeline.IMAGE_SETTINGS["provider"] = "gemini_pro"
     SETTINGS_FILE.write_text(json.dumps(video_pipeline.IMAGE_SETTINGS, indent=2), encoding="utf-8")

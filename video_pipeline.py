@@ -1136,38 +1136,29 @@ def _generate_with_gemini_pro_web(
     short_scene = prompt.split("STYLE:")[0].replace("SCENE TO DRAW:", "").strip()
 
     async def _async_gen() -> tuple[Optional[Image.Image], str]:
-        from gemini_webapi.utils import rotate_1psidts
-        import tempfile
-
-        # Asegurar parche de compatibilidad para la versión boq_gemini-web-uiserver actual
-        try:
-            import gemini_webapi.utils.get_access_token as _gat_mod
-            _gat_mod._ACCESS_TOKEN_RE = re.compile(r'"(?:SNlM0e|[a-zA-Z0-9_]+)":\s*"(AFWLbD[a-zA-Z0-9_-]+)"')
-        except Exception:
-            pass
-
         client = GeminiClient(psid or None, psidts)
         osid_val = (IMAGE_SETTINGS.get("gemini_osid") or "").strip()
+        exp_ts = int(time.time()) + 86400 * 30
 
-        # Configurar cookies adicionales sin que cookies viejas sobreescriban las principales
+        # Configurar cookies adicionales con expires explícito para que save_cookies de gemini_webapi no las descarte entre escenas
         for c in extra_cookies:
             c_name = (c.get("name") or "").strip()
-            c_val = (c.get("value") or "").strip()
+            c_val = (c.get("value") or "").strip().replace("`$", "$")
             c_dom = (c.get("domain") or ".google.com").strip()
             if c_name in ("OSID", "__Secure-OSID", "__Secure-1PSID", "__Secure-1PSIDTS", "__Secure-3PSID", "__Secure-3PSIDTS"):
                 continue
             if c_name and c_val:
-                client._cookies.set(c_name, c_val, domain=c_dom, secure=True)
+                client._cookies.set(c_name, c_val, domain=c_dom, secure=True, expires=exp_ts)
 
         if osid_val:
-            client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True)
-            client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True)
+            client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True, expires=exp_ts)
+            client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True, expires=exp_ts)
         if psid:
-            client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True)
-            client._cookies.set("__Secure-3PSID", psid, domain=".google.com", secure=True)
+            client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True, expires=exp_ts)
+            client._cookies.set("__Secure-3PSID", psid, domain=".google.com", secure=True, expires=exp_ts)
         if psidts:
-            client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True)
-            client._cookies.set("__Secure-3PSIDTS", psidts, domain=".google.com", secure=True)
+            client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True, expires=exp_ts)
+            client._cookies.set("__Secure-3PSIDTS", psidts, domain=".google.com", secure=True, expires=exp_ts)
 
         try:
             await client.init(timeout=30, auto_close=False, auto_refresh=False)
@@ -1176,25 +1167,12 @@ def _generate_with_gemini_pro_web(
             if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
                 return (
                     None,
-                    "Google indica que la pestaña está en MODO INVITADO (sesión no iniciada). En gemini.google.com haz clic en el botón 'Sign in' / 'Iniciar sesión' en la esquina superior derecha (debe verse tu foto de perfil) y luego vuelve a copiar el cURL.",
+                    "Aunque estés logueado en tu navegador, Google rechazó __Secure-1PSIDTS porque al presionar F5 la primera fila ('app') envía el token viejo y 1 segundo después el navegador lo rota (RotateCookies). Solución: En gemini.google.com escribe 'hola' en el chat (SIN presionar F5), ve a F12 → Network (Red), clic derecho en la ÚLTIMA fila 'batchexecute' o 'StreamGenerate' → Copy → Copy as cURL (o Copy as PowerShell), pégalo en 'Opción 1: Pegar cURL' y pulsa Sincronizar Sesión; o usa '🌐 Conectar Gemini Pro en 1 Clic'.",
                 )
-
-            try:
-                if client.client is not None:
-                    rotated_ts = await rotate_1psidts(client.client)
-                    if rotated_ts and rotated_ts != psidts:
-                        IMAGE_SETTINGS["gemini_1psidts"] = rotated_ts
-                        for c in (IMAGE_SETTINGS.get("gemini_cookies_list") or []):
-                            if c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
-                                c["value"] = rotated_ts
-                        sf = Path(__file__).parent / "settings.json"
-                        sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
-            except Exception:
-                pass
 
             response = await client.generate_content(full_prompt, files=files, temporary=True)
 
-            # Sincronizar cookie de timestamp si Google la rotó en esta llamada
+            # Sincronizar cookie de timestamp si Google la rotó naturalmente en esta llamada
             try:
                 live_ts = client.cookies.get("__Secure-1PSIDTS")
                 if live_ts and live_ts != IMAGE_SETTINGS.get("gemini_1psidts"):
