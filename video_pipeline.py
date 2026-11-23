@@ -1295,18 +1295,16 @@ def generate_image_for_scene(
     provider_errors: list[str] = []
 
     if provider == "gemini_pro":
-        chain = ["gemini_pro"]
-        if allow_fallback:
-            chain.extend(["hf_dev", "pollinations", "magic"])
+        # Intenta primero con Gemini Pro (Imagen 3); si las cookies se agotan o rotan, continúa sin interrupción con Pollinations Flux / HF
+        chain = ["gemini_pro", "pollinations", "hf_dev", "magic"]
     elif provider == "magic":
-        chain = ["magic", "hf_dev"]
+        chain = ["magic", "pollinations", "hf_dev"]
     elif provider == "gemini":
         chain = []
         if (IMAGE_SETTINGS.get("gemini_1psid") or "").strip():
             chain.append("gemini_pro")
         chain.append("gemini")
-        if allow_fallback:
-            chain.extend(["hf_dev", "magic", "pollinations"])
+        chain.extend(["pollinations", "hf_dev", "magic"])
     elif provider == "runware":
         chain = ["runware", "hf_dev", "magic", "pollinations"]
     elif provider == "together":
