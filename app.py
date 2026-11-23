@@ -1523,6 +1523,11 @@ def get_settings_endpoint():
 
 
 def _clear_gemini_webapi_cache() -> None:
+    try:
+        import gemini_webapi.utils.get_access_token as _gat_mod
+        _gat_mod._ACCESS_TOKEN_RE = re.compile(r'"(?:SNlM0e|[a-zA-Z0-9_]+)":\s*"(AFWLbD[a-zA-Z0-9_-]+)"')
+    except Exception:
+        pass
     import tempfile
     for cdir in (
         Path(tempfile.gettempdir()) / "gemini_webapi",

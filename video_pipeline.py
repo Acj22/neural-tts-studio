@@ -1139,14 +1139,12 @@ def _generate_with_gemini_pro_web(
         from gemini_webapi.utils import rotate_1psidts
         import tempfile
 
-        # Limpiar cualquier caché residual de sesión no autenticada para evitar que opaque las cookies frescas
-        for cdir in (Path(tempfile.gettempdir()) / "gemini_webapi", Path(os.path.expandvars(r"%TEMP%\gemini_webapi"))):
-            try:
-                if cdir.exists():
-                    for f in cdir.glob(".cached_cookies_*.json"):
-                        f.unlink(missing_ok=True)
-            except Exception:
-                pass
+        # Asegurar parche de compatibilidad para la versión boq_gemini-web-uiserver actual
+        try:
+            import gemini_webapi.utils.get_access_token as _gat_mod
+            _gat_mod._ACCESS_TOKEN_RE = re.compile(r'"(?:SNlM0e|[a-zA-Z0-9_]+)":\s*"(AFWLbD[a-zA-Z0-9_-]+)"')
+        except Exception:
+            pass
 
         client = GeminiClient(psid or None, psidts)
         osid_val = (IMAGE_SETTINGS.get("gemini_osid") or "").strip()
