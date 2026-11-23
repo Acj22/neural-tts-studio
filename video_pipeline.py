@@ -1145,20 +1145,17 @@ def _generate_with_gemini_pro_web(
             c_name = (c.get("name") or "").strip()
             c_val = (c.get("value") or "").strip().replace("`$", "$")
             c_dom = (c.get("domain") or ".google.com").strip()
-            if c_name in ("OSID", "__Secure-OSID", "__Secure-1PSID", "__Secure-1PSIDTS", "__Secure-3PSID", "__Secure-3PSIDTS"):
+            if c_name in ("OSID", "__Secure-OSID", "__Secure-1PSID", "__Secure-1PSIDTS"):
                 continue
             if c_name and c_val:
                 client._cookies.set(c_name, c_val, domain=c_dom, secure=True, expires=exp_ts)
 
         if osid_val:
             client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True, expires=exp_ts)
-            client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True, expires=exp_ts)
         if psid:
             client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True, expires=exp_ts)
-            client._cookies.set("__Secure-3PSID", psid, domain=".google.com", secure=True, expires=exp_ts)
         if psidts:
             client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True, expires=exp_ts)
-            client._cookies.set("__Secure-3PSIDTS", psidts, domain=".google.com", secure=True, expires=exp_ts)
 
         try:
             await client.init(timeout=30, auto_close=False, auto_refresh=False)
@@ -1167,7 +1164,7 @@ def _generate_with_gemini_pro_web(
             if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
                 return (
                     None,
-                    "Aunque estés logueado en tu navegador, Google rechazó __Secure-1PSIDTS porque al presionar F5 la primera fila ('app') envía el token viejo y 1 segundo después el navegador lo rota (RotateCookies). Solución: En gemini.google.com escribe 'hola' en el chat (SIN presionar F5), ve a F12 → Network (Red), clic derecho en la ÚLTIMA fila 'batchexecute' o 'StreamGenerate' → Copy → Copy as cURL (o Copy as PowerShell), pégalo en 'Opción 1: Pegar cURL' y pulsa Sincronizar Sesión; o usa '🌐 Conectar Gemini Pro en 1 Clic'.",
+                    "Google indicó que las cookies guardadas deben actualizarse. En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el botón rojo 🔴 arriba a la izquierda de F12) para pausar nuevas filas, haz clic derecho en la última fila → Copy → Copy as cURL (cmd) o Copy as PowerShell, pégalo en 'Opción 1: Pegar cURL' y pulsa ⚡ Sincronizar Sesión.",
                 )
 
             response = await client.generate_content(full_prompt, files=files, temporary=True)
@@ -1178,7 +1175,7 @@ def _generate_with_gemini_pro_web(
                 if live_ts and live_ts != IMAGE_SETTINGS.get("gemini_1psidts"):
                     IMAGE_SETTINGS["gemini_1psidts"] = live_ts
                     for c in (IMAGE_SETTINGS.get("gemini_cookies_list") or []):
-                        if c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
+                        if c.get("name") == "__Secure-1PSIDTS":
                             c["value"] = live_ts
                     sf = Path(__file__).parent / "settings.json"
                     sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -1586,8 +1586,10 @@ def _parse_cookie_block(raw_text: str) -> list[dict[str, str]]:
     if by_name:
         return list(by_name.values())
 
-    # Limpiar escapes de Windows CMD (Copy as cURL cmd usa ^" y ^\^" y ^&)
-    cleaned = raw.replace('^\\^"', '"').replace('^"', '"').replace("^'", "'").replace("^&", "&").replace("^\n", "").replace("^\r\n", "")
+    # Limpiar escapes de Windows CMD (Copy as cURL cmd usa ^" y ^\^" y ^&, y <input> elimina saltos de línea dejando ^ sueltos)
+    cleaned = re.sub(r"\^\r?\n\s*", " ", raw)
+    cleaned = cleaned.replace('^\\^"', '"').replace('^"', '"').replace("^'", "'")
+    cleaned = re.sub(r"\^([&%|<>$=;:{}^ ])", r"\1", cleaned)
 
     # 2. Formato 'Copy as cURL' (-H "cookie: ..." / -b "..." / --cookie "...") o 'Copy as fetch' o headers
     cookie_strings: list[str] = []
@@ -1665,10 +1667,19 @@ def save_settings_endpoint(req: SettingsRequest):
             val = raw_field.strip()
             multi = _parse_cookie_block(val)
             if multi and len(multi) >= 2:
-                # Bloque completo de sesión fresca: sincronizar exactamente la misma sesión
+                # Conservar __Secure-OSID y COMPASS previos si la fila copiada fue hacia otro subdominio .google.com (ej. play.google.com/log)
+                prev_osid_cookie = existing.get("__Secure-OSID") or existing.get("OSID")
+                prev_compass_cookie = existing.get("COMPASS")
                 existing.clear()
+                if prev_osid_cookie:
+                    existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": prev_osid_cookie["value"], "domain": "gemini.google.com"}
+                if prev_compass_cookie:
+                    existing["COMPASS"] = prev_compass_cookie
                 for c in multi:
-                    existing[c["name"]] = c
+                    if c["name"] == "OSID":
+                        existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": c["value"], "domain": "gemini.google.com"}
+                    else:
+                        existing[c["name"]] = c
                     if c["name"] == "__Secure-1PSID":
                         video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
                     elif c["name"] == "__Secure-1PSIDTS":
@@ -1692,7 +1703,10 @@ def save_settings_endpoint(req: SettingsRequest):
                 multi = _parse_cookie_block(val)
                 if multi:
                     for c in multi:
-                        existing[c["name"]] = c
+                        if c["name"] == "OSID":
+                            existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": c["value"], "domain": "gemini.google.com"}
+                        else:
+                            existing[c["name"]] = c
                         if c["name"] == "__Secure-1PSID":
                             video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
                         elif c["name"] == "__Secure-1PSIDTS":
@@ -1707,7 +1721,7 @@ def save_settings_endpoint(req: SettingsRequest):
                     elif target_key == "gemini_osid":
                         video_pipeline.IMAGE_SETTINGS["gemini_osid"] = val
                         existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": val, "domain": "gemini.google.com"}
-                        existing["OSID"] = {"name": "OSID", "value": val, "domain": "gemini.google.com"}
+                        existing.pop("OSID", None)
                     elif target_key == "gemini_1psid":
                         video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = val
                         existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": val, "domain": ".google.com"}
@@ -1724,16 +1738,14 @@ def save_settings_endpoint(req: SettingsRequest):
         cookie_updated = True
 
     if cookie_updated:
-        # Asegurar concordancia absoluta entre claves raíz y gemini_cookies_list
+        # Asegurar concordancia de las 3 claves raíz SIN sobreescribir __Secure-3PSID ni __Secure-3PSIDTS (que tienen firma criptográfica distinta)
         if video_pipeline.IMAGE_SETTINGS.get("gemini_1psid"):
             existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psid"], "domain": ".google.com"}
-            existing["__Secure-3PSID"] = {"name": "__Secure-3PSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psid"], "domain": ".google.com"}
         if video_pipeline.IMAGE_SETTINGS.get("gemini_1psidts"):
             existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psidts"], "domain": ".google.com"}
-            existing["__Secure-3PSIDTS"] = {"name": "__Secure-3PSIDTS", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psidts"], "domain": ".google.com"}
         if video_pipeline.IMAGE_SETTINGS.get("gemini_osid"):
             existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_osid"], "domain": "gemini.google.com"}
-            existing["OSID"] = {"name": "OSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_osid"], "domain": "gemini.google.com"}
+            existing.pop("OSID", None)
         video_pipeline.IMAGE_SETTINGS["gemini_cookies_list"] = list(existing.values())
         _clear_gemini_webapi_cache()
 
@@ -1784,18 +1796,17 @@ def verify_gemini_pro_session_endpoint():
         n = c.get("name")
         v = c.get("value")
         d = c.get("domain", ".google.com")
+        if n == "OSID":
+            continue
         if n and v:
             session.cookies.set(n, v, domain=d)
 
     if psid:
         session.cookies.set("__Secure-1PSID", psid, domain=".google.com")
-        session.cookies.set("__Secure-3PSID", psid, domain=".google.com")
     if psidts:
         session.cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com")
-        session.cookies.set("__Secure-3PSIDTS", psidts, domain=".google.com")
     if osid:
         session.cookies.set("__Secure-OSID", osid, domain="gemini.google.com")
-        session.cookies.set("OSID", osid, domain="gemini.google.com")
 
     try:
         r = session.get("https://gemini.google.com/app", timeout=12, allow_redirects=False)
@@ -1827,11 +1838,9 @@ def verify_gemini_pro_session_endpoint():
                 "valid": False,
                 "status": "rotated_or_guest",
                 "message": (
-                    "⚠️ Aunque estés logueado en tu navegador, Google rechazó la cookie __Secure-1PSIDTS porque al presionar F5 "
-                    "la primera fila ('app') envía el token viejo y 1 segundo después el navegador lo rota automáticamente (RotateCookies), "
-                    "invalidando el de la fila 'app'. Solución: En gemini.google.com escribe 'hola' en el chat (SIN presionar F5), "
-                    "ve a F12 → Network (Red), haz clic derecho en la ÚLTIMA fila 'batchexecute' o 'StreamGenerate' → Copy → Copy as cURL "
-                    "(o Copy as PowerShell) y pégalo arriba; o usa el botón '🌐 Conectar Gemini Pro en 1 Clic (Captura Automática)'."
+                    "⚠️ Las cookies guardadas necesitan resincronizarse (antes una regla interna sobreescribía __Secure-3PSID con __Secure-1PSID). "
+                    "Solución: En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el círculo rojo 🔴 arriba a la izquierda de F12) para pausar que se agreguen nuevas filas al abrir la pestaña, "
+                    "haz clic derecho en la última fila → Copy → Copy as cURL (cmd) o Copy as PowerShell, pégalo arriba y pulsa ⚡ Sincronizar Sesión."
                 ),
                 "cookies_count": len(clist),
             }
