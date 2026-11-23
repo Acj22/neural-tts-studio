@@ -2194,51 +2194,106 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             </summary>
             <div class="pt-3.5 space-y-3">
               <!-- Tarjeta de Conexión Directa a Suscripción Gemini Pro (gemini.google.com) -->
-              <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/40 space-y-2.5">
+              <div class="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/40 space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <div class="text-xs font-bold text-indigo-200">⭐ Opción A: Usar tu Suscripción de Gemini Pro (gemini.google.com)</div>
-                    <p class="text-[11px] text-slate-300">
-                      Google ahora pide la cookie <code>__Secure-OSID</code> (u <code>OSID</code>) además de <code>1PSID</code> y <code>1PSIDTS</code>.<br/>
-                      • <strong>Desde donde ya estás (F12 → Application → Cookies → https://gemini.google.com):</strong> pega la cookie <code>__Secure-OSID</code> (u <code>OSID</code>) en la <strong>Caja 3</strong>.<br/>
-                      • <strong>O en 1 solo clic desde F12 → Network (Red):</strong> presiona <strong>F5</strong> en gemini.google.com, clic derecho en el primer elemento (<code>app</code>) → <strong>Copy → Copy as cURL (cmd)</strong> y pégalo en la Caja 3.
+                    <div class="text-xs font-bold text-indigo-200 flex items-center gap-1.5">
+                      <span>⭐ Conectar tu Suscripción de Gemini Pro (gemini.google.com)</span>
+                      <span id="geminiSessionBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full font-medium"></span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 mt-0.5">
+                      Para que Google autorice la generación continua de imágenes Imagen 3, requiere las cookies maestras completas del navegador (SID, SSID, 1PSID, OSID).
                     </p>
                   </div>
                   <div class="flex flex-wrap gap-1.5">
                     <a
                       href="https://gemini.google.com/app"
                       target="_blank"
-                      class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white text-xs font-bold whitespace-nowrap shadow-lg transition text-center"
+                      class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white text-xs font-bold whitespace-nowrap shadow-md transition text-center"
                     >
                       🌐 Abrir gemini.google.com
                     </a>
                   </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
-                  <div class="sm:col-span-3">
-                    <label id="lbl1psid" class="block text-[10px] text-slate-300 mb-1">1. Cookie <code>__Secure-1PSID</code>:</label>
-                    <input id="gemini1psidInput" type="password" placeholder="g.a000... (__Secure-1PSID)" autocomplete="off"
-                      class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+
+                <!-- Método 1: Pegar cURL Completo (Recomendado y 100% fiable) -->
+                <div class="p-2.5 rounded-lg bg-slate-950/80 border border-indigo-500/30 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <label class="text-[11px] font-semibold text-amber-300 flex items-center gap-1">
+                      <span>⚡ Opción 1 (Recomendada · 1 solo clic): Pegar cURL (cmd) de red</span>
+                    </label>
+                    <span class="text-[10px] text-slate-400">Captura las 18 cookies sincronizadas al instante</span>
                   </div>
-                  <div class="sm:col-span-3">
-                    <label id="lbl1psidts" class="block text-[10px] text-slate-300 mb-1">2. Cookie <code>__Secure-1PSIDTS</code>:</label>
-                    <input id="gemini1psidtsInput" type="password" placeholder="sidts-... (__Secure-1PSIDTS)" autocomplete="off"
-                      class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
-                  </div>
-                  <div class="sm:col-span-4">
-                    <label id="lblOsid" class="block text-[10px] text-amber-300 font-semibold mb-1">3. Cookie <code>__Secure-OSID</code> / <code>OSID</code> (o Copy as cURL):</label>
-                    <input id="geminiOsidInput" type="password" placeholder="Pega aquí __Secure-OSID, OSID o Copy as cURL" autocomplete="off"
-                      class="w-full rounded-lg bg-slate-950 border border-amber-500/50 px-2.5 py-1.5 text-xs text-slate-100" />
-                  </div>
-                  <div class="sm:col-span-2 flex items-center gap-1.5">
-                    <button type="button" onclick="saveImageSettings()" class="flex-1 py-1.5 px-2 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-500/40 text-indigo-100 text-xs font-semibold transition text-center">
-                      Guardar
+                  <p class="text-[10px] text-slate-400 leading-relaxed">
+                    1. En <strong>gemini.google.com</strong> abre <strong>F12 → pestaña Red (Network)</strong> y presiona <strong>F5</strong>.<br/>
+                    2. En la primera fila (<code>app</code> o <code>gemini.google.com</code>), clic derecho → <strong>Copiar → Copiar como cURL (cmd)</strong>.<br/>
+                    3. Pégalo aquí abajo y pulsa <strong>Sincronizar Sesión</strong>:
+                  </p>
+                  <div class="flex gap-2">
+                    <input
+                      id="geminiCurlInput"
+                      type="password"
+                      placeholder="Pega aquí el comando curl 'https://gemini.google.com/app'..."
+                      autocomplete="off"
+                      class="flex-1 rounded-lg bg-slate-900 border border-indigo-500/40 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onclick="saveGeminiCurl()"
+                      class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-bold shadow-md transition whitespace-nowrap"
+                    >
+                      ⚡ Sincronizar Sesión
                     </button>
-                    <button type="button" id="btnVerifyGeminiCookies" onclick="verifyGeminiCookies()" class="py-1.5 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-semibold transition" title="Verificar si la sesión sigue activa con Google">
+                    <button
+                      type="button"
+                      id="btnVerifyGeminiCookies"
+                      onclick="verifyGeminiCookies()"
+                      class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-semibold transition"
+                      title="Verificar si la sesión actual sigue activa con Google"
+                    >
                       ⚡ Probar
                     </button>
                   </div>
                 </div>
+
+                <!-- Método 2: O ingresar cookies individuales (Acordeón desplegable) -->
+                <details class="text-xs text-slate-400">
+                  <summary class="cursor-pointer text-[11px] text-slate-400 hover:text-indigo-300 font-medium py-1">
+                    ⚙️ O ingresar cookies individuales (1PSID, 1PSIDTS, OSID, SID, SSID)
+                  </summary>
+                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-2">
+                    <div class="sm:col-span-3">
+                      <label id="lbl1psid" class="block text-[10px] text-slate-300 mb-1"><code>__Secure-1PSID</code>:</label>
+                      <input id="gemini1psidInput" type="password" placeholder="g.a000... (__Secure-1PSID)" autocomplete="off"
+                        class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label id="lbl1psidts" class="block text-[10px] text-slate-300 mb-1"><code>__Secure-1PSIDTS</code>:</label>
+                      <input id="gemini1psidtsInput" type="password" placeholder="sidts-... (__Secure-1PSIDTS)" autocomplete="off"
+                        class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label id="lblOsid" class="block text-[10px] text-slate-300 mb-1"><code>OSID</code> / <code>__Secure-OSID</code>:</label>
+                      <input id="geminiOsidInput" type="password" placeholder="Cookie OSID" autocomplete="off"
+                        class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label class="block text-[10px] text-slate-300 mb-1"><code>SID</code> (Maestra):</label>
+                      <input id="geminiSidInput" type="password" placeholder="Cookie SID" autocomplete="off"
+                        class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                    </div>
+                    <div class="sm:col-span-2">
+                      <label class="block text-[10px] text-slate-300 mb-1"><code>SSID</code> (Maestra):</label>
+                      <input id="geminiSsidInput" type="password" placeholder="Cookie SSID" autocomplete="off"
+                        class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                    </div>
+                  </div>
+                  <div class="pt-2 flex justify-end">
+                    <button type="button" onclick="saveImageSettings()" class="py-1 px-3 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-500/40 text-indigo-100 text-xs font-semibold transition text-center">
+                      Guardar Cookies Individuales
+                    </button>
+                  </div>
+                </details>
 
                 <!-- Banner de Verificación de Cookies en Vivo -->
                 <div id="geminiVerifyAlert" class="hidden p-2.5 rounded-xl text-xs transition"></div>
@@ -4140,6 +4195,21 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             gpBadge.className = "px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300";
           }
         }
+        const sessionBadge = document.getElementById("geminiSessionBadge");
+        if (sessionBadge) {
+          if (s.gemini_cookies_count >= 4 && s.has_gemini_pro_sid) {
+            sessionBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+            sessionBadge.textContent = `✅ Sesión Completa (${s.gemini_cookies_count} cookies)`;
+            sessionBadge.classList.remove("hidden");
+          } else if (s.has_gemini_pro_psid) {
+            sessionBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-200 border border-amber-500/40";
+            sessionBadge.textContent = `⚠️ Sesión Parcial (${s.gemini_cookies_count} cookies · Se sugiere cURL)`;
+            sessionBadge.classList.remove("hidden");
+          } else {
+            sessionBadge.classList.add("hidden");
+          }
+        }
+
         const lbl1 = document.getElementById("lbl1psid");
         if (lbl1) {
           lbl1.innerHTML = s.has_gemini_pro_psid
@@ -4156,8 +4226,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         if (lbl3) {
           const countTag = s.gemini_cookies_count > 2 ? ` · ${s.gemini_cookies_count} cookies` : "";
           lbl3.innerHTML = s.has_gemini_pro_osid
-            ? `3. Cookie <code>OSID</code>: <span class="text-emerald-300 font-bold">✅ Guardada (${s.gemini_pro_osid_hint}${countTag})</span>`
-            : `3. Cookie <code>__Secure-OSID</code> / <code>OSID</code> <span class="text-amber-300 font-bold">(⚠️ Falta esta 3ra cookie o Copy as cURL)</span>:`;
+            ? `Cookie <code>OSID</code>: <span class="text-emerald-300 font-bold">✅ Guardada (${s.gemini_pro_osid_hint}${countTag})</span>`
+            : `Cookie <code>__Secure-OSID</code> / <code>OSID</code>:`;
         }
 
         const gBadge = document.getElementById("geminiStatusBadge");
@@ -4171,8 +4241,39 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
           b.textContent = s.has_token ? `HF: activo ${s.token_hint}` : "HF: sin token";
           b.className = "px-2 py-0.5 rounded text-[10px] " + (s.has_token ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-300");
         }
-        document.getElementById("allowFallbackChk").checked = !!s.allow_fallback;
+        const chkFallback = document.getElementById("allowFallbackChk");
+        if (chkFallback) {
+          chkFallback.checked = s.allow_fallback !== false;
+        }
       } catch (e) { /* ignorar */ }
+    }
+
+    async function saveGeminiCurl() {
+      const input = document.getElementById("geminiCurlInput");
+      const val = (input ? input.value : "").trim();
+      if (!val) {
+        alert("Por favor pega primero el comando cURL copiado de F12 (Network/Red) en gemini.google.com");
+        return;
+      }
+      const provSel = document.getElementById("imgProviderSelect");
+      if (provSel) provSel.value = "gemini_pro";
+      const body = {
+        gemini_curl: val,
+        provider: "gemini_pro",
+        allow_fallback: true
+      };
+      try {
+        await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        if (input) input.value = "";
+        await loadImageSettings();
+        await verifyGeminiCookies();
+      } catch (err) {
+        alert("Error al guardar cURL: " + err.message);
+      }
     }
 
     async function saveImageSettings() {
@@ -4180,15 +4281,18 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       const psidVal = (document.getElementById("gemini1psidInput") || {}).value?.trim();
       const psidtsVal = (document.getElementById("gemini1psidtsInput") || {}).value?.trim();
       const osidVal = (document.getElementById("geminiOsidInput") || {}).value?.trim();
+      const sidVal = (document.getElementById("geminiSidInput") || {}).value?.trim();
+      const ssidVal = (document.getElementById("geminiSsidInput") || {}).value?.trim();
       const gemVal = (document.getElementById("geminiKeyInput") || {}).value?.trim();
       const tokenVal = (document.getElementById("hfTokenInput") || {}).value?.trim();
       const rwVal = (document.getElementById("runwareKeyInput") || {}).value?.trim();
       const falVal = (document.getElementById("falKeyInput") || {}).value?.trim();
       const togVal = (document.getElementById("togetherKeyInput") || {}).value?.trim();
 
+      const chkFallback = document.getElementById("allowFallbackChk");
       const body = {
-        provider: provSel ? provSel.value : "auto",
-        allow_fallback: document.getElementById("allowFallbackChk").checked
+        provider: provSel ? provSel.value : "gemini_pro",
+        allow_fallback: chkFallback ? chkFallback.checked : true
       };
       if (psidVal) {
         body.gemini_1psid = psidVal;
@@ -4205,6 +4309,9 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         body.provider = "gemini_pro";
         if (provSel) provSel.value = "gemini_pro";
       }
+      if (sidVal) body.gemini_sid = sidVal;
+      if (ssidVal) body.gemini_ssid = ssidVal;
+
       if (gemVal) {
         body.gemini_api_key = gemVal;
         if (!psidVal && !osidVal && provSel && provSel.value === "auto") {
@@ -4218,12 +4325,12 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       if (togVal) body.together_api_key = togVal;
 
       await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      ["gemini1psidInput", "gemini1psidtsInput", "geminiOsidInput", "geminiKeyInput", "hfTokenInput", "runwareKeyInput", "falKeyInput", "togetherKeyInput"].forEach((id) => {
+      ["geminiCurlInput", "gemini1psidInput", "gemini1psidtsInput", "geminiOsidInput", "geminiSidInput", "geminiSsidInput", "geminiKeyInput", "hfTokenInput", "runwareKeyInput", "falKeyInput", "togetherKeyInput"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
       await loadImageSettings();
-      if (psidVal || psidtsVal || osidVal) {
+      if (psidVal || psidtsVal || osidVal || sidVal || ssidVal) {
         verifyGeminiCookies();
       }
     }

@@ -727,9 +727,12 @@ class SceneImageRequest(BaseModel):
 class SettingsRequest(BaseModel):
     provider: Optional[str] = Field(None, description="Motor de imágenes: 'auto', 'gemini_pro', 'gemini', 'runware', 'together', 'fal', 'hf_dev', 'hf_fast', 'pollinations'")
     gemini_api_key: Optional[str] = Field(None, description="API Key gratuita de Google AI Studio")
+    gemini_curl: Optional[str] = Field(None, description="Comando cURL (cmd / bash) completo de gemini.google.com")
     gemini_1psid: Optional[str] = Field(None, description="Cookie __Secure-1PSID de gemini.google.com")
     gemini_1psidts: Optional[str] = Field(None, description="Cookie __Secure-1PSIDTS de gemini.google.com")
     gemini_osid: Optional[str] = Field(None, description="Cookie OSID / __Secure-OSID o bloque Copy as cURL de gemini.google.com")
+    gemini_sid: Optional[str] = Field(None, description="Cookie maestra SID de Google")
+    gemini_ssid: Optional[str] = Field(None, description="Cookie maestra SSID de Google")
     runware_api_key: Optional[str] = Field(None, description="API Key de Runware.ai")
     together_api_key: Optional[str] = Field(None, description="API Key de Together AI")
     fal_api_key: Optional[str] = Field(None, description="API Key de Fal.ai")
@@ -1491,16 +1494,20 @@ def get_settings_endpoint():
     rw = s.get("runware_api_key") or ""
     tog = s.get("together_api_key") or ""
     fal = s.get("fal_api_key") or ""
+    cnames = [c.get("name") for c in clist if c.get("name")]
     return {
-        "provider": s.get("provider") or "auto",
+        "provider": s.get("provider") or "gemini_pro",
         "has_gemini_pro": bool(psid and psidts),
         "has_gemini_pro_psid": bool(psid),
         "has_gemini_pro_psidts": bool(psidts),
         "has_gemini_pro_osid": bool(osid),
+        "has_gemini_pro_sid": bool("SID" in cnames),
+        "has_gemini_pro_ssid": bool("SSID" in cnames),
         "gemini_pro_hint": _mask_key(psid),
         "gemini_pro_ts_hint": _mask_key(psidts),
         "gemini_pro_osid_hint": _mask_key(osid),
         "gemini_cookies_count": len(clist),
+        "gemini_cookies_names": cnames,
         "has_gemini": bool(gem),
         "gemini_hint": _mask_key(gem),
         "has_token": bool(tok),
@@ -1511,7 +1518,7 @@ def get_settings_endpoint():
         "together_hint": _mask_key(tog),
         "has_fal": bool(fal),
         "fal_hint": _mask_key(fal),
-        "allow_fallback": bool(s.get("allow_fallback")),
+        "allow_fallback": bool(s.get("allow_fallback", True)),
     }
 
 
@@ -1642,13 +1649,14 @@ def save_settings_endpoint(req: SettingsRequest):
         if c.get("name") and c.get("value")
     }
 
-    # 1. Si algún campo trae un bloque multi-cookie (ej: Copy as cURL o tabla F12), tiene máxima prioridad
-    for raw_field in (req.gemini_osid, req.gemini_1psid, req.gemini_1psidts):
+    # 1. Si se envía comando cURL completo o bloque de cookies, tiene prioridad máxima
+    curl_candidates = [req.gemini_curl, req.gemini_osid, req.gemini_1psid, req.gemini_1psidts]
+    for raw_field in curl_candidates:
         if raw_field:
             val = raw_field.strip()
             multi = _parse_cookie_block(val)
             if multi and len(multi) >= 2:
-                # Bloque completo de sesión fresca: limpiar viejas para sincronizar exactamente la misma sesión
+                # Bloque completo de sesión fresca: sincronizar exactamente la misma sesión
                 existing.clear()
                 for c in multi:
                     existing[c["name"]] = c
@@ -1662,47 +1670,58 @@ def save_settings_endpoint(req: SettingsRequest):
                 break
 
     # 2. Procesar campos individuales si no venían en bloque multi-cookie
-    for raw_field, target_key in (
-        (req.gemini_1psid, "gemini_1psid"),
-        (req.gemini_1psidts, "gemini_1psidts"),
-        (req.gemini_osid, "gemini_osid"),
-    ):
-        if raw_field is not None:
-            val = raw_field.strip()
-            if not val:
-                continue
-            multi = _parse_cookie_block(val)
-            if multi:
-                for c in multi:
-                    existing[c["name"]] = c
-                    if c["name"] == "__Secure-1PSID":
-                        video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
-                    elif c["name"] == "__Secure-1PSIDTS":
-                        video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = c["value"]
-                    elif c["name"] in ("__Secure-OSID", "OSID"):
-                        video_pipeline.IMAGE_SETTINGS["gemini_osid"] = c["value"]
-                cookie_updated = True
-            else:
-                if val.startswith("sidts-"):
-                    video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = val
-                    existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": val, "domain": ".google.com"}
-                elif target_key == "gemini_osid":
-                    video_pipeline.IMAGE_SETTINGS["gemini_osid"] = val
-                    existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": val, "domain": "gemini.google.com"}
-                    existing["OSID"] = {"name": "OSID", "value": val, "domain": "gemini.google.com"}
-                elif target_key == "gemini_1psid":
-                    video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = val
-                    existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": val, "domain": ".google.com"}
+    if not cookie_updated:
+        for raw_field, target_key in (
+            (req.gemini_1psid, "gemini_1psid"),
+            (req.gemini_1psidts, "gemini_1psidts"),
+            (req.gemini_osid, "gemini_osid"),
+        ):
+            if raw_field is not None:
+                val = raw_field.strip()
+                if not val:
+                    continue
+                multi = _parse_cookie_block(val)
+                if multi:
+                    for c in multi:
+                        existing[c["name"]] = c
+                        if c["name"] == "__Secure-1PSID":
+                            video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
+                        elif c["name"] == "__Secure-1PSIDTS":
+                            video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = c["value"]
+                        elif c["name"] in ("__Secure-OSID", "OSID"):
+                            video_pipeline.IMAGE_SETTINGS["gemini_osid"] = c["value"]
+                    cookie_updated = True
                 else:
-                    video_pipeline.IMAGE_SETTINGS[target_key] = val
-                cookie_updated = True
+                    if val.startswith("sidts-"):
+                        video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = val
+                        existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": val, "domain": ".google.com"}
+                    elif target_key == "gemini_osid":
+                        video_pipeline.IMAGE_SETTINGS["gemini_osid"] = val
+                        existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": val, "domain": "gemini.google.com"}
+                        existing["OSID"] = {"name": "OSID", "value": val, "domain": "gemini.google.com"}
+                    elif target_key == "gemini_1psid":
+                        video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = val
+                        existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": val, "domain": ".google.com"}
+                    else:
+                        video_pipeline.IMAGE_SETTINGS[target_key] = val
+                    cookie_updated = True
+
+    # 3. Soporte para SID y SSID explícitos si se proporcionan por separado
+    if req.gemini_sid is not None and req.gemini_sid.strip():
+        existing["SID"] = {"name": "SID", "value": req.gemini_sid.strip(), "domain": ".google.com"}
+        cookie_updated = True
+    if req.gemini_ssid is not None and req.gemini_ssid.strip():
+        existing["SSID"] = {"name": "SSID", "value": req.gemini_ssid.strip(), "domain": ".google.com"}
+        cookie_updated = True
 
     if cookie_updated:
         # Asegurar concordancia absoluta entre claves raíz y gemini_cookies_list
         if video_pipeline.IMAGE_SETTINGS.get("gemini_1psid"):
             existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psid"], "domain": ".google.com"}
+            existing["__Secure-3PSID"] = {"name": "__Secure-3PSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psid"], "domain": ".google.com"}
         if video_pipeline.IMAGE_SETTINGS.get("gemini_1psidts"):
             existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psidts"], "domain": ".google.com"}
+            existing["__Secure-3PSIDTS"] = {"name": "__Secure-3PSIDTS", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psidts"], "domain": ".google.com"}
         if video_pipeline.IMAGE_SETTINGS.get("gemini_osid"):
             existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_osid"], "domain": "gemini.google.com"}
             existing["OSID"] = {"name": "OSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_osid"], "domain": "gemini.google.com"}
@@ -1720,6 +1739,9 @@ def save_settings_endpoint(req: SettingsRequest):
         video_pipeline._EXHAUSTED_HF_TOKENS.clear()
     if req.allow_fallback is not None:
         video_pipeline.IMAGE_SETTINGS["allow_fallback"] = bool(req.allow_fallback)
+    elif "allow_fallback" not in video_pipeline.IMAGE_SETTINGS:
+        video_pipeline.IMAGE_SETTINGS["allow_fallback"] = True
+
     SETTINGS_FILE.write_text(json.dumps(video_pipeline.IMAGE_SETTINGS, indent=2), encoding="utf-8")
     return get_settings_endpoint()
 
@@ -1739,9 +1761,14 @@ def verify_gemini_pro_session_endpoint():
         return {
             "valid": False,
             "status": "missing_cookies",
-            "message": "Falta guardar la cookie __Secure-1PSID.",
+            "message": "Falta guardar las cookies de sesión de Gemini Pro. Pega el comando cURL cmd copiado de F12.",
             "cookies_count": len(clist),
         }
+
+    c_names = {c.get("name") for c in clist if c.get("name")}
+    has_sid = "SID" in c_names
+    has_ssid = "SSID" in c_names
+    has_osid = bool(osid) or "OSID" in c_names or "__Secure-OSID" in c_names
 
     session = requests.Session(impersonate="chrome124")
     for c in clist:
@@ -1760,26 +1787,40 @@ def verify_gemini_pro_session_endpoint():
     if osid:
         session.cookies.set("__Secure-OSID", osid, domain="gemini.google.com")
         session.cookies.set("OSID", osid, domain="gemini.google.com")
+        session.cookies.set("__Secure-OSID", osid, domain=".google.com")
+        session.cookies.set("OSID", osid, domain=".google.com")
 
     try:
-        r = session.get("https://gemini.google.com/app", timeout=12, allow_redirects=True)
-        final_url = str(r.url)
-        is_login = "accounts.google.com" in final_url or "ServiceLogin" in final_url
-        if is_login:
-            return {
-                "valid": False,
-                "status": "unauthenticated",
-                "message": "Google indica que estas cookies han expirado o fueron rotadas en tu navegador. Para renovarlas en 1 clic: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en la Caja 3 y pulsa Guardar.",
-                "cookies_count": len(clist),
-            }
+        r = session.get("https://gemini.google.com/app", timeout=12, allow_redirects=False)
+        # Si devuelve redirección HTTP hacia accounts.google.com / ServiceLogin:
+        if r.status_code in (301, 302, 303, 307, 308):
+            loc = r.headers.get("location", "")
+            if "accounts.google.com" in loc or "ServiceLogin" in loc:
+                missing_note = ""
+                if not has_sid or not has_ssid:
+                    missing_note = " (Faltan las cookies maestras SID y SSID. Al copiar solo 3 cookies sueltas, Google rechaza la sesión. Usa 'Copy as cURL (cmd)' desde Network/Red para capturar las 18 cookies en 1 clic)."
+                return {
+                    "valid": False,
+                    "status": "unauthenticated",
+                    "message": f"Google rechazó la sesión y redirigió al login{missing_note}",
+                    "cookies_count": len(clist),
+                }
 
+        # Si responde HTTP 200 en https://gemini.google.com/app:
+        has_token = "SNlM0e" in r.text
         return {
             "valid": True,
             "status": "authenticated",
-            "message": f"✅ ¡Sesión de Gemini Pro verificada y activa con Google! ({len(clist)} cookies sincronizadas). Lista para generar en máxima calidad.",
+            "message": f"✅ ¡Sesión de Gemini Pro verificada y activa con Google! ({len(clist)} cookies sincronizadas{' · Token SNlM0e confirmado' if has_token else ''}). Lista para generar imágenes en máxima resolución.",
             "cookies_count": len(clist),
         }
     except Exception as e:
+        return {
+            "valid": False,
+            "status": "network_error",
+            "message": f"Error verificando cookies con Google: {e}",
+            "cookies_count": len(clist),
+        }
         return {
             "valid": False,
             "status": "network_error",

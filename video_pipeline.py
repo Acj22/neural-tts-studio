@@ -1164,6 +1164,8 @@ def _generate_with_gemini_pro_web(
         if osid_val:
             client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True)
             client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True)
+            client._cookies.set("__Secure-OSID", osid_val, domain=".google.com", secure=True)
+            client._cookies.set("OSID", osid_val, domain=".google.com", secure=True)
         if psid:
             client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True)
             client._cookies.set("__Secure-3PSID", psid, domain=".google.com", secure=True)
@@ -1178,7 +1180,7 @@ def _generate_with_gemini_pro_web(
             if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
                 return (
                     None,
-                    "Google indica que las cookies expiraron o fueron rotadas. Para renovar todas las cookies sincronizadas en 1 clic: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en la Caja 3 y pulsa Guardar.",
+                    "Google indica que las cookies expiraron o fueron rotadas. Para renovar todas las cookies sincronizadas en 1 clic: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en el cuadro 'Opción 1: Pegar cURL' y pulsa Sincronizar Sesión.",
                 )
 
             try:
