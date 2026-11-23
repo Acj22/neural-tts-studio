@@ -1760,9 +1760,7 @@ async function onOpuscarSearchCategoryChange(forceRefresh = false) {
           btn.innerHTML = `<span>${icon}</span> <span class="truncate">${topic}</span>`;
           btn.title = topic;
           btn.onclick = () => {
-            const qInput = document.getElementById("opuscarSearchQuery");
-            if (qInput) qInput.value = topic;
-            searchAndGenerateOpuscarScript(false);
+            selectOpuscarTopic(topic);
           };
           chipsContainer.appendChild(btn);
         });
@@ -1783,12 +1781,41 @@ async function onOpuscarSearchCategoryChange(forceRefresh = false) {
     btn.textContent = `• ${topic}`;
     btn.title = topic;
     btn.onclick = () => {
-      const qInput = document.getElementById("opuscarSearchQuery");
-      if (qInput) qInput.value = topic;
-      searchAndGenerateOpuscarScript(false);
+      selectOpuscarTopic(topic);
     };
     chipsContainer.appendChild(btn);
   });
+}
+
+function selectOpuscarTopic(topic) {
+  const qInput = document.getElementById("opuscarSearchQuery");
+  if (qInput) {
+    qInput.value = topic;
+    qInput.focus();
+    qInput.classList.add("ring-2", "ring-amber-400", "border-amber-400");
+    setTimeout(() => {
+      qInput.classList.remove("ring-2", "ring-amber-400", "border-amber-400");
+    }, 1500);
+  }
+}
+
+function discoverRandomOpuscarTopic() {
+  const catEl = document.getElementById("opuscarSearchCategory");
+  const category = catEl ? catEl.value : "historia_mexico";
+  const pool = OPUSCAR_SEARCH_SUGGESTIONS[category] || OPUSCAR_SEARCH_SUGGESTIONS["historia_mexico"] || [];
+  const qInput = document.getElementById("opuscarSearchQuery");
+  const current = (qInput?.value || "").trim();
+  const candidates = pool.filter(t => t !== current);
+  const chosen = (candidates.length ? candidates : pool)[Math.floor(Math.random() * (candidates.length ? candidates.length : pool.length))];
+  if (chosen) {
+    selectOpuscarTopic(chosen);
+  }
+  const btn = document.getElementById("btnOpuscarRandomScript");
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = "<span>✨ ¡Tema listo! Clic en Investigar</span>";
+    setTimeout(() => { btn.innerHTML = orig; }, 2200);
+  }
 }
 
 async function searchAndGenerateOpuscarScript(useRandom = false) {
@@ -1803,7 +1830,7 @@ async function searchAndGenerateOpuscarScript(useRandom = false) {
   const durationMode = durEl ? durEl.value : "shorts";
   let query = qInput ? qInput.value.trim() : "";
 
-  if (useRandom) {
+  if (!query || useRandom) {
     const pool = OPUSCAR_SEARCH_SUGGESTIONS[category] || [];
     query = pool.length ? pool[Math.floor(Math.random() * pool.length)] : "";
     if (qInput) qInput.value = query;

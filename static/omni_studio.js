@@ -17,6 +17,35 @@ async function initOmniStudio() {
   }
 }
 
+function selectOmniTopic(title) {
+  const input = document.getElementById("omniTopicInput");
+  if (input) {
+    input.value = title;
+    input.focus();
+    input.classList.add("ring-2", "ring-amber-400", "border-amber-400");
+    setTimeout(() => {
+      input.classList.remove("ring-2", "ring-amber-400", "border-amber-400");
+    }, 1500);
+  }
+}
+
+function discoverRandomOmniTopic() {
+  const input = document.getElementById("omniTopicInput");
+  const current = (input?.value || "").trim();
+  const pool = Array.isArray(OMNI_VERIFIED_TOPICS) && OMNI_VERIFIED_TOPICS.length ? OMNI_VERIFIED_TOPICS : [];
+  const candidates = pool.filter(t => (t.title || t) !== current);
+  const picked = (candidates.length ? candidates : pool)[Math.floor(Math.random() * (candidates.length ? candidates.length : pool.length))];
+  if (picked) {
+    selectOmniTopic(picked.title || picked);
+  }
+  const btnRand = document.getElementById("btnOmniRandomScript");
+  if (btnRand) {
+    const orig = btnRand.innerHTML;
+    btnRand.innerHTML = "<span>✨ ¡Tema cargado! Clic en Redactar</span>";
+    setTimeout(() => { btnRand.innerHTML = orig; }, 2200);
+  }
+}
+
 function renderOmniTopicChips(topics) {
   const container = document.getElementById("omniTopicChips");
   if (!container) return;
@@ -27,9 +56,7 @@ function renderOmniTopicChips(topics) {
     chip.className = "px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-medium transition border border-slate-700/60 flex items-center gap-1";
     chip.innerHTML = `<span>💡</span><span>${t.title}</span>`;
     chip.onclick = () => {
-      const input = document.getElementById("omniTopicInput");
-      if (input) input.value = t.title;
-      generateOmniScript(false, t.id);
+      selectOmniTopic(t.title);
     };
     container.appendChild(chip);
   });
