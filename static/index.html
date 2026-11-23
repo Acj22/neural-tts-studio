@@ -1672,12 +1672,19 @@
                 </label>
                 <select
                   id="ytSearchCategory"
-                  onchange="onYTSearchCategoryChange()"
+                  onchange="onYTSearchCategoryChange(false)"
                   class="w-full rounded-xl bg-slate-950 border border-indigo-500/50 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                 >
-                  <option value="historia_mexico" selected>🇲🇽 Dato Histórico de México</option>
-                  <option value="misterio">🕵️ Suceso de Misterio y Enigmas</option>
-                  <option value="terror">👻 Terror, Casos Oscuros y Lugares Malditos</option>
+                  <option value="historia_mexico" selected>🇲🇽 Historia & Arqueología de México</option>
+                  <option value="arqueologia_enigma">🏛️ Arqueología & Civilizaciones Antiguas</option>
+                  <option value="misterio">🕵️ Suceso de Misterio & Enigmas</option>
+                  <option value="expedientes_secretos">📁 Expedientes Clasificados & Secretos</option>
+                  <option value="terror">👻 Terror, Casos Oscuros & Lugares Malditos</option>
+                  <option value="anomalias_tierra">🌋 Anomalías Geológicas & Abismos</option>
+                  <option value="ingenieria_extrema">⚙️ Megaestructuras & Ingeniería Extrema</option>
+                  <option value="espacio_profundo">🪐 Espacio Profundo & Señales Cósmicas</option>
+                  <option value="misterios_maritimos">🚢 Naufragios & Misterios del Mar</option>
+                  <option value="ciencia_tecnologia">🔬 Ciencia Disruptiva & Paradojas</option>
                   <option value="lugares_mundo">🌍 Lugares Asombrosos del Mundo</option>
                 </select>
               </div>
@@ -1712,10 +1719,22 @@
 
             <!-- Píldoras de Temas Sugeridos por Categoría -->
             <div class="space-y-1.5">
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                ⚡ Ideas documentadas recomendadas (clic para seleccionar o presiona "Descubrir Tema Aleatorio"):
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  ⚡ Ideas documentadas recomendadas (clic para seleccionar o presiona "Descubrir Tema"):
+                </div>
+                <button
+                  type="button"
+                  id="btnRefreshYTIdeas"
+                  onclick="refreshYTIdeas(true)"
+                  class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-300 hover:text-white text-[10px] font-semibold transition flex items-center gap-1 shrink-0 shadow-sm"
+                  title="Consultar nuevos temas documentados y en vivo de Wikipedia"
+                >
+                  <span id="refreshYTIdeasIcon">🔄</span>
+                  <span>Más Ideas / Refrescar</span>
+                </button>
               </div>
-              <div id="ytSuggestedTopicsPills" class="flex flex-wrap gap-1.5"></div>
+              <div id="ytSuggestedTopicsPills" class="flex flex-wrap gap-1.5 min-h-[32px]"></div>
             </div>
 
             <!-- Botones de Búsqueda y Generación -->
@@ -3212,34 +3231,108 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     const YT_SEARCH_SUGGESTIONS = {
       historia_mexico: [
         "El río de mercurio líquido bajo la Pirámide de Teotihuacán",
+        "La ciudad maya de Valeriana descubierta con LiDAR en Campeche",
         "El Tesoro Perdido de Moctezuma en la Noche Triste",
-        "Los túneles secretos bajo el Centro Histórico de la CDMX",
-        "El Batallón de San Patricio en México",
+        "Los túneles secretos y el Huey Tzompantli bajo el Centro Histórico de la CDMX",
+        "El Batallón de San Patricio: los irlandeses que lucharon por México",
         "Hallazgos ocultos al excavar el Metro de la CDMX",
-        "El Castillo de Chapultepec: único castillo real de América"
+        "El Escuadrón 201: las Águilas Aztecas en la Segunda Guerra Mundial",
+        "El Castillo de Chapultepec: único castillo real de América",
+        "El descubrimiento de Coyolxauhqui en 1978 y el renacer del Templo Mayor",
+        "La Gran Pirámide de Cholula: el basamento más voluminoso del planeta",
+        "El hallazgo del Mamut de Tultepec y las trampas prehistóricas",
+        "La Nao de China y la ruta transoceánica Acapulco-Manila"
+      ],
+      arqueologia_enigma: [
+        "La Cripta Sellada de Pakal en Palenque",
+        "Göbekli Tepe: el templo megalítico de 11,500 años",
+        "Derinkuyu: la gigantesca ciudad subterránea de 18 pisos en Turquía",
+        "El Mecanismo de Anticitera: la primera computadora analógica griega",
+        "Las Líneas de Nazca y los geoglifos de Palpa",
+        "Nan Madol: la ciudad flotante de basalto en Micronesia",
+        "El ejército de terracota y la tumba inviolada de Qin Shi Huang",
+        "Las esferas de piedra prehispánicas del Diquís en Costa Rica",
+        "Puma Punku y las piedras de corte milimétrico en Bolivia",
+        "Las cuevas artificiales de Longyou en China"
       ],
       misterio: [
         "El incidente del Paso Dyatlov en los Montes Urales",
         "La desaparición de los tres fareros de las Islas Flannan",
-        "El Manuscrito Voynich: el código indescifrable",
-        "La Zona del Silencio en Durango, México",
-        "El barco fantasma Mary Celeste en el Atlántico"
+        "El Manuscrito Voynich: el código indescifrable del siglo XV",
+        "La Zona del Silencio en Durango y la caída del cohete Athena",
+        "El barco fantasma Mary Celeste a la deriva en el Atlántico",
+        "La Señal Wow!: los 72 segundos de radio interestelar de 1977",
+        "El misterio de los geoglifos de Kazajistán",
+        "El mapa de Piri Reis y las costas australes desconocidas"
+      ],
+      expedientes_secretos: [
+        "La Operación Mincemeat: el engaño militar que cambió la guerra",
+        "El caso de D.B. Cooper: el secuestro aéreo sin resolver",
+        "El Proyecto Azorian de la CIA y el submarino soviético K-129",
+        "El Hombre de la Máscara de Hierro en la Bastilla",
+        "La biblioteca secreta perdida de Iván el Terrible",
+        "El robo de las joyas de la corona por Thomas Blood en 1671"
       ],
       terror: [
         "La verdadera historia de la Isla de las Muñecas en Xochimilco",
         "El Hospital Psiquiátrico La Castañeda en México",
         "El barco fantasma SS Ourang Medan y su mensaje SOS",
+        "Centralia en Pensilvania: la mina de carbón que arde bajo tierra",
+        "Las catacumbas secretas de París y la red de osarios",
         "La Casa de los Tubos en Monterrey",
         "El Sanatorio Durán entre la niebla del volcán"
       ],
-      lugares_mundo: [
+      anomalias_tierra: [
+        "El Pozo Superprofundo de Kola: 12,262 metros hacia el manto",
+        "La Puerta al Infierno de Darvaza ardiendo en el desierto",
         "La Cueva de los Cristales Gigantes de Naica en Chihuahua",
-        "Derinkuyu: la ciudad subterránea de 18 pisos en Turquía",
-        "La Puerta al Infierno de Darvaza",
-        "La Isla Sentinel del Norte: territorio prohibido",
-        "El Punto Nemo: el lugar más solitario del océano"
+        "La Fosa de las Marianas y el Abismo Challenger",
+        "El Ojo del Sahara (Estructura de Richat) visible desde el espacio",
+        "El Lago Nyos y la erupción límnica de dióxido de carbono",
+        "El Salar de Uyuni: el espejo de sal más grande del mundo",
+        "El Gran Agujero Azul de Belice explorado por Cousteau"
+      ],
+      ingenieria_extrema: [
+        "La Presa de las Tres Gargantas que desaceleró la rotación terrestre",
+        "El Eurotúnel submarino bajo el Canal de la Mancha",
+        "El Reactor ITER de Fusión Nuclear: creando una estrella en la Tierra",
+        "Burj Khalifa: desafiando los vientos a 828 metros de altura",
+        "El Gran Colisionador de Hadrones (LHC) de 27 kilómetros",
+        "El Canal de Panamá Ampliado y las esclusas Post-Panamax"
+      ],
+      espacio_profundo: [
+        "Sagitario A*: el agujero negro supermasivo de nuestra galaxia",
+        "El Telescopio Espacial James Webb y las primeras galaxias",
+        "Oumuamua: el visitante interestelar que cruzó el sistema solar",
+        "La luna Europa de Júpiter y su océano líquido oculto",
+        "El Gran Atractor y la corriente cósmica de galaxias",
+        "Las sondas Voyager 1 y 2 en el medio interestelar"
+      ],
+      misterios_maritimos: [
+        "El Punto Nemo: el polo de inaccesibilidad más solitario del mar",
+        "El galeón San José y el tesoro de 200 toneladas de oro",
+        "El Endurance de Shackleton hallado en la Antártida",
+        "El sonido submarino Bloop captado en 1997",
+        "El HMS Terror y la expedición perdida de John Franklin",
+        "Las olas monstruo 'Rogue Waves' de 30 metros de altura"
+      ],
+      ciencia_tecnologia: [
+        "El experimento de la doble rendija y el observador cuántico",
+        "La paradoja de Fermi: ¿dónde está la vida extraterrestre?",
+        "El Entrelazamiento Cuántico y la acción fantasmal de Einstein",
+        "Los cuasicristales de Dan Shechtman que desafiaron la química",
+        "El Vantablack: el material que absorbe el 99.96% de la luz"
+      ],
+      lugares_mundo: [
+        "Derinkuyu: la ciudad subterránea de 18 niveles en Capadocia",
+        "La Isla Sentinel del Norte: la tribu más aislada del mundo",
+        "El Sótano de las Golondrinas en México: abismo de 512 metros",
+        "La Bóveda Global de Semillas de Svalbard en el Ártico",
+        "El Bosque de Piedra de Tsingy de Bemaraha en Madagascar"
       ]
     };
+
+    window.currentYTTopicsList = [];
 
     function selectYTTopic(topic) {
       const queryEl = document.getElementById("ytSearchQueryInput");
@@ -3254,10 +3347,11 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       const pillsBox = document.getElementById("ytSuggestedTopicsPills");
       if (pillsBox) {
         pillsBox.querySelectorAll("button").forEach((b) => {
-          if (b.textContent.trim() === topic.trim()) {
-            b.className = "px-2.5 py-1 rounded-lg bg-amber-500/25 border border-amber-400 text-amber-200 text-[11px] font-semibold transition shadow-sm shadow-amber-500/20";
+          const btnTopic = b.getAttribute("data-topic") || b.textContent.trim();
+          if (btnTopic.trim().toLowerCase() === topic.trim().toLowerCase()) {
+            b.className = "px-2.5 py-1 rounded-lg bg-amber-500/25 border border-amber-400 text-amber-200 text-[11px] font-semibold transition shadow-sm shadow-amber-500/20 flex items-center gap-1 text-left";
           } else {
-            b.className = "px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-400 text-[11px] text-slate-200 transition";
+            b.className = "px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-400 text-[11px] text-slate-200 hover:text-white transition flex items-center gap-1 text-left";
           }
         });
       }
@@ -3266,7 +3360,9 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     function discoverRandomYTTopic() {
       const catEl = document.getElementById("ytSearchCategory");
       const category = catEl ? catEl.value : "historia_mexico";
-      const pool = YT_SEARCH_SUGGESTIONS[category] || YT_SEARCH_SUGGESTIONS.historia_mexico || [];
+      const pool = (window.currentYTTopicsList && window.currentYTTopicsList.length)
+        ? window.currentYTTopicsList
+        : (YT_SEARCH_SUGGESTIONS[category] || YT_SEARCH_SUGGESTIONS.historia_mexico || []);
       const current = (document.getElementById("ytSearchQueryInput")?.value || "").trim();
       const candidates = pool.filter(t => t !== current);
       const chosen = (candidates.length ? candidates : pool)[Math.floor(Math.random() * (candidates.length ? candidates.length : pool.length))];
@@ -3281,23 +3377,68 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       }
     }
 
-    function onYTSearchCategoryChange() {
-      const catEl = document.getElementById("ytSearchCategory");
+    function renderYTPills(topics) {
       const pillsBox = document.getElementById("ytSuggestedTopicsPills");
-      if (!catEl || !pillsBox) return;
-      const cat = catEl.value || "historia_mexico";
-      const list = YT_SEARCH_SUGGESTIONS[cat] || YT_SEARCH_SUGGESTIONS.historia_mexico;
+      if (!pillsBox) return;
       pillsBox.innerHTML = "";
-      list.forEach((topic) => {
+      const currentQuery = (document.getElementById("ytSearchQueryInput")?.value || "").trim().toLowerCase();
+
+      topics.forEach((item) => {
+        const topic = typeof item === "object" ? (item.title || "") : item;
+        const icon = typeof item === "object" && item.icon ? item.icon : "•";
+        if (!topic) return;
+
+        const isSelected = currentQuery && currentQuery === topic.toLowerCase();
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-400 text-[11px] text-slate-200 transition";
-        btn.textContent = topic;
+        btn.setAttribute("data-topic", topic);
+        btn.className = isSelected
+          ? "px-2.5 py-1 rounded-lg bg-amber-500/25 border border-amber-400 text-amber-200 text-[11px] font-semibold transition shadow-sm shadow-amber-500/20 flex items-center gap-1 text-left"
+          : "px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-400 text-[11px] text-slate-200 hover:text-white transition flex items-center gap-1 text-left";
+        btn.innerHTML = `<span class="opacity-75 shrink-0">${icon}</span> <span class="truncate">${topic}</span>`;
+        btn.title = topic;
         btn.onclick = () => {
           selectYTTopic(topic);
         };
         pillsBox.appendChild(btn);
       });
+    }
+
+    async function onYTSearchCategoryChange(forceRefresh = false) {
+      const catEl = document.getElementById("ytSearchCategory");
+      const pillsBox = document.getElementById("ytSuggestedTopicsPills");
+      if (!catEl || !pillsBox) return;
+      const cat = catEl.value || "historia_mexico";
+
+      pillsBox.innerHTML = '<span class="text-[11px] text-amber-400/80 animate-pulse flex items-center gap-1.5 py-1"><span>🔍</span><span>Buscando temas documentados y en vivo...</span></span>';
+
+      try {
+        const res = await fetch(`/api/topics/diverse?category=${encodeURIComponent(cat)}&count=12&refresh=${forceRefresh}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "success" && Array.isArray(data.topics) && data.topics.length > 0) {
+            window.currentYTTopicsList = data.topics.map(t => typeof t === "object" ? t.title : t);
+            renderYTPills(data.topics);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Fallo cargando temas dinámicos en YouTube studio, usando catálogo local:", err);
+      }
+
+      // Fallback local enriquecido
+      const list = YT_SEARCH_SUGGESTIONS[cat] || YT_SEARCH_SUGGESTIONS.historia_mexico || [];
+      window.currentYTTopicsList = [...list];
+      renderYTPills(list);
+    }
+
+    async function refreshYTIdeas(forceRefresh = true) {
+      const icon = document.getElementById("refreshYTIdeasIcon");
+      if (icon) icon.classList.add("animate-spin");
+      await onYTSearchCategoryChange(forceRefresh);
+      if (icon) {
+        setTimeout(() => icon.classList.remove("animate-spin"), 600);
+      }
     }
 
     function copyYTSelectedTitle() {
@@ -3326,7 +3467,9 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       let query = queryEl ? queryEl.value.trim() : "";
 
       if (!query || useRandomTopic) {
-        const pool = YT_SEARCH_SUGGESTIONS[category] || [];
+        const pool = (window.currentYTTopicsList && window.currentYTTopicsList.length)
+          ? window.currentYTTopicsList
+          : (YT_SEARCH_SUGGESTIONS[category] || YT_SEARCH_SUGGESTIONS.historia_mexico || []);
         query = pool.length ? pool[Math.floor(Math.random() * pool.length)] : "";
         if (queryEl) queryEl.value = query;
       }

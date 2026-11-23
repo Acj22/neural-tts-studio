@@ -113,6 +113,127 @@ YOUTUBE_SEARCH_CATEGORIES: dict[str, dict[str, Any]] = {
             "La Bóveda Global de Semillas de Svalbard en el permafrost del Ártico",
         ],
     },
+    "arqueologia_enigma": {
+        "id": "arqueologia_enigma",
+        "name": "🏛️ Arqueología & Civilizaciones Antiguas",
+        "recommended_visual_style": "documentary",
+        "recommended_bg_music": "warm_story",
+        "recommended_style_prompt": (
+            "Cinematografía documental de arqueología antigua en 35mm, ruinas colosales de piedra, "
+            "claroscuro cinematográfico, detalles milenarios auténticos, 8k, sin texto"
+        ),
+        "suggested_topics": [
+            "La Cripta Sellada de Pakal: El Misterio del Templo de las Inscripciones",
+            "Göbekli Tepe: El templo megalítico de 11,500 años que desafió la historia",
+            "Derinkuyu: La gigantesca ciudad subterránea de 18 pisos en Capadocia",
+            "El Mecanismo de Anticitera: La primera computadora analógica del mundo griego",
+            "Las Líneas de Nazca y los geoglifos gigantescos del desierto de Palpa",
+            "Nan Madol: La misteriosa ciudad de canales y columnas de basalto en Micronesia",
+            "El ejército de terracota de Xi'an y la tumba inviolada del emperador Qin Shi Huang",
+        ],
+    },
+    "anomalias_tierra": {
+        "id": "anomalias_tierra",
+        "name": "🌋 Anomalías Geológicas & Abismos",
+        "recommended_visual_style": "cinematic",
+        "recommended_bg_music": "inspiring_science",
+        "recommended_style_prompt": (
+            "Fotografía geológica de expedición extrema en 8k, abismos colosales, cristales minerales, "
+            "fosas oceánicas y fenómenos terrestres únicos, sin texto"
+        ),
+        "suggested_topics": [
+            "El Pozo Superprofundo de Kola: 12,262 metros perforados hacia el manto terrestre",
+            "La Puerta al Infierno de Darvaza: El cráter de gas que arde desde hace 50 años",
+            "La Cueva de los Cristales de Naica en Chihuahua: Selenita a 58°C",
+            "La Fosa de las Marianas: El Abismo Challenger y las 1,100 atmósferas de presión",
+            "El Ojo del Sahara (Estructura de Richat): La gigantesca cúpula concéntrica",
+        ],
+    },
+    "ingenieria_extrema": {
+        "id": "ingenieria_extrema",
+        "name": "⚙️ Megaestructuras & Ingeniería Extrema",
+        "recommended_visual_style": "cinematic",
+        "recommended_bg_music": "inspiring_science",
+        "recommended_style_prompt": (
+            "Cinematografía épica de megaestructuras de acero y concreto, maquinaria colosal, "
+            "túneles submarinos y presas gigantescas, ultra detallado 8k, sin texto"
+        ),
+        "suggested_topics": [
+            "La Presa de las Tres Gargantas: La megaestructura que desaceleró la rotación de la Tierra",
+            "El Eurotúnel submarino: Encuentro de dos tuneladoras bajo el Canal de la Mancha",
+            "El Reactor ITER de Fusión Nuclear: Recreando la energía del Sol en la Tierra",
+            "Burj Khalifa: Cómo soporta vientos huracanados a 828 metros de altura",
+            "El Gran Colisionador de Hadrones (LHC): El anillo criogénico subterráneo de 27 km",
+        ],
+    },
+    "espacio_profundo": {
+        "id": "espacio_profundo",
+        "name": "🪐 Espacio Profundo & Señales Cósmicas",
+        "recommended_visual_style": "cinematic",
+        "recommended_bg_music": "inspiring_science",
+        "recommended_style_prompt": (
+            "Astrofotografía profunda del telescopio James Webb, agujeros negros, nebulosas relucientes, "
+            "señales de radiotelescopios y planetas lejanos, 8k, sin texto"
+        ),
+        "suggested_topics": [
+            "La Señal Wow!: Los 72 segundos de radio interestelar detectados en 1977",
+            "Sagitario A*: El agujero negro supermasivo en el centro de nuestra galaxia",
+            "Oumuamua: El primer objeto interestelar hiperbólico",
+            "La luna Europa de Júpiter: El océano líquido oculto bajo el hielo",
+            "El Gran Atractor: La misteriosa masa que arrastra a la Vía Láctea",
+        ],
+    },
+    "misterios_maritimos": {
+        "id": "misterios_maritimos",
+        "name": "🚢 Naufragios & Misterios del Mar",
+        "recommended_visual_style": "dark_mystery",
+        "recommended_bg_music": "doc_mystery",
+        "recommended_style_prompt": (
+            "Atmósfera oceánica enigmática, navíos a la deriva en niebla marina, pecios sumergidos en el abismo, "
+            "tonos azul tormenta y claroscuro, 8k, sin texto"
+        ),
+        "suggested_topics": [
+            "El Punto Nemo: El polo oceánico de inaccesibilidad más solitario del planeta",
+            "El bergantín Mary Celeste hallado a toda vela sin tripulación",
+            "El misterio de los tres fareros de las Islas Flannan en 1900",
+            "El Endurance de Shackleton hallado a 3,000 metros bajo el mar de Weddell",
+            "El naufragio del galeón San José y el tesoro de 200 toneladas de oro",
+        ],
+    },
+    "ciencia_tecnologia": {
+        "id": "ciencia_tecnologia",
+        "name": "🔬 Ciencia Disruptiva & Paradojas",
+        "recommended_visual_style": "cinematic",
+        "recommended_bg_music": "inspiring_science",
+        "recommended_style_prompt": (
+            "Visualización conceptual de física cuántica, átomos, haces láser, aceleradores y "
+            "experimentos disruptivos con iluminación de laboratorio de vanguardia, 8k, sin texto"
+        ),
+        "suggested_topics": [
+            "El experimento de la doble rendija: Partículas que se comportan como ondas",
+            "La paradoja de Fermi: Si el universo es tan vasto, ¿dónde están todos?",
+            "El Entrelazamiento Cuántico: La acción fantasmal a distancia",
+            "Los cuasicristales de Dan Shechtman que desafiaron la química",
+            "El condensado de Bose-Einstein: El quinto estado de la materia",
+        ],
+    },
+    "expedientes_secretos": {
+        "id": "expedientes_secretos",
+        "name": "📁 Expedientes Clasificados & Enigmas",
+        "recommended_visual_style": "dark_mystery",
+        "recommended_bg_music": "doc_mystery",
+        "recommended_style_prompt": (
+            "Fotografía documental de archivos desclasificados, documentos con sellos 'Top Secret', "
+            "oficinas de inteligencia de la Guerra Fría y microfilm, luz cenital, 8k, sin texto"
+        ),
+        "suggested_topics": [
+            "El incidente del Paso Dyatlov: La noche fatídica en los Montes Urales",
+            "El Manuscrito Voynich: El códice medieval que nadie puede descifrar",
+            "La Operación Mincemeat: El cadáver con documentos falsos en la Segunda Guerra Mundial",
+            "El caso de D.B. Cooper: El único secuestro aéreo sin resolver",
+            "El Proyecto Azorian: La misión clandestina de la CIA para rescatar el submarino K-129",
+        ],
+    },
 }
 
 # ==============================================================================
@@ -691,7 +812,102 @@ def _build_titles_for_topic(
             ]
             thumb = "CRÓNICA REAL"
             tags = ["#CasosOscuros", "#Documental", "#HistorIAndo", "#HistoriaOculta", "#CasosReales"]
-    else:  # lugares_mundo
+    elif category == "arqueologia_enigma":
+        if is_short:
+            best = f"El Enigma Arqueológico: {clean_t} 🏛️"
+            alts = [
+                f"La Civilización Olvidada Detrás de {clean_t}",
+                f"El Hallazgo Milenario que Desafía la Historia: {clean_t}",
+                f"¿Cómo Construyeron {clean_t}? Hechos Reales",
+            ]
+            thumb = "ENIGMA MILENARIO 🏛️"
+            tags = ["#Arqueologia", "#CivilizacionesAntiguas", "#Historia", "#HistorIAndo", "#Shorts"]
+        else:
+            best = f"{clean_t}: El Enigma Arqueológico que Desafió la Historia"
+            alts = [
+                f"Documental Arqueológico: El Misterio Milenario de {clean_t}",
+                f"Expedición a las Ruinas de {clean_t}: Nuevos Hallazgos",
+                f"La Verdadera Civilización Detrás de {clean_t}",
+            ]
+            thumb = "ARQUEOLOGÍA REAL"
+            tags = ["#Arqueologia", "#Documental", "#CivilizacionesPerdidas", "#HistorIAndo", "#Historia"]
+    elif category == "anomalias_tierra":
+        if is_short:
+            best = f"La Anomalía Terrestre Más Extrema: {clean_t} 🌋"
+            alts = [
+                f"El Fenómeno Geológico que Sorprende a los Científicos: {clean_t}",
+                f"¿Qué Hay Realmente en {clean_t}?",
+                f"El Abismo de la Tierra: {clean_t}",
+            ]
+            thumb = "ANOMALÍA REAL 🌋"
+            tags = ["#GeologiaExtrema", "#PlanetaTierra", "#Naturaleza", "#HistorIAndo", "#Shorts"]
+        else:
+            best = f"{clean_t}: El Fenómeno Terrestre Más Extremo del Planeta"
+            alts = [
+                f"Documental Geológico: Lo Que Ocurre en {clean_t}",
+                f"Expedición al Abismo: Los Secretos Ocultos en {clean_t}",
+                f"Ciencia Extrema: La Explicación Geológica de {clean_t}",
+            ]
+            thumb = "GEOLOGÍA EXTREMA"
+            tags = ["#Geologia", "#Documental", "#PlanetaTierra", "#Ciencia", "#HistorIAndo"]
+    elif category == "ingenieria_extrema":
+        if is_short:
+            best = f"La Megaestructura Imposible: {clean_t} ⚙️"
+            alts = [
+                f"¿Cómo Lograron Construir {clean_t}?",
+                f"La Hazaña de Ingeniería Más Colosal: {clean_t}",
+                f"El Desafío a la Física: {clean_t}",
+            ]
+            thumb = "MEGAESTRUCTURA ⚙️"
+            tags = ["#Ingenieria", "#Megaestructuras", "#Arquitectura", "#HistorIAndo", "#Shorts"]
+        else:
+            best = f"{clean_t}: La Megaestructura que Desafió a la Ingeniería"
+            alts = [
+                f"Documental de Ingeniería: La Construcción de {clean_t}",
+                f"Cómo Funciona Realmente {clean_t}: Datos Asombrosos",
+                f"Hazañas Humanas: El Desafío Titánico de {clean_t}",
+            ]
+            thumb = "INGENIERÍA COLOSAL"
+            tags = ["#IngenieriaExtrema", "#Documental", "#Megaestructuras", "#Ciencia", "#HistorIAndo"]
+    elif category == "espacio_profundo":
+        if is_short:
+            best = f"El Enigma del Espacio Profundo: {clean_t} 🪐"
+            alts = [
+                f"La Señal Cósmica que Desconcierta a la NASA: {clean_t}",
+                f"Lo Que Descubrieron en los Confines del Cosmos: {clean_t}",
+                f"¿Qué Hay Realmente en {clean_t}?",
+            ]
+            thumb = "COSMOS ENIGMA 🪐"
+            tags = ["#Astronomia", "#EspacioProfundo", "#Universo", "#HistorIAndo", "#Shorts"]
+        else:
+            best = f"{clean_t}: El Fenómeno Cósmico que Sorprendió a la Ciencia"
+            alts = [
+                f"Documental Astronómico: La Verdad Detrás de {clean_t}",
+                f"Exploración del Espacio Profundo: El Caso de {clean_t}",
+                f"Astrofísica: Lo Que Sabemos Realmente de {clean_t}",
+            ]
+            thumb = "ESPACIO PROFUNDO"
+            tags = ["#Astronomia", "#Documental", "#Universo", "#Ciencia", "#HistorIAndo"]
+    elif category in ["misterios_maritimos", "expedientes_secretos", "ciencia_tecnologia"]:
+        if is_short:
+            best = f"El Archivo Real de {clean_t} 🌊"
+            alts = [
+                f"La Verdad Documentada Detrás de {clean_t}",
+                f"¿Qué Ocurrió Realmente en {clean_t}?",
+                f"El Hallazgo Desclasificado: {clean_t}",
+            ]
+            thumb = "EXPEDIENTE REAL 📁"
+            tags = ["#Investigacion", "#Ciencia", "#MisteriosReales", "#HistorIAndo", "#Shorts"]
+        else:
+            best = f"{clean_t}: La Evidencia Real y los Archivos Históricos"
+            alts = [
+                f"Documental de Investigación: La Verdad sobre {clean_t}",
+                f"Expediente Abierto: La Crónica Verificada de {clean_t}",
+                f"¿Mito o Realidad? Los Datos Comprobados de {clean_t}",
+            ]
+            thumb = "INVESTIGACIÓN REAL"
+            tags = ["#Documental", "#Investigacion", "#CasosReales", "#Ciencia", "#HistorIAndo"]
+    else:  # lugares_mundo y otros
         if is_short:
             best = f"El Rincón Más Asombroso de la Tierra: {clean_t} 🌍"
             alts = [
