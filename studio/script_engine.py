@@ -78,16 +78,16 @@ def _build_deterministic_short_sections(research: dict[str, Any]) -> list[dict[s
 
     sections_text = {
         "gancho": (
-            f"Cada vez que se activa {topic.lower()}, en su interior ocurre una coreografía física de alta precisión que casi nadie llega a ver."
+            f"Existe una verdad contraintuitiva sobre {topic.lower()} que la mayoría pasa por alto: en su interior ocurre una coreografía física extrema que desafía lo convencional."
         ),
         "pregunta": (
-            f"{question} Abramos su carcasa en corte para descubrirlo paso a paso."
+            f"{question} Abramos su arquitectura en corte transversal para comprobarlo paso a paso."
         ),
         "contexto": (
-            f"Su funcionamiento parte de un principio esencial: {c1['name'].lower()}, que {c1['role'].lower()}"
+            f"Su funcionamiento parte de un principio esencial: {c1['name'].lower()}, que {c1['role'].lower()}."
         ),
         "explicacion_principal": (
-            f"Todo sucede en tres fases sincronizadas: primero actúa {c2['name']}, después interviene {c3['name']} y finalmente {c4['name']} entrega el movimiento o resultado final. "
+            f"Y aquí viene el punto clave que casi nadie nota: todo sucede en fases ultra-sincronizadas. Primero actúa {c2['name']}, después interviene {c3['name']} y finalmente {c4['name']} entrega el resultado sin margen de error. "
             f"{f1}"
         ),
         "ejemplo": (
@@ -97,8 +97,8 @@ def _build_deterministic_short_sections(research: dict[str, Any]) -> list[dict[s
             f"Un dato verificado sorprendente: {est1} Además, ten en cuenta que {n1[0].lower() + n1[1:] if len(n1) > 1 else n1}"
         ),
         "conclusion": (
-            f"Así es como {topic.lower()} transforma leyes físicas exactas en tecnología cotidiana. "
-            f"¿Qué otro mecanismo quieres que desarmemos en el próximo video?"
+            f"Así es como {topic.lower()} convierte leyes físicas rigurosas en tecnología real. "
+            f"¿Crees que este principio representa el estándar ideal o tiene riesgos no calculados? Déjame tu postura en los comentarios."
         ),
     }
 
@@ -262,7 +262,8 @@ def _generate_sections_with_gemini_if_available(
         "1. Español natural, claro, envolvente y didáctico. Usa analogías físicas útiles.\n"
         "2. PROHIBIDO usar introducciones genéricas ('Hola a todos, en el video de hoy veremos...'). Entra directo al fenómeno.\n"
         "3. No repitas ideas entre secciones.\n"
-        f"4. Devuelve ÚNICAMENTE un objeto JSON cuyas claves sean exactamente las siguientes secciones y cada valor sea el texto narrado de esa sección:\n{schema_desc}"
+        "4. En videos cortos (Shorts/TikTok), en la sección 'explicacion_principal' incluye un re-gancho de retención intermedia ('Y aquí está lo que pocos notan...', 'Pero el verdadero secreto ocurre...'). En la conclusión, remata con una pregunta provocativa o dilema para incentivar el debate masivo en comentarios.\n"
+        f"5. Devuelve ÚNICAMENTE un objeto JSON cuyas claves sean exactamente las siguientes secciones y cada valor sea el texto narrado de esa sección:\n{schema_desc}"
     )
 
     for model_name in ("gemini-3.1-flash-lite-preview", "gemini-3-flash-preview", "gemma-4-31b-it"):

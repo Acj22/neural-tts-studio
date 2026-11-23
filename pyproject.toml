@@ -10,14 +10,18 @@ dependencies = [
     "deep-translator>=1.11.4",
     "edge-tts>=7.3.1",
     "fastapi>=0.162.0",
+    "faster-whisper>=1.2.1",
     "gemini-webapi>=2.1.1",
     "imageio-ffmpeg>=0.6.0",
     "kokoro-onnx>=0.6.1",
     "numpy>=2.5.4",
+    "pedalboard>=0.9.26",
     "pillow>=13.0.0",
     "piper-tts>=1.8.0",
+    "python-multipart>=0.0.34",
     "requests>=2.34.2",
     "soundfile>=0.14.0",
+    "stable-ts>=2.19.1",
     "uvicorn>=0.54.0",
 ]
 

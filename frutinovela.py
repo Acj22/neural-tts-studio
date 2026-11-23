@@ -401,6 +401,16 @@ def _draw_mouth(region: Image.Image, cx: float, cy: float, mw: float, openness: 
     region.paste(patch, (int(cx - w / 2 - pad), int(cy - h / 2 - pad)), patch)
 
 
+def _draw_blink(region: Image.Image, cx: float, cy: float, eye_dist: float, scale: float = 1.0) -> None:
+    """Dibuja pestañeo procedimental sutil estilo cómic/animación."""
+    d = ImageDraw.Draw(region)
+    w = max(6.0, eye_dist * 0.42)
+    h = max(2.5, w * 0.28)
+    for ex in (cx - eye_dist * 0.48, cx + eye_dist * 0.48):
+        box = [int(ex - w / 2), int(cy - h / 2), int(ex + w / 2), int(cy + h / 2)]
+        d.arc(box, start=15, end=165, fill=(30, 12, 18), width=max(2, int(2.5 * scale)))
+
+
 def _subtitle_overlay(W: int, H: int, speaker: str, text: str, color: str, narrator: bool) -> tuple[Image.Image, tuple[int, int]]:
     font_size = max(22, int(W * (0.048 if H > W else 0.03)))
     font = _load_font(font_size)
@@ -444,6 +454,11 @@ def render_frutinovela_video(
     W, H = int(meta["width"]), int(meta["height"])
     margin = 1.22
     audio_path = project_dir / "narracion_completa.wav"
+    try:
+        from studio.audio_mastering import master_audio_file
+        master_audio_file(audio_path, audio_path)
+    except Exception:
+        pass
     samples, sr = sf.read(audio_path, dtype="float32")
     if samples.ndim > 1:
         samples = samples.mean(axis=1)
@@ -520,7 +535,9 @@ def render_frutinovela_video(
                 ox = oy = 0.0
                 tint_rgb, tint_a = (0, 0, 0), 0.0
 
-                # Rebote al hablar
+                # Rebote al hablar y balanceo orgánico de personaje
+                sway = math.sin(t * 3.8) * (1.6 if speaking else 0.4) * k
+                ox += sway * 2.2
                 oy -= o * 7 * k
                 z += o * 0.012 * k
 
@@ -557,9 +574,15 @@ def render_frutinovela_video(
                 x0, y0 = int(cx - vw / 2), int(cy - vh / 2)
                 region = plate.img.crop((x0, y0, x0 + int(vw), y0 + int(vh)))
 
-                if plate.mouth and o > 0:
+                if plate.mouth:
                     m = plate.mouth
-                    _draw_mouth(region, m["x"] - x0, m["y"] - y0, m["w"], o, m["lip"])
+                    if o > 0:
+                        _draw_mouth(region, m["x"] - x0, m["y"] - y0, m["w"], o, m["lip"])
+                    # Pestañeo periódico de personaje para dar vida natural (cada ~2.8s)
+                    blink_phase = (t + (abs(hash(ln["slug"])) % 10) * 0.35) % 2.9
+                    if blink_phase < 0.13:
+                        eye_cy = (m["y"] - m["w"] * 0.88) - y0
+                        _draw_blink(region, m["x"] - x0, eye_cy, m["w"] * 1.15, scale=1.0)
 
                 frame = region.resize((W, H), Image.Resampling.BILINEAR)
                 frame = tint(frame, tint_rgb, tint_a)

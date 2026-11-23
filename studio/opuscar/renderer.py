@@ -1,21 +1,29 @@
-"""AI VIDEO STUDIO — Motor de Renderizado Procedural Lemo-Opuscar.
-Genera fotograma a fotograma animaciones de alta precisión en función del tiempo t,
-sincroniza con locución neuronal (Edge TTS / Kokoro) y compila a MP4 con FFmpeg.
+"""AI VIDEO STUDIO — Motor de Renderizado Procedural Multi-Escena 2.5D Lemo-Opuscar.
+Genera fotograma a fotograma animaciones Paper-Cut Diorama de 8 a 9 escenas dinámicas
+en función del tiempo t y del guion real, sincroniza con locución neuronal (Edge TTS),
+diseño sonoro foley + música documental y compila a MP4 con FFmpeg.
 """
 
 from __future__ import annotations
 
 import asyncio
+import io
+import json
+import logging
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger("studio.opuscar.renderer")
 
 _repo_root = Path(__file__).resolve().parent.parent.parent
 if str(_repo_root) not in sys.path:
@@ -29,715 +37,896 @@ def _get_ffmpeg() -> str:
     return blender_get_ffmpeg()
 
 
+_FONT_CACHE: dict[tuple[int, bool], Any] = {}
+
+
+def _load_font(size: int, bold: bool = True):
+    key = (size, bold)
+    if key in _FONT_CACHE:
+        return _FONT_CACHE[key]
+    candidates = (
+        ("arialbd.ttf", "segoeuib.ttf", "calibrib.ttf", "arial.ttf", "DejaVuSans-Bold.ttf")
+        if bold
+        else ("segoeui.ttf", "arial.ttf", "calibri.ttf", "DejaVuSans.ttf")
+    )
+    for name in candidates:
+        try:
+            f = ImageFont.truetype(name, size)
+            _FONT_CACHE[key] = f
+            return f
+        except Exception:
+            continue
+    f = ImageFont.load_default()
+    _FONT_CACHE[key] = f
+    return f
+
+
+def _clamp(val: float, mn: float, mx: float) -> float:
+    return max(mn, min(mx, val))
+
+
+def _ease_out_back(t: float, s: float = 1.45) -> float:
+    p = _clamp(t, 0.0, 1.0)
+    return 1.0 + (s + 1.0) * ((p - 1.0) ** 3) + s * ((p - 1.0) ** 2)
+
+
+def _ease_out_cubic(t: float) -> float:
+    p = _clamp(t, 0.0, 1.0)
+    return 1.0 - ((1.0 - p) ** 3)
+
+
 async def synthesize_opuscar_audio(
     text: str,
     output_path: Path,
     voice: str = "es-MX-DaliaNeural",
     rate: str = "+0%",
 ) -> float:
-    """Sintetiza la narración con Edge TTS y devuelve la duración exacta en segundos."""
+    """Sintetiza la narración con Edge TTS, mezcla ambiente documental sutil y devuelve la duración exacta."""
+    edge_voice = voice if "Neural" in (voice or "") else "es-MX-DaliaNeural"
+    raw_mp3 = output_path.parent / "_raw_voice.mp3"
     try:
         import edge_tts
-        comm = edge_tts.Communicate(text=text, voice=voice, rate=rate)
-        await comm.save(str(output_path.resolve()))
+        comm = edge_tts.Communicate(text=text, voice=edge_voice, rate=rate)
+        await comm.save(str(raw_mp3.resolve()))
     except Exception:
-        # Fallback silencioso con ffmpeg si falla la red
-        ffmpeg_bin = _get_ffmpeg()
-        dur = max(3.0, len(text.split()) * 0.4)
-        cmd = [
-            ffmpeg_bin, "-y",
-            "-f", "lavfi",
-            "-i", f"anullsrc=r=44100:cl=mono",
-            "-t", str(dur),
-            "-c:a", "libmp3lame",
-            str(output_path.resolve()),
-        ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        try:
+            import edge_tts
+            comm = edge_tts.Communicate(text=text, voice="es-MX-JorgeNeural", rate=rate)
+            await comm.save(str(raw_mp3.resolve()))
+        except Exception:
+            ffmpeg_bin = _get_ffmpeg()
+            dur = max(65.0, len(text.split()) * 0.42)
+            cmd = [
+                ffmpeg_bin, "-y",
+                "-f", "lavfi",
+                "-i", "anullsrc=r=44100:cl=mono",
+                "-t", str(dur),
+                "-c:a", "libmp3lame",
+                str(raw_mp3.resolve()),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
 
-    # Medir duración exacta con ffprobe / ffmpeg
+    # Medir duración y mezclar música ambiental documental + foley sutil
     ffmpeg_bin = _get_ffmpeg()
-    cmd = [
-        ffmpeg_bin, "-i", str(output_path.resolve()),
-        "-f", "null", "-",
-    ]
+    try:
+        import soundfile as sf
+        cmd_wav = [ffmpeg_bin, "-y", "-i", str(raw_mp3.resolve()), "-f", "wav", "-ar", "44100", "-ac", "1", "-"]
+        proc = subprocess.run(cmd_wav, capture_output=True, check=True)
+        vox, sr = sf.read(io.BytesIO(proc.stdout), dtype="float32")
+        n_samples = len(vox)
+        dur_sec = n_samples / float(sr)
+
+        # Generar colchón armónico documental suave
+        bgm = np.zeros(n_samples, dtype=np.float32)
+        chords = [
+            [220.0, 261.63, 329.63],  # A min
+            [174.61, 220.0, 261.63],  # F maj
+            [146.83, 174.61, 220.0],  # D min
+            [164.81, 207.65, 246.94], # E maj
+        ]
+        bar_dur = 2.8
+        n_bars = int(dur_sec / bar_dur) + 1
+        for b in range(n_bars):
+            chord = chords[b % len(chords)]
+            b_start = int(b * bar_dur * sr)
+            t_bar = np.linspace(0, bar_dur, int(sr * bar_dur), endpoint=False)
+            wave = np.zeros_like(t_bar)
+            for freq in chord:
+                wave += np.sin(2 * np.pi * freq * t_bar) * 0.10
+                wave += np.sin(2 * np.pi * freq * 2.0 * t_bar) * 0.03
+            env = np.sin(np.pi * t_bar / bar_dur) ** 0.8
+            wave *= env
+            b_end = min(n_samples, b_start + len(wave))
+            if b_end > b_start:
+                bgm[b_start:b_end] += wave[:b_end - b_start]
+
+        mixed = vox * 1.15 + bgm * 0.075
+        try:
+            from studio.audio_mastering import apply_studio_mastering
+            mixed = apply_studio_mastering(mixed, sample_rate=sr)
+        except Exception:
+            peak = float(np.max(np.abs(mixed))) if len(mixed) else 1.0
+            if peak > 0.98:
+                mixed = (mixed / peak) * 0.96
+
+        wav_tmp = output_path.parent / "_master_mix.wav"
+        sf.write(str(wav_tmp), mixed.astype(np.float32), sr, format="WAV", subtype="PCM_16")
+        subprocess.run(
+            [ffmpeg_bin, "-y", "-i", str(wav_tmp.resolve()), "-c:a", "libmp3lame", "-b:a", "192k", str(output_path.resolve())],
+            check=True,
+            capture_output=True,
+        )
+        wav_tmp.unlink(missing_ok=True)
+        raw_mp3.unlink(missing_ok=True)
+        return dur_sec
+    except Exception:
+        if raw_mp3.exists():
+            shutil.move(str(raw_mp3), str(output_path))
+
+    cmd = [ffmpeg_bin, "-i", str(output_path.resolve()), "-f", "null", "-"]
     res = subprocess.run(cmd, capture_output=True, text=True)
-    import re
     m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", res.stderr)
     if m:
         h, mn, s = float(m.group(1)), float(m.group(2)), float(m.group(3))
         return h * 3600 + mn * 60 + s
-    return 5.0
+    return 65.0
 
 
-def detect_diorama_archetype(text: str) -> str:
-    """Clasifica el tema semántico para generar un diorama procedural auténtico."""
-    low = (text or "").lower()
-    if any(k in low for k in ("sahara", "richat", "mauritania")):
-        return "ojo_sahara"
-    if any(k in low for k in ("chapultepec", "alcazar", "maximiliano", "carlota")):
-        return "chapultepec"
-    if any(k in low for k in ("maya", "campeche", "valeriana", "lidar", "piramide", "sakil")):
-        return "mayan"
-    if any(k in low for k in ("mar", "oceano", "isla", "barco", "buque", "flannan", "celeste", "nemo", "agua", "laguna", "submarino", "fosa", "pacifico", "atlantico", "bermuda", "naufragio", "iceberg", "sentinel", "triangulo", "puerto")):
-        return "oceanic"
-    if any(k in low for k in ("tierra", "pozo", "kola", "mina", "cueva", "cristal", "naica", "fuego", "darvaza", "volcan", "montana", "montaña", "everest", "abismo", "salar", "hielo", "lava", "crater", "terremoto", "geolog", "centralia", "chimenea")):
-        return "geological"
-    if any(k in low for k in ("espacio", "planeta", "galaxia", "orbita", "agujero", "negro", "wow", "senal", "señal", "estrella", "satelite", "satélite", "universo", "cosmos", "nasa", "astron", "marte", "luna", "telescopio")):
-        return "cosmic"
-    if any(k in low for k in ("ciudad", "templo", "muralla", "monumento", "torre", "palacio", "catacumba", "paris", "historia", "roma", "coliseo", "antigu", "arquit", "tubos", "hospital", "castaneda", "castañeda", "obra")):
-        return "architectural"
-    return "mystery"
+# ==============================================================================
+# MOTOR UNIVERSAL DE ESCENAS PAPER-CUT 2.5D (8-9 ESCENAS DINÁMICAS POR VIDEO)
+# ==============================================================================
+
+SCENE_TYPES_SEQUENCE = [
+    "panorama_geografico",
+    "mapa_cartografico",
+    "suceso_impacto",
+    "instrumentos_anomalia",
+    "corte_estratos",
+    "cronica_expediente",
+    "mito_vs_ciencia",
+    "cierre_medalla",
+]
 
 
-def draw_oceanic_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza diorama náutico/marítimo de papel recortado con olas dinámicas y navío."""
-    # Fondo azul marino abisal con sonar
-    draw.rectangle([(0, 0), (w, h)], fill=(12, 33, 49))
-    grid_col = (18, 48, 71)
-    for y in range(0, h, 60):
-        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
-    for x in range(0, w, 60):
-        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
+def _extract_badge_from_text(text: str, scene_idx: int, title: str) -> tuple[str, str]:
+    """Extrae el año histórico, cifra, coordenada o institución clave de la oración para el Badge 2.5D."""
+    # 1. Buscar año de 4 dígitos (1400 - 2035)
+    m_year = re.search(r"\b(1[4-9]\d{2}|20[0-3]\d)\b", text)
+    if m_year:
+        yr = m_year.group(1)
+        return yr, "AÑO DOCUMENTADO"
 
-    # Placa superior
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(6, 18, 28))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(16, 44, 66), outline=(56, 189, 248), width=2)
-    draw.text((px1 + 25, py1 + 16), "EXPLORACIÓN // OCÉANO & PUNTOS REMOTOS", fill=(56, 189, 248))
-    draw.text((px1 + 25, py1 + 46), (title or "Misterio Oceánico")[:38].upper(), fill=(241, 245, 249))
+    # 2. Buscar medida o cifra con unidad
+    m_metric = re.search(r"\b(\d+(?:[.,]\d+)?)\s*(km|metros|m\b|toneladas|años|grados|paralelo|niveles)", text, re.IGNORECASE)
+    if m_metric:
+        val = m_metric.group(1)
+        unit = m_metric.group(2).upper()
+        return f"{val} {unit[:3]}", "MEDICIÓN REAL"
 
-    cx = w // 2
-    cy = int(h * 0.52)
+    # 3. Buscar siglas o instituciones reales
+    for inst, lbl in (
+        ("PEMEX", "PROSPECCIÓN"),
+        ("NASA", "AGENCIA ESPACIAL"),
+        ("UNAM", "INVESTIGACIÓN"),
+        ("INAH", "ARQUEOLOGÍA"),
+        ("INECOL", "RESERVA BIOSFERA"),
+        ("LIDAR", "ESCANEO LÁSER"),
+        ("ATHENA", "PROYECTIL V-123"),
+        ("ALLENDE", "CONDRO METEORITO"),
+        ("MAPIMÍ", "PARALELO 27° N"),
+    ):
+        if inst.lower() in text.lower() or inst.lower() in title.lower():
+            return inst, lbl
 
-    # Olas en capas de papel recortado (4 niveles escalonados)
-    wave_layers = [
-        ((14, 116, 144), cy + 120, 0.0),
-        ((12, 74, 96), cy + 70, 1.2),
-        ((8, 51, 68), cy + 20, 2.4),
-        ((6, 38, 52), cy - 30, 3.6),
+    defaults = [
+        ("27° N", "LATITUD CRÍTICA"),
+        ("ACT 02", "CARTOGRAFÍA"),
+        ("1970", "REGISTRO OFICIAL"),
+        ("MAG-01", "TELEMETRÍA"),
+        ("ESTRATO", "SUBSUELO"),
+        ("ARCHIVO", "FUENTE PRIMARIA"),
+        ("CIENCIA", "VERIFICACIÓN"),
+        ("DEBATE", "CONCLUSIÓN"),
     ]
-    for col, base_y, phase in reversed(wave_layers):
-        pts = [(0, h)]
-        step = 40
-        for x in range(0, w + step, step):
-            wave_y = int(base_y + math.sin(t * 2.5 + phase + x * 0.015) * 16)
-            pts.append((x, wave_y))
-        pts.append((w, h))
-        draw.polygon(pts, fill=col)
-        # Borde blanco de espuma en la cresta de papel
-        crest = [pts[1]]
-        for p in pts[1:-1]:
-            crest.append((p[0], p[1] - 2))
-        for p in reversed(pts[1:-1]):
-            crest.append((p[0], p[1] + 3))
-        draw.polygon(crest, fill=(255, 255, 255))
-
-    # Barco / Elemento central estilo sticker con sombra y borde blanco
-    ship_y = cy - 40 + int(math.sin(t * 2.8) * 12)
-    ship_rot = math.sin(t * 2.0) * 0.08
-    # Casco
-    draw.polygon([(cx - 140, ship_y), (cx + 140, ship_y), (cx + 90, ship_y + 60), (cx - 90, ship_y + 60)], fill=(255, 255, 255))
-    draw.polygon([(cx - 134, ship_y + 3), (cx + 134, ship_y + 3), (cx + 86, ship_y + 56), (cx - 86, ship_y + 56)], fill=(225, 29, 72))
-    # Mástiles
-    draw.line([(cx, ship_y), (cx, ship_y - 120)], fill=(255, 255, 255), width=6)
-    draw.line([(cx, ship_y), (cx, ship_y - 120)], fill=(245, 158, 11), width=4)
-    draw.polygon([(cx, ship_y - 110), (cx + 80, ship_y - 70), (cx, ship_y - 30)], fill=(255, 255, 255))
-    draw.polygon([(cx + 2, ship_y - 106), (cx + 74, ship_y - 70), (cx + 2, ship_y - 34)], fill=(241, 245, 249))
-
-    # Cota técnica
-    draw.rectangle([(cx - 120, cy + 180), (cx + 120, cy + 225)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 117, cy + 183), (cx + 117, cy + 222)], fill=(15, 23, 42))
-    draw.text((cx - 100, cy + 194), "PROFUNDIDAD: >4,000 m", fill=(56, 189, 248))
+    return defaults[scene_idx % len(defaults)]
 
 
-def draw_geological_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza diorama de geología profunda, volcanes, cavernas y abismos."""
-    # Fondo cálido ocre volcánico
-    draw.rectangle([(0, 0), (w, h)], fill=(28, 18, 13))
-    grid_col = (44, 28, 20)
-    for y in range(0, h, 60):
+def _classify_scene_type(scene_text: str, scene_idx: int, total_scenes: int) -> str:
+    """Selecciona la composición visual 2.5D para cada escena sin repetir dos escenas seguidas iguales."""
+    if scene_idx == 0:
+        return "panorama_geografico"
+    if scene_idx == total_scenes - 1:
+        return "cierre_medalla"
+
+    low = scene_text.lower()
+    if any(k in low for k in ("cohete", "athena", "meteorito", "allende", "estrelló", "colisionó", "cayó", "impacto", "proyectil", "lanzado", "explosión", "cobalto")):
+        return "suceso_impacto"
+    if any(k in low for k in ("radio", "brújula", "magnétic", "señal", "onda", "giroscopio", "transmisión", "frecuencia", "instrumento")):
+        return "instrumentos_anomalia"
+    if any(k in low for k in ("subsuelo", "magnetita", "hierro", "mineral", "estrato", "túnel", "bajo tierra", "cueva", "cristal", "mercurio", "excavación", "arena")):
+        return "corte_estratos"
+    if any(k in low for k in ("mito", "leyenda", "ufólogo", "folclore", "teoría", "ciencia", "explicación", "contraste", "realidad")):
+        return "mito_vs_ciencia"
+    if any(k in low for k in ("mapa", "ubicad", "paralelo", "frontera", "kilómetros", "desierto", "vértice", "coordenada", "región", "ruta")):
+        return "mapa_cartografico"
+    if any(k in low for k in ("ingeniero", "investigador", "arqueólogo", "equipo", "informe", "archivo", "crónica", "documento", "registro", "von braun", "peña")):
+        return "cronica_expediente"
+
+    return SCENE_TYPES_SEQUENCE[scene_idx % len(SCENE_TYPES_SEQUENCE)]
+
+
+def parse_narration_into_diorama_scenes(narration: str, total_duration: float, title: str) -> list[dict[str, Any]]:
+    """Divide cualquier guion en escenas dinámicas de 4.5 a 7.5 segundos (12 a 22 escenas) con 16 arquetipos temáticos sin repetición."""
+    try:
+        from studio.opuscar.scene_archetypes import split_into_dynamic_scenes
+        return split_into_dynamic_scenes(narration, total_duration, title)
+    except Exception as e_split:
+        logger.warning(f"Fallback en split_into_dynamic_scenes: {e_split}")
+
+    raw_paras = [p.strip() for p in re.split(r"\n\s*\n", (narration or "").strip()) if p.strip()]
+    if len(raw_paras) < 6:
+        # Dividir por oraciones para garantizar entre 7 y 9 cambios de escena dinámicos
+        sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+", (narration or "").strip()) if s.strip()]
+        if len(sents) >= 6:
+            raw_paras = sents
+        elif not raw_paras:
+            raw_paras = [title or "Investigación Documental"]
+
+    total_words = sum(max(1, len(p.split())) for p in raw_paras)
+    scenes: list[dict[str, Any]] = []
+    cur_t = 0.0
+    used_types: list[str] = []
+
+    for idx, p_text in enumerate(raw_paras):
+        w_count = max(1, len(p_text.split()))
+        dur = (w_count / float(total_words)) * total_duration if idx < len(raw_paras) - 1 else max(0.5, total_duration - cur_t)
+        s_type = _classify_scene_type(p_text, idx, len(raw_paras))
+        if s_type in used_types:
+            # Garantizar que las 8 escenas utilicen composiciones Paper-Cut 2.5D 100% distintas
+            for alt in SCENE_TYPES_SEQUENCE:
+                if alt not in used_types:
+                    s_type = alt
+                    break
+            else:
+                for alt in SCENE_TYPES_SEQUENCE:
+                    if not used_types or alt != used_types[-1]:
+                        s_type = alt
+                        break
+        used_types.append(s_type)
+        b_num, b_lbl = _extract_badge_from_text(p_text, idx, title)
+
+        # Resumen corto para la cintilla técnica inferior
+        clean_summary = re.sub(r"^[¿¡]+", "", p_text).split(".")[0].split("?")[0].strip()
+        if len(clean_summary) > 54:
+            clean_summary = clean_summary[:51] + "..."
+
+        scenes.append({
+            "index": idx + 1,
+            "total": len(raw_paras),
+            "text": p_text,
+            "summary": clean_summary.upper(),
+            "t_start": cur_t,
+            "t_end": cur_t + dur,
+            "duration": dur,
+            "scene_type": s_type,
+            "badge_num": b_num,
+            "badge_label": b_lbl,
+        })
+        cur_t += dur
+
+    return scenes
+
+
+def _draw_sticker_card(
+    draw: ImageDraw.ImageDraw,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    fill: tuple[int, int, int],
+    outline: Optional[tuple[int, int, int]] = None,
+    radius: int = 22,
+    border_w: int = 6,
+    shadow_offset: int = 10,
+):
+    """Dibuja una pieza de papel recortado 2.5D con sombra proyectada y borde blanco tipo sticker."""
+    # 1. Sombra 2.5D
+    draw.rounded_rectangle(
+        [(x1 + shadow_offset, y1 + shadow_offset), (x2 + shadow_offset, y2 + shadow_offset)],
+        radius=radius,
+        fill=(195, 180, 155),
+    )
+    # 2. Borde blanco grueso de recorte de papel
+    draw.rounded_rectangle(
+        [(x1 - border_w, y1 - border_w), (x2 + border_w, y2 + border_w)],
+        radius=radius + 4,
+        fill=(255, 255, 255),
+    )
+    # 3. Cuerpo del sticker
+    draw.rounded_rectangle(
+        [(x1, y1), (x2, y2)],
+        radius=radius,
+        fill=fill,
+        outline=outline,
+        width=3 if outline else 0,
+    )
+
+
+def _draw_paper_cloud(draw: ImageDraw.ImageDraw, cx: int, cy: int, scale: float = 1.0):
+    r1, r2, r3 = int(42 * scale), int(32 * scale), int(28 * scale)
+    off = int(38 * scale)
+    # Sombra
+    for dx, r in ((0, r1), (off, r2), (-off, r3)):
+        draw.ellipse([(cx + dx - r + 5, cy - r + 8), (cx + dx + r + 5, cy + r + 8)], fill=(215, 202, 180))
+    # Nube blanca
+    for dx, r in ((0, r1), (off, r2), (-off, r3)):
+        draw.ellipse([(cx + dx - r, cy - r), (cx + dx + r, cy + r)], fill=(255, 255, 255))
+
+
+def _draw_craft_background_and_hud(
+    draw: ImageDraw.ImageDraw,
+    w: int,
+    h: int,
+    t: float,
+    duration: float,
+    title: str,
+    scene: dict[str, Any],
+    local_p: float,
+):
+    """Dibuja el fondo de papel artesanal, cuadrícula milimétrica, nubes, placa superior, badge 2.5D y cintilla."""
+    # 1. Fondo papel cálido artesanal
+    draw.rectangle([(0, 0), (w, h)], fill=(248, 240, 224))
+    grid_col = (230, 218, 196)
+    for y in range(0, h, 80):
         draw.line([(0, y), (w, y)], fill=grid_col, width=1)
-    for x in range(0, w, 60):
+    for x in range(0, w, 80):
         draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
 
-    # Placa superior
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(12, 7, 5))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(45, 24, 16), outline=(249, 115, 22), width=2)
-    draw.text((px1 + 25, py1 + 16), "GEOLOGÍA // ABISMOS & PROFUNDIDADES TERRESTRES", fill=(249, 115, 22))
-    draw.text((px1 + 25, py1 + 46), (title or "Enigma Geológico")[:38].upper(), fill=(254, 243, 199))
+    # Nubes paper-cut en movimiento continuo
+    c1_x = int(((t * 24) % (w + 320)) - 160)
+    c2_x = int((((t * 17) + 520) % (w + 320)) - 160)
+    _draw_paper_cloud(draw, c1_x, 355, 1.05)
+    _draw_paper_cloud(draw, c2_x, 465, 0.80)
 
-    cx = w // 2
-    cy = int(h * 0.52)
-
-    # Estratos rocosos en capas paper-cut
-    strata = [
-        ((120, 53, 15), cy + 160),
-        ((154, 52, 18), cy + 80),
-        ((180, 83, 9), cy),
-        ((217, 119, 6), cy - 80),
-    ]
-    for col, sy in strata:
-        # Silueta dentada de roca con borde blanco
-        draw.rectangle([(cx - int(w * 0.44) - 4, sy - 4), (cx + int(w * 0.44) + 4, sy + 64)], fill=(255, 255, 255))
-        draw.rectangle([(cx - int(w * 0.44), sy), (cx + int(w * 0.44), sy + 60)], fill=col)
-
-    # Pozo central / Falla vertical luminosa
-    pulse = 0.5 + 0.5 * math.sin(t * 4.0)
-    draw.rectangle([(cx - 38, cy - 140), (cx + 38, cy + 200)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 32, cy - 136), (cx + 32, cy + 196)], fill=(15, 23, 42))
-    draw.rectangle([(cx - 16, cy - 130), (cx + 16, cy + 190)], fill=(int(249 + 6 * pulse), int(115 * pulse), 22))
-
-    # Cota técnica
-    draw.rectangle([(cx - 120, cy + 215), (cx + 120, cy + 260)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 117, cy + 218), (cx + 117, cy + 257)], fill=(15, 23, 42))
-    draw.text((cx - 100, cy + 228), "SONDEO: 12,262 m // +180°C", fill=(251, 146, 60))
+    # 3. Badge de Año / Medición en esquina superior derecha con pop-in easeOutBack
+    pop = _ease_out_back(_clamp(local_p * 2.2, 0.0, 1.0))
+    if pop > 0.05:
+        bw = int(135 * pop)
+        bh = int(52 * pop)
+        bx, by = w - 195, 120
+        _draw_sticker_card(draw, bx - bw, by - bh, bx + bw, by + bh, fill=(15, 23, 42), outline=(245, 158, 11), radius=20, border_w=5, shadow_offset=7)
+        if pop > 0.65:
+            f_bnum = _load_font(36, bold=True)
+            f_blbl = _load_font(14, bold=True)
+            b_num = scene["badge_num"]
+            b_lbl = scene["badge_label"]
+            nw = draw.textlength(b_num, font=f_bnum)
+            lw = draw.textlength(b_lbl, font=f_blbl)
+            draw.text((bx - nw / 2, by - 36), b_num, fill=(251, 191, 36), font=f_bnum)
+            draw.text((bx - lw / 2, by + 12), b_lbl, fill=(148, 163, 184), font=f_blbl)
 
 
-def draw_cosmic_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza diorama cósmico / astronómico con anillos orbitales y astros."""
-    # Fondo espacio profundo
-    draw.rectangle([(0, 0), (w, h)], fill=(8, 10, 24))
-    # Estrellas de papel
-    for i in range(25):
-        sx = int((i * 137.5) % w)
-        sy = int((i * 219.3) % h)
-        twinkle = int(180 + 75 * math.sin(t * 3.0 + i))
-        draw.ellipse([(sx - 2, sy - 2), (sx + 2, sy + 2)], fill=(twinkle, twinkle, 255))
+def _draw_scene_1_panorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 1: Panorama Multicapa Paper-Cut adaptado al bioma o monumento del tema."""
+    cx, cy = w // 2, int(h * 0.52)
+    low = (title + " " + scene["text"]).lower()
 
-    # Placa superior
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(4, 6, 16))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(15, 23, 42), outline=(168, 85, 247), width=2)
-    draw.text((px1 + 25, py1 + 16), "ASTRONOMÍA // ENIGMAS DEL ESPACIO PROFUNDO", fill=(192, 132, 252))
-    draw.text((px1 + 25, py1 + 46), (title or "Enigma Cósmico")[:38].upper(), fill=(243, 232, 255))
+    # Marco del diorama central
+    dw, dh = max(40, int(420 * pop)), max(32, int(340 * pop))
 
-    cx = w // 2
-    cy = int(h * 0.50)
+    is_desert = any(k in low for k in ("desierto", "durango", "silencio", "mapim", "sahara", "duna", "coahuila", "chihuahua", "arena"))
+    is_water = any(k in low for k in ("isla", "xochimilco", "muñeca", "mar", "océano", "barco", "agua", "canal", "laguna", "nemo"))
+    is_maya = any(k in low for k in ("maya", "pirámide", "teotihuac", "cholula", "campeche", "valeriana", "templo", " arqueol", "tzompantli"))
 
-    # Anillos orbitales en perspectiva
-    for r, col, lw in [(260, (147, 51, 234), 4), (200, (192, 132, 252), 6), (140, (232, 121, 249), 4)]:
-        draw.arc([(cx - r, cy - r // 2), (cx + r, cy + r // 2)], start=0, end=360, fill=(255, 255, 255), width=lw + 4)
-        draw.arc([(cx - r, cy - r // 2), (cx + r, cy + r // 2)], start=0, end=360, fill=col, width=lw)
+    # Sol / Cielo circular en relieve paper-cut
+    sun_r = int(145 * pop)
+    sun_y = cy - int(150 * pop)
+    # Anillos de campo magnético / ondas solares
+    for ring_i in range(3, 0, -1):
+        rr = sun_r + ring_i * 34 + int(math.sin(t * 3.0 + ring_i) * 8)
+        draw.ellipse([(cx - rr, sun_y - rr), (cx + rr, sun_y + rr)], outline=(245, 158, 11) if is_desert else (56, 189, 248), width=3)
+    draw.ellipse([(cx - sun_r - 6, sun_y - sun_r - 6), (cx + sun_r + 6, sun_y + sun_r + 6)], fill=(255, 255, 255))
+    draw.ellipse([(cx - sun_r, sun_y - sun_r), (cx + sun_r, sun_y + sun_r)], fill=(251, 191, 36) if is_desert else (217, 119, 6))
 
-    # Cuerpo celeste central con sombra y borde blanco
-    pulse = math.sin(t * 2.5) * 6
-    draw.ellipse([(cx - 100 - 6, cy - 100 - 6), (cx + 100 + 6, cy + 100 + 6)], fill=(255, 255, 255))
-    draw.ellipse([(cx - 96, cy - 96), (cx + 96, cy + 96)], fill=(88, 28, 135))
-    draw.ellipse([(cx - 70 + pulse, cy - 70 + pulse), (cx + 70 + pulse, cy + 70 + pulse)], fill=(126, 34, 206))
+    if is_desert:
+        # Mesetas del Bolsón de Mapimí y Dunas en 3 capas paper-cut
+        # Meseta trasera
+        m_y = cy + int(20 * pop)
+        pts_mesa = [(cx - 340, m_y + 180), (cx - 260, m_y - 70), (cx - 40, m_y - 70), (cx + 30, m_y + 180)]
+        draw.polygon([(x, y - 6) for x, y in pts_mesa], fill=(255, 255, 255))
+        draw.polygon(pts_mesa, fill=(180, 83, 9))
 
-    # Cota técnica
-    draw.rectangle([(cx - 120, cy + 180), (cx + 120, cy + 225)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 117, cy + 183), (cx + 117, cy + 222)], fill=(15, 23, 42))
-    draw.text((cx - 100, cy + 194), "RETÍCULA: ENIGMA CÓSMICO", fill=(216, 180, 254))
+        pts_mesa2 = [(cx + 10, m_y + 180), (cx + 80, m_y - 95), (cx + 270, m_y - 95), (cx + 350, m_y + 180)]
+        draw.polygon([(x, y - 6) for x, y in pts_mesa2], fill=(255, 255, 255))
+        draw.polygon(pts_mesa2, fill=(154, 52, 18))
 
+        # Dunas escalonadas con borde blanco sticker
+        for dy_off, col in ((90, (217, 119, 6)), (160, (245, 158, 11)), (230, (251, 191, 36))):
+            wave = int(math.sin(t * 2.0 + dy_off * 0.02) * 10)
+            y_top = cy + dy_off + wave
+            draw.ellipse([(cx - 460, y_top - 6), (cx + 460, y_top + 210)], fill=(255, 255, 255))
+            draw.ellipse([(cx - 454, y_top), (cx + 454, y_top + 204)], fill=col)
 
-def draw_architectural_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza diorama de monumentos arquitectónicos históricos."""
-    # Fondo plano arquitectónico cálido
-    draw.rectangle([(0, 0), (w, h)], fill=(248, 245, 235))
-    grid_col = (230, 220, 205)
-    for y in range(0, h, 60):
-        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
-    for x in range(0, w, 60):
-        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
+        # Cactus Saguaro Paper-Cut Stickers a los lados
+        for c_x, c_scale, phase in ((cx - 270, 1.0, 0.0), (cx + 275, 0.9, 1.5), (cx - 110, 0.75, 0.8)):
+            sway = int(math.sin(t * 2.4 + phase) * 5)
+            c_y = cy + int(150 * c_scale)
+            ch = int(130 * c_scale)
+            cw = int(22 * c_scale)
+            # Borde blanco
+            draw.rounded_rectangle([(c_x - cw - 5 + sway, c_y - ch - 5), (c_x + cw + 5 + sway, c_y + 10)], radius=14, fill=(255, 255, 255))
+            draw.rounded_rectangle([(c_x - cw * 3 - 4 + sway, c_y - int(ch * 0.65) - 4), (c_x + cw * 3 + 4 + sway, c_y - int(ch * 0.45) + 4)], radius=10, fill=(255, 255, 255))
+            # Verde cactus
+            draw.rounded_rectangle([(c_x - cw + sway, c_y - ch), (c_x + cw + sway, c_y + 5)], radius=11, fill=(22, 163, 74))
+            draw.rounded_rectangle([(c_x - cw * 3 + sway, c_y - int(ch * 0.65)), (c_x + cw * 3 + sway, c_y - int(ch * 0.45))], radius=8, fill=(21, 128, 61))
 
-    # Placa superior
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(195, 185, 170))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(67, 56, 202), width=2)
-    draw.text((px1 + 25, py1 + 16), "ARQUITECTURA // MONUMENTOS HISTÓRICOS", fill=(67, 56, 202))
-    draw.text((px1 + 25, py1 + 46), (title or "Monumento Histórico")[:38].upper(), fill=(15, 23, 42))
+        # Torre de Telemetría / Antena en el centro
+        draw.polygon([(cx - 45, cy + 160), (cx, cy - 30), (cx + 45, cy + 160)], fill=(255, 255, 255))
+        draw.polygon([(cx - 38, cy + 158), (cx, cy - 22), (cx + 38, cy + 158)], fill=(30, 41, 59))
+        beacon_r = 12 + int(math.sin(t * 8.0) * 4)
+        draw.ellipse([(cx - beacon_r, cy - 30 - beacon_r), (cx + beacon_r, cy - 30 + beacon_r)], fill=(239, 68, 68), outline=(255, 255, 255), width=3)
 
-    cx = w // 2
-    cy = int(h * 0.52)
+    elif is_water:
+        # Olas multicapa + Isla / Navío Paper-Cut
+        for dy_off, col in ((60, (14, 116, 144)), (130, (8, 145, 178)), (200, (6, 182, 212))):
+            wave = int(math.sin(t * 2.5 + dy_off * 0.03) * 14)
+            y_top = cy + dy_off + wave
+            draw.ellipse([(cx - 470, y_top - 6), (cx + 470, y_top + 220)], fill=(255, 255, 255))
+            draw.ellipse([(cx - 464, y_top), (cx + 464, y_top + 214)], fill=col)
+        # Isla / Trajinera central
+        by = cy + 30 + int(math.sin(t * 2.6) * 10)
+        draw.polygon([(cx - 170, by), (cx + 170, by), (cx + 120, by + 70), (cx - 120, by + 70)], fill=(255, 255, 255))
+        draw.polygon([(cx - 162, by + 4), (cx + 162, by + 4), (cx + 114, by + 64), (cx - 114, by + 64)], fill=(180, 83, 9))
+        draw.rounded_rectangle([(cx - 110, by - 85), (cx + 110, by + 4)], radius=18, fill=(22, 163, 74), outline=(255, 255, 255), width=5)
 
-    # Pedestal base
-    draw.rectangle([(cx - int(w * 0.42) - 4, cy + 120 - 4), (cx + int(w * 0.42) + 4, cy + 180 + 4)], fill=(255, 255, 255))
-    draw.rectangle([(cx - int(w * 0.42), cy + 120), (cx + int(w * 0.42), cy + 180)], fill=(203, 213, 225))
+    elif is_maya:
+        # Pirámide escalonada en 5 niveles con selva paper-cut
+        draw.ellipse([(cx - 460, cy + 90), (cx + 460, cy + 340)], fill=(255, 255, 255))
+        draw.ellipse([(cx - 454, cy + 96), (cx + 454, cy + 334)], fill=(21, 128, 61))
+        for lvl in range(5):
+            pw = 280 - lvl * 46
+            py_top = cy + 110 - (lvl + 1) * 48
+            _draw_sticker_card(draw, cx - pw, py_top, cx + pw, py_top + 46, fill=(226, 232, 240), outline=(148, 163, 184), radius=8, border_w=4, shadow_offset=6)
+            draw.rectangle([(cx - 28, py_top), (cx + 28, py_top + 46)], fill=(148, 163, 184))
 
-    # Columnata monumental (6 columnas)
-    num_cols = 6
-    col_w = 32
-    span = int(w * 0.72)
-    start_x = cx - span // 2
-    for i in range(num_cols):
-        col_x = start_x + int(i * (span - col_w) / (num_cols - 1))
-        draw.rectangle([(col_x - 3, cy - 90 - 3), (col_x + col_w + 3, cy + 120 + 3)], fill=(255, 255, 255))
-        draw.rectangle([(col_x, cy - 90), (col_x + col_w, cy + 120)], fill=(241, 245, 249), outline=(148, 163, 184), width=2)
-
-    # Entablamento y frontón triangular superior
-    draw.rectangle([(cx - int(w * 0.40) - 4, cy - 130 - 4), (cx + int(w * 0.40) + 4, cy - 90 + 4)], fill=(255, 255, 255))
-    draw.rectangle([(cx - int(w * 0.40), cy - 130), (cx + int(w * 0.40), cy - 90)], fill=(226, 232, 240))
-    # Frontón
-    draw.polygon([(cx - int(w * 0.40) - 4, cy - 130), (cx, cy - 220 - 4), (cx + int(w * 0.40) + 4, cy - 130)], fill=(255, 255, 255))
-    draw.polygon([(cx - int(w * 0.40), cy - 130), (cx, cy - 220), (cx + int(w * 0.40), cy - 130)], fill=(203, 213, 225))
-
-    # Cota técnica
-    draw.rectangle([(cx - 120, cy + 200), (cx + 120, cy + 245)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 117, cy + 203), (cx + 117, cy + 242)], fill=(15, 23, 42))
-    draw.text((cx - 100, cy + 214), "ESTRUCTURA PATRIMONIAL", fill=(129, 140, 248))
-
-
-def draw_mystery_archive_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza diorama de expediente clasificado, crímenes, conspiraciones y misterios."""
-    # Fondo pergamino / archivo militar
-    draw.rectangle([(0, 0), (w, h)], fill=(246, 241, 230))
-    grid_col = (230, 220, 205)
-    for y in range(0, h, 60):
-        draw.line([(0, y), (w, y)], fill=grid_col, width=1)
-    for x in range(0, w, 60):
-        draw.line([(x, 0), (x, h)], fill=grid_col, width=1)
-
-    # Placa superior
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(190, 180, 165))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(220, 38, 38), width=2)
-    draw.text((px1 + 25, py1 + 16), "EXPEDIENTE INVESTIGADO // CLASIFICADO", fill=(220, 38, 38))
-    draw.text((px1 + 25, py1 + 46), (title or "Caso Sin Resolver")[:38].upper(), fill=(15, 23, 42))
-
-    cx = w // 2
-    cy = int(h * 0.52)
-
-    # Carpeta de expediente inclinada con borde blanco
-    rot_angle = math.sin(t * 1.5) * 2.0
-    f_w, f_h = int(w * 0.68), 280
-    fx1, fy1 = cx - f_w // 2, cy - f_h // 2
-    draw.rectangle([(fx1 - 6, fy1 - 6), (fx1 + f_w + 6, fy1 + f_h + 6)], fill=(255, 255, 255))
-    draw.rectangle([(fx1, fy1), (fx1 + f_w, fy1 + f_h)], fill=(217, 119, 6), outline=(180, 83, 9), width=3)
-
-    # Sello CONFIDENCIAL en rojo
-    draw.rectangle([(cx - 130, cy - 40), (cx + 130, cy + 20)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 126, cy - 36), (cx + 126, cy + 16)], fill=(220, 38, 38))
-    draw.text((cx - 100, cy - 20), "CONFIDENCIAL // CLASIFICADO", fill=(255, 255, 255))
-
-    # Lupa de investigación / Disco criptográfico giratorio
-    dial_r = 85
-    dial_angle = t * 1.8
-    dx = cx + int(math.cos(dial_angle) * 30)
-    dy = cy + 90
-    draw.ellipse([(dx - dial_r - 4, dy - dial_r - 4), (dx + dial_r + 4, dy + dial_r + 4)], fill=(255, 255, 255))
-    draw.ellipse([(dx - dial_r, dy - dial_r), (dx + dial_r, dy + dial_r)], fill=(241, 245, 249), outline=(100, 116, 139), width=3)
-    draw.line([(dx, dy - dial_r + 5), (dx, dy + dial_r - 5)], fill=(220, 38, 38), width=3)
-    draw.line([(dx - dial_r + 5, dy), (dx + dial_r - 5, dy)], fill=(220, 38, 38), width=3)
-
-    # Cota técnica
-    draw.rectangle([(cx - 120, cy + 215), (cx + 120, cy + 260)], fill=(255, 255, 255))
-    draw.rectangle([(cx - 117, cy + 218), (cx + 117, cy + 257)], fill=(15, 23, 42))
-    draw.text((cx - 100, cy + 228), "ESTADO: EN INVESTIGACIÓN", fill=(239, 68, 68))
-
-
-def draw_paper_cutout_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza diorama procedural paper-cut adaptado automáticamente a CUALQUIER temática."""
-    archetype = detect_diorama_archetype(title)
-    if archetype == "ojo_sahara":
-        draw_ojo_sahara_diorama(draw, w, h, t, duration, title)
-    elif archetype == "chapultepec":
-        draw_chapultepec_diorama(draw, w, h, t, duration, title)
-    elif archetype == "mayan":
-        draw_mayan_diorama(draw, w, h, t, duration, title)
-    elif archetype == "oceanic":
-        draw_oceanic_diorama(draw, w, h, t, duration, title)
-    elif archetype == "geological":
-        draw_geological_diorama(draw, w, h, t, duration, title)
-    elif archetype == "cosmic":
-        draw_cosmic_diorama(draw, w, h, t, duration, title)
-    elif archetype == "architectural":
-        draw_architectural_diorama(draw, w, h, t, duration, title)
     else:
-        draw_mystery_archive_diorama(draw, w, h, t, duration, title)
+        # Cerro histórico + Fortaleza / Castillo Neoclásico + Bandera ondeando
+        draw.ellipse([(cx - 460, cy + 75), (cx + 460, cy + 345)], fill=(255, 255, 255))
+        draw.ellipse([(cx - 452, cy + 82), (cx + 452, cy + 338)], fill=(22, 163, 74))
+        _draw_sticker_card(draw, cx - 280, cy - 110, cx + 280, cy + 110, fill=(248, 250, 252), outline=(203, 213, 225), radius=18, border_w=6, shadow_offset=9)
+        _draw_sticker_card(draw, cx - 85, cy - 205, cx + 85, cy - 105, fill=(226, 232, 240), outline=(148, 163, 184), radius=12, border_w=5, shadow_offset=6)
+        for ax in range(cx - 210, cx + 220, 70):
+            draw.rounded_rectangle([(ax - 20, cy - 30), (ax + 20, cy + 75)], radius=14, fill=(30, 41, 59), outline=(255, 255, 255), width=2)
+        # Bandera tricolor ondeando
+        w_off = int(math.sin(t * 6.0) * 6)
+        draw.line([(cx, cy - 205), (cx, cy - 295)], fill=(71, 85, 105), width=6)
+        draw.rectangle([(cx + 3, cy - 295 + w_off), (cx + 33, cy - 240 + w_off)], fill=(22, 163, 74))
+        draw.rectangle([(cx + 33, cy - 295 + w_off), (cx + 63, cy - 240 + w_off)], fill=(255, 255, 255))
+        draw.rectangle([(cx + 63, cy - 295 + w_off), (cx + 93, cy - 240 + w_off)], fill=(220, 38, 38))
 
 
-def draw_mayan_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza el diorama de arqueología maya con pirámide escalonada y selva."""
-    bg_jungle = (8, 28, 21)
-    draw.rectangle([(0, 0), (w, h)], fill=bg_jungle)
+def _draw_scene_2_cartographic_map(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 2: Mapa Cartográfico en Pergamino 2.5D con Rosa de los Vientos, Paralelo y Ruta."""
+    # Pergamino principal
+    cx, cy = w // 2, int(h * 0.51)
+    mw, mh = max(40, int(390 * pop)), max(28, int(275 * pop))
 
-    # Placa superior
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(4, 15, 11))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(16, 44, 34), outline=(52, 211, 153), width=2)
-    draw.text((px1 + 25, py1 + 16), "ARQUEOLOGÍA PREHISPÁNICA // LIDAR EN CAMPECHE", fill=(52, 211, 153))
-    draw.text((px1 + 25, py1 + 46), (title or "Ciudad Maya")[:38].upper(), fill=(241, 245, 249))
+    # Pergamino principal
+    _draw_sticker_card(draw, cx - mw, cy - mh, cx + mw, cy + mh, fill=(254, 243, 199), outline=(217, 119, 6), radius=26, border_w=7, shadow_offset=12)
 
-    cx = w // 2
-    cy = int(h * 0.58)
+    # Curvas de nivel topográficas y paralelo geográfico
+    for r_i in range(1, 4):
+        rx, ry = int(mw * 0.25 * r_i), int(mh * 0.22 * r_i)
+        draw.ellipse([(cx - rx - 40, cy - ry + 10), (cx + rx - 40, cy + ry + 10)], outline=(245, 158, 11), width=2)
 
-    # Selva base
-    draw.ellipse([(cx - int(w * 0.46), cy + 40), (cx + int(w * 0.46), cy + 220)], fill=(27, 67, 50), outline=(255, 255, 255), width=3)
+    # Línea de Paralelo / Coordenada
+    draw.line([(cx - mw + 25, cy - 20), (cx + mw - 25, cy - 20)], fill=(180, 83, 9), width=3)
+    f_map = _load_font(18, bold=True)
+    draw.text((cx - mw + 38, cy - 48), "LATITUD // PARALELO DE INTERSECCIÓN GEOGRÁFICA", fill=(146, 64, 14), font=f_map)
 
-    # Pirámide escalonada en 5 niveles
-    steps = [
-        (220, 40, cy - 20),
-        (180, 36, cy - 56),
-        (140, 32, cy - 88),
-        (100, 28, cy - 116),
-        (60, 24, cy - 140),
+    # Trayectoria animada punteada y Pin de impacto
+    n_dots = 12
+    active_dots = int(((t * 1.4) % 1.0) * n_dots) + 3
+    for d_i in range(min(n_dots, active_dots)):
+        p_r = d_i / float(n_dots)
+        dx = int((cx - mw + 90) + p_r * (mw * 1.15))
+        dy = int((cy - mh + 95) + math.sin(p_r * 3.14) * 90)
+        draw.ellipse([(dx - 6, dy - 6), (dx + 6, dy + 6)], fill=(220, 38, 38), outline=(255, 255, 255), width=2)
+
+    # Punto de impacto pulsante
+    tx, ty = cx + 60, cy + 15
+    pulse_r = int(24 + 14 * abs(math.sin(t * 4.0)))
+    draw.ellipse([(tx - pulse_r, ty - pulse_r), (tx + pulse_r, ty + pulse_r)], outline=(220, 38, 38), width=4)
+    draw.ellipse([(tx - 14, ty - 14), (tx + 14, ty + 14)], fill=(220, 38, 38), outline=(255, 255, 255), width=4)
+
+    # Rosa de los vientos giratoria (abajo derecha del mapa)
+    comp_x, comp_y, comp_r = cx + mw - 105, cy + mh - 95, 62
+    draw.ellipse([(comp_x - comp_r - 4, comp_y - comp_r - 4), (comp_x + comp_r + 4, comp_y + comp_r + 4)], fill=(255, 255, 255))
+    draw.ellipse([(comp_x - comp_r, comp_y - comp_r), (comp_x + comp_r, comp_y + comp_r)], fill=(15, 23, 42), outline=(245, 158, 11), width=3)
+    ang = t * 1.8
+    nx = comp_x + int(math.cos(ang) * (comp_r - 12))
+    ny = comp_y + int(math.sin(ang) * (comp_r - 12))
+    sx = comp_x - int(math.cos(ang) * (comp_r - 12))
+    sy = comp_y - int(math.sin(ang) * (comp_r - 12))
+    draw.line([(sx, sy), (nx, ny)], fill=(239, 68, 68), width=5)
+    draw.ellipse([(comp_x - 6, comp_y - 6), (comp_x + 6, comp_y + 6)], fill=(255, 255, 255))
+
+    # Sello de lacre rojo
+    seal_x, seal_y = cx - mw + 115, cy + mh - 90
+    draw.ellipse([(seal_x - 56, seal_y - 56), (seal_x + 56, seal_y + 56)], fill=(255, 255, 255))
+    draw.ellipse([(seal_x - 50, seal_y - 50), (seal_x + 50, seal_y + 50)], fill=(185, 28, 28), outline=(251, 191, 36), width=3)
+    f_seal = _load_font(16, bold=True)
+    draw.text((seal_x - 36, seal_y - 18), "REGISTRO", fill=(254, 243, 199), font=f_seal)
+    draw.text((seal_x - 24, seal_y + 4), scene["badge_num"][:6], fill=(251, 191, 36), font=f_seal)
+
+
+def _draw_scene_3_impact_event(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 3: El Suceso Central en Acción (Cohete Athena / Meteorito Allende / Hallazgo Dinámico)."""
+    cx, cy = w // 2, int(h * 0.51)
+    rad = max(40, int(340 * pop))
+
+    # Portal circular de cielo nocturno profundo tipo sticker 2.5D
+    draw.ellipse([(cx - rad + 10, cy - rad + 12), (cx + rad + 10, cy + rad + 12)], fill=(190, 175, 150))
+    draw.ellipse([(cx - rad - 8, cy - rad - 8), (cx + rad + 8, cy + rad + 8)], fill=(255, 255, 255))
+    draw.ellipse([(cx - rad, cy - rad), (cx + rad, cy + rad)], fill=(15, 23, 42), outline=(56, 189, 248), width=4)
+
+    # Estrellas parpadeantes dentro del portal
+    for s_i in range(18):
+        ang = s_i * 1.9
+        dist = 70 + (s_i * 37) % (rad - 80)
+        sx = cx + int(math.cos(ang) * dist)
+        sy = cy + int(math.sin(ang) * dist)
+        r_s = 3 + (s_i % 3)
+        draw.ellipse([(sx - r_s, sy - r_s), (sx + r_s, sy + r_s)], fill=(254, 243, 199))
+
+    # Estela diagonal de descenso (Cohete / Meteorito / Objeto protagonista)
+    shift = int(math.sin(t * 3.2) * 24)
+    rx, ry = cx + 40 + shift, cy + 20 + shift
+
+    # Nubes de humo / plasma en papel recortado detrás de la trayectoria
+    for p_i in range(5, 0, -1):
+        px = rx - p_i * 42
+        py = ry - p_i * 38
+        pr = 26 + p_i * 7
+        draw.ellipse([(px - pr - 4, py - pr - 4), (px + pr + 4, py + pr + 4)], fill=(255, 255, 255))
+        draw.ellipse([(px - pr, py - pr), (px + pr, py + pr)], fill=(249, 115, 22) if p_i < 3 else (251, 191, 36))
+
+    # Cuerpo del Cohete Athena / Bólido con borde blanco sticker
+    body_pts = [(rx - 95, ry - 45), (rx - 45, ry - 95), (rx + 75, ry + 25), (rx + 25, ry + 75)]
+    nose_pts = [(rx + 75, ry + 25), (rx + 135, ry + 115), (rx + 25, ry + 75)]
+    draw.polygon([(x - 4, y - 4) for x, y in body_pts], fill=(255, 255, 255))
+    draw.polygon(body_pts, fill=(241, 245, 249), outline=(30, 41, 59), width=3)
+    draw.polygon(nose_pts, fill=(220, 38, 38), outline=(255, 255, 255), width=3)
+
+    # Ondas de choque concéntricas en el punto de impacto inferior
+    for w_i in range(1, 4):
+        wr = int(50 * w_i + ((t * 60) % 45))
+        draw.arc([(rx + 30 - wr, ry + 40 - wr // 2), (rx + 30 + wr, ry + 40 + wr // 2)], start=0, end=180, fill=(56, 189, 248), width=3)
+
+    # Etiqueta técnica flotante dentro de la escena
+    _draw_sticker_card(draw, cx - 230, cy + rad - 55, cx + 230, cy + rad + 25, fill=(220, 38, 38), outline=(255, 255, 255), radius=16, border_w=5, shadow_offset=7)
+    f_lbl = _load_font(22, bold=True)
+    lbl_txt = f"IMPACTO DOCUMENTADO • {scene['badge_num']}"
+    tw = draw.textlength(lbl_txt, font=f_lbl)
+    draw.text((cx - tw / 2, cy + rad - 28), lbl_txt, fill=(255, 255, 255), font=f_lbl)
+
+
+def _draw_scene_4_magnetic_instruments(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 4: Consola de Instrumentación, Brújula Magnética Descontrolada y Osciloscopio de Radio."""
+    cx, cy = w // 2, int(h * 0.51)
+    cw, ch = max(40, int(400 * pop)), max(28, int(270 * pop))
+
+    # Panel principal de telemetría
+    _draw_sticker_card(draw, cx - cw, cy - ch, cx + cw, cy + ch, fill=(15, 23, 42), outline=(56, 189, 248), radius=26, border_w=7, shadow_offset=12)
+
+    # 1. Brújula Magnética Gigante a la izquierda
+    bx, by, br = cx - int(cw * 0.45), cy - 15, int(145 * pop)
+    draw.ellipse([(bx - br - 5, by - br - 5), (bx + br + 5, by + br + 5)], fill=(255, 255, 255))
+    draw.ellipse([(bx - br, by - br), (bx + br, by + br)], fill=(30, 41, 59), outline=(245, 158, 11), width=4)
+
+    f_card = _load_font(20, bold=True)
+    draw.text((bx - 8, by - br + 12), "N", fill=(239, 68, 68), font=f_card)
+    draw.text((bx - 7, by + br - 34), "S", fill=(241, 245, 249), font=f_card)
+    draw.text((bx + br - 28, by - 12), "E", fill=(241, 245, 249), font=f_card)
+    draw.text((bx - br + 12, by - 12), "O", fill=(241, 245, 249), font=f_card)
+
+    # Aguja magnética girando con anomalía
+    needle_ang = t * 5.5 + math.sin(t * 9.0) * 1.4
+    nx = bx + int(math.cos(needle_ang) * (br - 32))
+    ny = by + int(math.sin(needle_ang) * (br - 32))
+    sx = bx - int(math.cos(needle_ang) * (br - 32))
+    sy = by - int(math.sin(needle_ang) * (br - 32))
+    draw.line([(bx, by), (nx, ny)], fill=(239, 68, 68), width=8)
+    draw.line([(bx, by), (sx, sy)], fill=(226, 232, 240), width=8)
+    draw.ellipse([(bx - 12, by - 12), (bx + 12, by + 12)], fill=(245, 158, 11), outline=(255, 255, 255), width=3)
+
+    # 2. Pantalla de Osciloscopio de Ondas de Radio a la derecha
+    ox1, oy1 = cx + 10, cy - int(ch * 0.68)
+    ox2, oy2 = cx + cw - 35, cy + int(ch * 0.25)
+    draw.rounded_rectangle([(ox1, oy1), (ox2, oy2)], radius=16, fill=(6, 18, 28), outline=(16, 185, 129), width=3)
+
+    mid_y = (oy1 + oy2) // 2
+    prev_pt = None
+    for x in range(ox1 + 14, ox2 - 14, 8):
+        # La onda se atenúa en la mitad derecha simulando bloqueo de señal de radio
+        rel_x = (x - ox1) / float(max(1, ox2 - ox1))
+        amp = 55.0 if rel_x < 0.5 else 8.0
+        wv = math.sin(x * 0.08 + t * 14.0) * amp * math.cos(t * 4.0)
+        pt = (x, int(mid_y + wv))
+        if prev_pt:
+            draw.line([prev_pt, pt], fill=(16, 185, 129) if rel_x < 0.5 else (239, 68, 68), width=4)
+        prev_pt = pt
+
+    f_osc = _load_font(17, bold=True)
+    draw.text((ox1 + 18, oy1 + 14), "SEÑAL RF // ANOMALÍA MAGNÉTICA", fill=(52, 211, 153), font=f_osc)
+
+    # Banda inferior de lectura instrumental
+    draw.rounded_rectangle([(cx + 10, oy2 + 22), (ox2, cy + ch - 35)], radius=14, fill=(30, 41, 59), outline=(245, 158, 11), width=2)
+    draw.text((cx + 28, oy2 + 42), "INTERFERENCIA: MAGNETITA + IONIZACIÓN", fill=(251, 191, 36), font=f_osc)
+
+
+def _draw_scene_5_strata_cutaway(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 5: Corte Transversal 2.5D de Estratos Subterráneos, Magnetita y Minerales."""
+    cx, cy = w // 2, int(h * 0.51)
+    sw = max(40, int(380 * pop))
+
+    layers = [
+        ("01 // SUPERFICIE Y CUENCA ÁRIDA", (217, 119, 6), -195),
+        ("02 // CONCENTRACIÓN DE MAGNETITA Y HIERRO", (180, 83, 9), -65),
+        ("03 // FÓSILES MARINOS Y SEDIMENTOS (MAR DE TETIS)", (120, 53, 15), 65),
+        ("04 // NÚCLEO DE ANOMALÍA GEOMAGNÉTICA", (30, 41, 59), 195),
     ]
-    for sw, sh, sy in steps:
-        draw.rectangle([(cx - sw, sy), (cx + sw, sy + sh)], fill=(203, 213, 225), outline=(255, 255, 255), width=2)
-        # Escalinata central
-        draw.rectangle([(cx - 20, sy), (cx + 20, sy + sh)], fill=(148, 163, 184))
+    f_lay = _load_font(20, bold=True)
 
-    # Templo superior
-    draw.rectangle([(cx - 30, cy - 180), (cx + 30, cy - 140)], fill=(241, 245, 249), outline=(52, 211, 153), width=3)
+    for idx, (lbl, col, y_off) in enumerate(layers):
+        breathe = int(math.sin(t * 2.5 + idx * 0.9) * 6)
+        ly1 = cy + y_off - 50 + breathe
+        ly2 = cy + y_off + 50 + breathe
+        _draw_sticker_card(draw, cx - sw, ly1, cx + sw, ly2, fill=col, outline=(255, 255, 255), radius=18, border_w=5, shadow_offset=8)
+        draw.text((cx - sw + 28, ly1 + 36), lbl, fill=(255, 255, 255), font=f_lay)
 
-    # Escaneo LiDAR dinámico
-    laser_y = int((cy - 200) + ((t * 0.8) % 1.0) * 320)
-    draw.line([(cx - 240, laser_y), (cx + 240, laser_y)], fill=(52, 211, 153), width=3)
-
-    # Glifos de jade flotantes
-    glyph_y = cy - 220 + int(math.sin(t * 3.0) * 8)
-    draw.rounded_rectangle([(cx - 90, glyph_y), (cx + 90, glyph_y + 36)], radius=10, fill=(6, 78, 59), outline=(52, 211, 153), width=2)
-    draw.text((cx - 70, glyph_y + 10), "VALERIANA • 6,674 ESTRUCTURAS", fill=(209, 250, 229))
+        # Nodos minerales brillantes a la derecha de cada estrato
+        node_x = cx + sw - 55
+        node_y = (ly1 + ly2) // 2
+        nr = 16 + int(math.sin(t * 5.0 + idx) * 4)
+        draw.ellipse([(node_x - nr, node_y - nr), (node_x + nr, node_y + nr)], fill=(56, 189, 248) if idx == 3 else (251, 191, 36), outline=(255, 255, 255), width=3)
 
 
-def draw_ojo_sahara_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza el diorama geológico de papel recortado del Ojo del Sahara (Estructura de Richat)."""
-    # 1. Fondo de arena del desierto con cuadrícula topográfica
-    bg_sand = (248, 241, 227)
-    grid_color = (230, 215, 190)
-    for y in range(0, h, 60):
-        draw.line([(0, y), (w, y)], fill=grid_color, width=1)
-    for x in range(0, w, 60):
-        draw.line([(x, 0), (x, h)], fill=grid_color, width=1)
+def _draw_scene_6_dossier_chronicle(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 6: Expediente Documental en 3 Tarjetas Paper-Cut Escalonadas."""
+    cx, cy = w // 2, int(h * 0.51)
+    cw = max(40, int(385 * pop))
 
-    # 2. Placa superior estilo paper-cut con borde blanco y sombra
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 5, py1 + 5), (px2 + 5, py2 + 5)], radius=18, fill=(205, 190, 165))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(180, 130, 80), width=2)
-    draw.text((px1 + 25, py1 + 16), "GEOLOGÍA // ESTRUCTURA DE RICHAT (MAURITANIA)", fill=(180, 83, 9))
-    draw.text((px1 + 25, py1 + 46), (title or "El Ojo del Sahara")[:38].upper(), fill=(15, 23, 42))
-
-    cx = w // 2
-    cy = int(h * 0.48)
-
-    # 3. Dunas del desierto en capas de papel recortado con sombras
-    dune_layers = [
-        (int(h * 0.76), (217, 119, 6), (180, 83, 9)),
-        (int(h * 0.70), (245, 158, 11), (217, 119, 6)),
-        (int(h * 0.64), (251, 191, 36), (245, 158, 11)),
+    cards = [
+        ("EXPEDIENTE DE CAMPO VERIFICADO", f"REGISTRO HISTÓRICO • {scene['badge_num']}", (185, 28, 28), -170),
+        ("PROTAGONISTAS E INSTITUCIONES", "EVIDENCIA DOCUMENTADA EN ARCHIVOS OFICIALES", (30, 58, 138), 0),
+        ("CRONOLOGÍA COMPROBADA", scene["summary"][:44], (6, 95, 70), 170),
     ]
-    for dy, d_fill, d_border in dune_layers:
-        wave = math.sin(t * 1.5 + dy * 0.01) * 8
-        draw.ellipse([(cx - int(w * 0.65), dy + int(wave)), (cx + int(w * 0.65), dy + 280 + int(wave))], fill=d_fill, outline=d_border, width=3)
+    f_h = _load_font(22, bold=True)
+    f_b = _load_font(17, bold=False)
 
-    # 4. Anillos concéntricos del Ojo del Sahara (Estructura de Richat - 40 km)
-    # Perspectiva elíptica 2.5D
-    rings = [
-        (260, 140, (146, 64, 14), "Cinturón de cuarcita exterior"),
-        (210, 112, (180, 83, 9), "Brecha hidrotermal"),
-        (160, 84, (217, 119, 6), "Estrato de dolomía"),
-        (110, 58, (14, 116, 144), "Depresión de basalto"),
-        (65, 34, (2, 132, 199), "Núcleo intrusivo central"),
-    ]
-    pulse = 1.0 + 0.02 * math.sin(t * 3.0)
-
-    # Sombra de la estructura completa
-    draw.ellipse([(cx - int(270 * pulse) + 8, cy - int(148 * pulse) + 8), (cx + int(270 * pulse) + 8, cy + int(148 * pulse) + 8)], fill=(195, 175, 150))
-    # Borde exterior blanco de sticker
-    draw.ellipse([(cx - int(274 * pulse), cy - int(152 * pulse)), (cx + int(274 * pulse), cy + int(152 * pulse))], fill=(255, 255, 255))
-
-    for rx, ry, r_color, _ in rings:
-        r_x = int(rx * pulse)
-        r_y = int(ry * pulse)
-        draw.ellipse([(cx - r_x, cy - r_y), (cx + r_x, cy + r_y)], fill=r_color, outline=(255, 255, 255), width=3)
-
-    # Centro de la estructura (domo)
-    draw.ellipse([(cx - 24, cy - 14), (cx + 24, cy + 14)], fill=(255, 255, 255))
-    draw.ellipse([(cx - 18, cy - 10), (cx + 18, cy + 10)], fill=(3, 105, 161))
-
-    # 5. Cota de medición satelital (Ø 40 km)
-    cota_y = cy + int(170 * pulse)
-    draw.line([(cx - 220, cota_y), (cx + 220, cota_y)], fill=(15, 23, 42), width=2)
-    draw.line([(cx - 220, cota_y - 10), (cx - 220, cota_y + 10)], fill=(15, 23, 42), width=2)
-    draw.line([(cx + 220, cota_y - 10), (cx + 220, cota_y + 10)], fill=(15, 23, 42), width=2)
-    draw.text((cx - 80, cota_y - 30), "DIÁMETRO: Ø 40 KM", fill=(15, 23, 42))
-
-    # 6. Escaneo orbital dinámico
-    scan_angle = t * 1.8
-    scan_x = cx + int(math.cos(scan_angle) * 230)
-    scan_y = cy + int(math.sin(scan_angle) * 120)
-    draw.line([(cx, cy), (scan_x, scan_y)], fill=(2, 132, 199), width=2)
-    draw.ellipse([(scan_x - 6, scan_y - 6), (scan_x + 6, scan_y + 6)], fill=(255, 255, 255), outline=(2, 132, 199), width=2)
-
-    # 7. Badge de coordenadas geográficas
-    bx1, by1 = cx - 180, int(h * 0.72)
-    bx2, by2 = cx + 180, by1 + 52
-    draw.rounded_rectangle([(bx1 + 3, by1 + 3), (bx2 + 3, by2 + 3)], radius=12, fill=(200, 185, 160))
-    draw.rounded_rectangle([(bx1 - 2, by1 - 2), (bx2 + 2, by2 + 2)], radius=14, fill=(255, 255, 255))
-    draw.rounded_rectangle([(bx1, by1), (bx2, by2)], radius=12, fill=(255, 253, 248), outline=(217, 119, 6), width=2)
-    draw.text((bx1 + 20, by1 + 16), "COORD: 21°07' N · 11°24' W", fill=(180, 83, 9))
+    for idx, (head, body, accent_col, y_off) in enumerate(cards):
+        c_pop = _ease_out_back(_clamp(pop * 1.4 - idx * 0.18, 0.0, 1.0))
+        if c_pop <= 0.05:
+            continue
+        w_i = int(cw * c_pop)
+        y1 = cy + y_off - 62
+        y2 = cy + y_off + 62
+        _draw_sticker_card(draw, cx - w_i, y1, cx + w_i, y2, fill=(255, 253, 248), outline=accent_col, radius=20, border_w=6, shadow_offset=9)
+        draw.rounded_rectangle([(cx - w_i + 18, y1 + 18), (cx - w_i + 32, y2 - 18)], radius=5, fill=accent_col)
+        draw.text((cx - w_i + 50, y1 + 24), head, fill=accent_col, font=f_h)
+        draw.text((cx - w_i + 50, y1 + 66), body, fill=(15, 23, 42), font=f_b)
 
 
-def draw_chapultepec_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    """Renderiza el diorama multicapa de papel recortado del Castillo de Chapultepec."""
-    bg_warm = (251, 245, 232)
-    grid_color = (235, 222, 198)
-    for y in range(0, h, 60): draw.line([(0, y), (w, y)], fill=grid_color, width=1)
-    for x in range(0, w, 60): draw.line([(x, 0), (x, h)], fill=grid_color, width=1)
+def _draw_scene_7_myth_vs_science(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 7: Comparativa Dual Paper-Cut (Mito Popular vs. Ciencia Comprobada)."""
+    cx, cy = w // 2, int(h * 0.51)
+    card_w = max(30, int(195 * pop))
+    card_h = max(38, int(245 * pop))
 
-    px1, py1 = 60, 60
-    px2, py2 = w - 60, 155
-    draw.rounded_rectangle([(px1 + 4, py1 + 4), (px2 + 4, py2 + 4)], radius=18, fill=(200, 190, 175))
-    draw.rounded_rectangle([(px1 - 3, py1 - 3), (px2 + 3, py2 + 3)], radius=21, fill=(255, 255, 255))
-    draw.rounded_rectangle([(px1, py1), (px2, py2)], radius=18, fill=(255, 253, 248), outline=(180, 130, 80), width=2)
-    draw.text((px1 + 25, py1 + 16), "HISTORIA DE MÉXICO // ALCÁZAR REAL", fill=(180, 83, 9))
-    draw.text((px1 + 25, py1 + 46), (title or "Castillo de Chapultepec")[:38].upper(), fill=(15, 23, 42))
+    # Tarjeta Izquierda: Mito y Leyenda
+    lx = cx - card_w - 22
+    _draw_sticker_card(draw, lx - card_w, cy - card_h, lx + card_w, cy + card_h, fill=(127, 29, 29), outline=(248, 113, 113), radius=24, border_w=6, shadow_offset=10)
+    # Tarjeta Derecha: Ciencia y Geología
+    rx = cx + card_w + 22
+    _draw_sticker_card(draw, rx - card_w, cy - card_h, rx + card_w, cy + card_h, fill=(6, 78, 59), outline=(52, 211, 153), radius=24, border_w=6, shadow_offset=10)
 
-    cx = w // 2
-    cy = int(h * 0.58)
+    f_t = _load_font(23, bold=True)
+    f_s = _load_font(17, bold=True)
 
-    # Cerro verde del Chapulín
-    draw.ellipse([(cx - int(w * 0.45) + 6, cy - 20 + 6), (cx + int(w * 0.45) + 6, cy + 180 + 6)], fill=(190, 180, 160))
-    draw.ellipse([(cx - int(w * 0.45) - 3, cy - 20 - 3), (cx + int(w * 0.45) + 3, cy + 180 + 3)], fill=(255, 255, 255))
-    draw.ellipse([(cx - int(w * 0.45), cy - 20), (cx + int(w * 0.45), cy + 180)], fill=(22, 163, 74), outline=(21, 128, 61), width=4)
+    draw.text((lx - card_w + 26, cy - card_h + 32), "MITO POPULAR", fill=(254, 202, 202), font=f_t)
+    draw.text((lx - card_w + 26, cy - card_h + 72), "• TEORÍAS Y FOLCLORE", fill=(255, 255, 255), font=f_s)
+    draw.text((lx - card_w + 26, cy - card_h + 106), "• LEYENDAS ORALES", fill=(255, 255, 255), font=f_s)
 
-    # Edificio del Castillo de Chapultepec
-    draw.rounded_rectangle([(cx - 160, cy - 140), (cx + 160, cy - 20)], radius=12, fill=(255, 255, 255), outline=(203, 213, 225), width=3)
-    draw.rounded_rectangle([(cx - 150, cy - 130), (cx + 150, cy - 30)], radius=8, fill=(248, 250, 252))
+    # Icono sticker en tarjeta izquierda
+    ir = 68 + int(math.sin(t * 3.0) * 5)
+    draw.ellipse([(lx - ir, cy + 40 - ir), (lx + ir, cy + 40 + ir)], fill=(220, 38, 38), outline=(255, 255, 255), width=5)
 
-    # Arcadas neoclásicas
-    for arch_x in range(cx - 130, cx + 130, 40):
-        draw.rounded_rectangle([(arch_x, cy - 110), (arch_x + 24, cy - 40)], radius=6, fill=(30, 41, 59))
-        draw.ellipse([(arch_x + 6, cy - 100), (arch_x + 18, cy - 80)], fill=(245, 158, 11))
+    draw.text((rx - card_w + 26, cy - card_h + 32), "CIENCIA REAL", fill=(167, 243, 208), font=f_t)
+    draw.text((rx - card_w + 26, cy - card_h + 72), "• EVIDENCIA FÍSICA", fill=(255, 255, 255), font=f_s)
+    draw.text((rx - card_w + 26, cy - card_h + 106), "• DATOS DE CAMPO", fill=(255, 255, 255), font=f_s)
 
-    # Torreón central y reloj
-    draw.rectangle([(cx - 40, cy - 200), (cx + 40, cy - 140)], fill=(255, 255, 255), outline=(203, 213, 225), width=3)
-    draw.ellipse([(cx - 16, cy - 180), (cx + 16, cy - 148)], fill=(248, 250, 252), outline=(180, 83, 9), width=2)
-    # Manecillas
-    draw.line([(cx, cy - 164), (cx, cy - 174)], fill=(15, 23, 42), width=2)
-    draw.line([(cx, cy - 164), (cx + 8, cy - 164)], fill=(15, 23, 42), width=2)
+    # Icono cristal/átomo en tarjeta derecha
+    draw.ellipse([(rx - ir, cy + 40 - ir), (rx + ir, cy + 40 + ir)], fill=(16, 185, 129), outline=(255, 255, 255), width=5)
 
-    # Asta y bandera de México
-    wave = int(math.sin(t * 6.0) * 4)
-    draw.line([(cx, cy - 200), (cx, cy - 260)], fill=(100, 116, 139), width=4)
-    draw.rectangle([(cx + 2, cy - 260 + wave), (cx + 22, cy - 225 + wave)], fill=(22, 163, 74))
-    draw.rectangle([(cx + 22, cy - 260 + wave), (cx + 42, cy - 225 + wave)], fill=(255, 255, 255))
-    draw.rectangle([(cx + 42, cy - 260 + wave), (cx + 62, cy - 225 + wave)], fill=(220, 38, 38))
-
-    # Cota de altitud
-    draw.text((cx - 90, cy + 90), "ALTITUD: 2,325 m s.n.m.", fill=(255, 255, 255))
+    # Medalla VS central
+    _draw_sticker_card(draw, cx - 52, cy - 52, cx + 52, cy + 52, fill=(245, 158, 11), outline=(15, 23, 42), radius=26, border_w=5, shadow_offset=6)
+    draw.text((cx - 20, cy - 14), "VS", fill=(15, 23, 42), font=_load_font(28, bold=True))
 
 
-def draw_blueprint_cad(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    low_title = (title or "").lower()
-    # Si NO es un tema explícitamente técnico de ingeniería mecánica o automotriz, renderizar Paper-Cut
-    is_mech = any(k in low_title for k in ("turbo", "compresor", "valvula", "piston", "motor", "rpm", "boost", "mecanic", "cad", "cilindro"))
-    if not is_mech:
-        draw_paper_cutout_diorama(draw, w, h, t, duration, title)
+def _draw_scene_8_finale_medallion(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, title: str, scene: dict[str, Any], pop: float):
+    """Escena 8: Medallón Documental de Cierre y Llamado al Debate."""
+    cx, cy = w // 2, int(h * 0.49)
+    mr = max(30, int(195 * pop))
+
+    # Rayos solares giratorios en papel recortado
+    for r_i in range(12):
+        ang = t * 0.8 + (r_i * math.pi / 6.0)
+        x2 = cx + int(math.cos(ang) * (mr + 75))
+        y2 = cy + int(math.sin(ang) * (mr + 75))
+        draw.line([(cx, cy), (x2, y2)], fill=(245, 158, 11), width=8)
+
+    # Medallón circular 2.5D
+    draw.ellipse([(cx - mr + 10, cy - mr + 12), (cx + mr + 10, cy + mr + 12)], fill=(195, 180, 155))
+    draw.ellipse([(cx - mr - 8, cy - mr - 8), (cx + mr + 8, cy + mr + 8)], fill=(255, 255, 255))
+    draw.ellipse([(cx - mr, cy - mr), (cx + mr, cy + mr)], fill=(15, 23, 42), outline=(251, 191, 36), width=6)
+
+    f_big = _load_font(34, bold=True)
+    f_cta = _load_font(22, bold=True)
+    t1 = "HISTORIANDO"
+    t2 = "EXPEDIENTE REAL"
+    draw.text((cx - draw.textlength(t1, font=f_big) / 2, cy - 42), t1, fill=(251, 191, 36), font=f_big)
+    draw.text((cx - draw.textlength(t2, font=f_cta) / 2, cy + 12), t2, fill=(241, 245, 249), font=f_cta)
+
+    # Tarjeta pulsante de pregunta a la audiencia
+    by = cy + mr + 85
+    _draw_sticker_card(draw, cx - 340, by - 48, cx + 340, by + 48, fill=(217, 119, 6), outline=(255, 255, 255), radius=22, border_w=6, shadow_offset=9)
+    q_txt = "¿QUÉ OPINAS? DÉJALO EN LOS COMENTARIOS"
+    draw.text((cx - draw.textlength(q_txt, font=f_cta) / 2, by - 14), q_txt, fill=(255, 255, 255), font=f_cta)
+
+
+_TRANS_BUF_A: Optional[Image.Image] = None
+_TRANS_BUF_B: Optional[Image.Image] = None
+
+
+def _render_scene_content(
+    target_im: Image.Image,
+    w: int,
+    h: int,
+    t: float,
+    duration: float,
+    title: str,
+    scene: dict[str, Any],
+    pop: float,
+    local_p: float,
+):
+    """Renderiza una escena Paper-Cut 2.5D completa sobre la imagen dada."""
+    draw = ImageDraw.Draw(target_im)
+    _draw_craft_background_and_hud(draw, w, h, t, duration, title, scene, local_p)
+    stype = scene.get("scene_type", "")
+    try:
+        from studio.opuscar.scene_archetypes import render_archetype_scene
+        render_archetype_scene(draw, w, h, t, title, scene, pop)
+        return
+    except Exception as e_arch:
+        logger.debug(f"Aviso en render_archetype_scene: {e_arch}")
+
+    if stype == "panorama_geografico":
+        _draw_scene_1_panorama(draw, w, h, t, title, scene, pop)
+    elif stype == "mapa_cartografico":
+        _draw_scene_2_cartographic_map(draw, w, h, t, title, scene, pop)
+    elif stype == "suceso_impacto":
+        _draw_scene_3_impact_event(draw, w, h, t, title, scene, pop)
+    elif stype == "instrumentos_anomalia":
+        _draw_scene_4_magnetic_instruments(draw, w, h, t, title, scene, pop)
+    elif stype == "corte_estratos":
+        _draw_scene_5_strata_cutaway(draw, w, h, t, title, scene, pop)
+    elif stype == "cronica_expediente":
+        _draw_scene_6_dossier_chronicle(draw, w, h, t, title, scene, pop)
+    elif stype == "mito_vs_ciencia":
+        _draw_scene_7_myth_vs_science(draw, w, h, t, title, scene, pop)
+    else:
+        _draw_scene_8_finale_medallion(draw, w, h, t, title, scene, pop)
+
+
+def draw_multiscene_papercut_diorama(
+    draw_or_img: Any,
+    w: int,
+    h: int,
+    t: float,
+    duration: float,
+    title: str,
+    scenes: list[dict[str, Any]],
+):
+    """Orquesta las 8-9 escenas Paper-Cut 2.5D con transiciones fluidas continuas (Hermite SmoothStep) a 60 FPS sin congelamientos."""
+    global _TRANS_BUF_A, _TRANS_BUF_B
+
+    target_im = draw_or_img if isinstance(draw_or_img, Image.Image) else getattr(draw_or_img, "_image", None)
+    if target_im is None:
+        target_im = Image.new("RGB", (w, h), (248, 240, 224))
+
+    n_scenes = len(scenes)
+    if n_scenes == 0:
         return
 
-    bg_color = (11, 25, 44)
-    grid_color = (24, 48, 78)
-    cyan = (0, 210, 255)
-    yellow = (255, 222, 89)
-    white = (224, 242, 254)
+    # Comprobar si t cae en la ventana de transición entre escena i y escena i+1
+    trans_scene_idx = -1
+    trans_dur = 0.45
+    for idx in range(n_scenes - 1):
+        cur_sc = scenes[idx]
+        t_trans_start = cur_sc["t_end"] - trans_dur
+        t_trans_end = cur_sc["t_end"]
+        if t_trans_start <= t < t_trans_end:
+            trans_scene_idx = idx
+            break
 
-    # 1. Cuadrícula milimétrica
-    grid_step = 60
-    for x in range(0, w, grid_step):
-        draw.line([(x, 0), (x, h)], fill=grid_color, width=1)
-    for y in range(0, h, grid_step):
-        draw.line([(0, y), (w, y)], fill=grid_color, width=1)
+    if trans_scene_idx >= 0:
+        # Transición fluida con mezcla de fotogramas sin saltos bruscos
+        cur_sc = scenes[trans_scene_idx]
+        next_sc = scenes[trans_scene_idx + 1]
+        t_trans_start = cur_sc["t_end"] - trans_dur
+        tau = _clamp((t - t_trans_start) / max(0.1, trans_dur), 0.0, 1.0)
+        # Curva de interpolación Hermite SmoothStep C1 continua
+        s = tau * tau * (3.0 - 2.0 * tau)
 
-    # 2. Marco técnico de plano
-    margin = 50
-    draw.rectangle([(margin, margin), (w - margin, h - margin)], outline=cyan, width=3)
-    draw.rectangle([(margin + 6, margin + 6), (w - margin - 6, h - margin - 6)], outline=grid_color, width=1)
+        if _TRANS_BUF_A is None or _TRANS_BUF_A.size != (w, h):
+            _TRANS_BUF_A = Image.new("RGB", (w, h), (248, 240, 224))
+            _TRANS_BUF_B = Image.new("RGB", (w, h), (248, 240, 224))
 
-    # Cajetín técnico superior
-    draw.rectangle([(margin, margin), (w - margin, margin + 90)], outline=cyan, width=2)
-    draw.text((margin + 20, margin + 15), "LEMO-OPUSCAR // INGENIERÍA MECÁNICA", fill=yellow)
-    draw.text((margin + 20, margin + 45), title[:45].upper(), fill=white)
+        # Renderizar escena saliente
+        pop_out = 1.0 - 0.04 * s
+        _render_scene_content(_TRANS_BUF_A, w, h, t, duration, title, cur_sc, pop=pop_out, local_p=1.0)
 
-    # 3. Dibujo de turbocompresor procedural en corte
-    cx, cy = w // 2, h // 2
-    progress = t / max(duration, 0.1)
-    rot = t * 4.0 * math.pi  # 2 vueltas por segundo
+        # Renderizar escena entrante
+        pop_in = 0.96 + 0.04 * s
+        _render_scene_content(_TRANS_BUF_B, w, h, t, duration, title, next_sc, pop=pop_in, local_p=s)
 
-    # Eje central
-    shaft_w, shaft_h = 240, 36
-    draw.rectangle([(cx - shaft_w // 2, cy - shaft_h // 2), (cx + shaft_w // 2, cy + shaft_h // 2)], fill=(40, 60, 90), outline=cyan, width=2)
+        # Fusión continua de capas
+        blended = Image.blend(_TRANS_BUF_A, _TRANS_BUF_B, s)
+        target_im.paste(blended, (0, 0))
+    else:
+        # Estado estacionario de escena
+        active_scene = scenes[-1]
+        for sc in scenes:
+            if sc["t_start"] <= t < sc["t_end"]:
+                active_scene = sc
+                break
 
-    # Carcasa de compresor (voluta izquierda)
-    draw.arc([(cx - 260, cy - 220), (cx, cy + 220)], start=70, end=290, fill=cyan, width=4)
-    # Carcasa de turbina (voluta derecha)
-    draw.arc([(cx, cy - 200), (cx + 240, cy + 200)], start=-110, end=110, fill=(255, 90, 70), width=4)
+        local_t = max(0.0, t - active_scene["t_start"])
+        local_p = _clamp(local_t / max(0.2, active_scene["duration"]), 0.0, 1.0)
 
-    # Álabes rotativos de compresor (azul cian)
-    num_blades = 8
-    for i in range(num_blades):
-        angle = rot + (i * 2 * math.pi / num_blades)
-        bx1 = cx - 110 + math.cos(angle) * 20
-        by1 = cy + math.sin(angle) * 20
-        bx2 = cx - 110 + math.cos(angle + 0.5) * 110
-        by2 = cy + math.sin(angle + 0.5) * 110
-        draw.line([(bx1, by1), (bx2, by2)], fill=cyan, width=3)
-
-    # Álabes de turbina (rojo / naranja)
-    for i in range(num_blades):
-        angle = -rot + (i * 2 * math.pi / num_blades)
-        bx1 = cx + 110 + math.cos(angle) * 18
-        by1 = cy + math.sin(angle) * 18
-        bx2 = cx + 110 + math.cos(angle - 0.4) * 95
-        by2 = cy + math.sin(angle - 0.4) * 95
-        draw.line([(bx1, by1), (bx2, by2)], fill=(255, 120, 80), width=3)
-
-    # 4. Cotas técnicas de medición dinámicas
-    # Cota diámetro compresor
-    cota_x = cx - 110
-    draw.line([(cota_x - 120, cy - 130), (cota_x + 120, cy - 130)], fill=yellow, width=2)
-    draw.line([(cota_x - 120, cy - 140), (cota_x - 120, cy - 120)], fill=yellow, width=2)
-    draw.line([(cota_x + 120, cy - 140), (cota_x + 120, cy - 120)], fill=yellow, width=2)
-    draw.text((cota_x - 45, cy - 160), "Ø 52.4 mm", fill=yellow)
-
-    # Telemetría de rotación
-    rpm_val = int(120000 + math.sin(t * 3.0) * 80000)
-    draw.text((margin + 20, h - margin - 70), f"VELOCIDAD: {rpm_val:,} RPM", fill=cyan)
-    draw.text((margin + 20, h - margin - 40), f"PRESIÓN DE BOOST: {1.4 + 0.6 * math.sin(t * 2.0):.2f} BAR (ABSOLUTA)", fill=yellow)
-
-
-def draw_vector_flow(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    # Dinámica de fluidos y vórtices
-    cx, cy = w // 2, h // 2
-    num_particles = 120
-
-    # Fondo oscuro
-    # Partículas de flujo laminar
-    for i in range(num_particles):
-        phase = (t * 1.5 + (i * 0.08)) % 1.0
-        r = 60 + phase * 320
-        theta = (i * 0.4) + (phase * 4.0 * math.pi)
-
-        px = cx + math.cos(theta) * r
-        py = cy + math.sin(theta) * r * 0.85
-
-        # Gradiente frío a caliente
-        if phase < 0.5:
-            color = (56, 189, 248)  # Azul celeste frío
+        # Solo la primera escena realiza el pop de apertura inicial
+        if active_scene["index"] == 1:
+            pop = _ease_out_back(_clamp(local_t / 0.50, 0.0, 1.0))
         else:
-            blend = (phase - 0.5) * 2.0
-            r_c = int(56 + blend * (239 - 56))
-            g_c = int(189 - blend * (189 - 68))
-            b_c = int(248 - blend * (248 - 68))
-            color = (r_c, g_c, b_c)
+            pop = 1.0
 
-        draw.ellipse([(px - 4, py - 4), (px + 4, py + 4)], fill=color)
-        # Cola de estela
-        tail_x = cx + math.cos(theta - 0.15) * (r - 12)
-        tail_y = cy + math.sin(theta - 0.15) * ((r - 12) * 0.85)
-        draw.line([(px, py), (tail_x, tail_y)], fill=color, width=2)
-
-    # Vórtice central
-    draw.arc([(cx - 70, cy - 70), (cx + 70, cy + 70)], start=0, end=360, fill=(255, 255, 255), width=3)
-    draw.text((50, 60), "DINÁMICA DE FLUIDOS VECTORIAL", fill=(56, 189, 248))
-    draw.text((50, 95), title[:45].upper(), fill=(255, 255, 255))
+        _render_scene_content(target_im, w, h, t, duration, title, active_scene, pop=pop, local_p=local_p)
 
 
-def draw_da_vinci_codex(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    # Pergamino renacentista sepia
-    sepia = (74, 53, 37)
-    gold = (140, 45, 25)
-    faded = (160, 130, 100)
-
-    # Marco clásico a pluma
-    draw.rectangle([(40, 40), (w - 40, h - 40)], outline=sepia, width=2)
-    draw.rectangle([(48, 48), (w - 48, h - 48)], outline=faded, width=1)
-
-    cx, cy = w // 2, h // 2
-    # Espiral áurea geométrica
-    rot = t * 1.2
-    prev_pt = None
-    for a_deg in range(0, 720, 10):
-        ang = math.radians(a_deg) + rot
-        rad = 12 * math.exp(0.0035 * a_deg)
-        x = cx + math.cos(ang) * rad
-        y = cy + math.sin(ang) * rad
-        if prev_pt:
-            draw.line([prev_pt, (x, y)], fill=sepia, width=2)
-        prev_pt = (x, y)
-
-    # Líneas de compás
-    draw.arc([(cx - 160, cy - 160), (cx + 160, cy + 160)], start=0, end=360, fill=faded, width=1)
-    draw.line([(cx - 200, cy), (cx + 200, cy)], fill=faded, width=1)
-    draw.line([(cx, cy - 200), (cx, cy + 200)], fill=faded, width=1)
-
-    draw.text((60, 60), "TRATATO DELL'ARIA ET DEL MOTO", fill=gold)
-    draw.text((60, 90), title[:40], fill=sepia)
+def draw_paper_cutout_diorama(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str, narration: str = ""):
+    scenes = parse_narration_into_diorama_scenes(narration or title, duration, title)
+    draw_multiscene_papercut_diorama(draw, w, h, t, duration, title, scenes)
 
 
-def draw_hud_telemetry(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    # Verde fósforo y cyan cibernético
-    green = (16, 185, 129)
-    cyan = (6, 182, 212)
-    white = (236, 253, 245)
-
-    cx, cy = w // 2, h // 2
-    rot = t * 2.0
-
-    # Retícula de mira telescópica circular
-    draw.arc([(cx - 180, cy - 180), (cx + 180, cy + 180)], start=0, end=360, fill=green, width=2)
-    draw.arc([(cx - 220, cy - 220), (cx + 220, cy + 220)], start=rot * 40, end=rot * 40 + 120, fill=cyan, width=3)
-    draw.arc([(cx - 220, cy - 220), (cx + 220, cy + 220)], start=rot * 40 + 180, end=rot * 40 + 300, fill=cyan, width=3)
-
-    # Cruz central
-    draw.line([(cx - 30, cy), (cx + 30, cy)], fill=green, width=2)
-    draw.line([(cx, cy - 30), (cx, cy + 30)], fill=green, width=2)
-
-    # Osciloscopio FFT simulado en la parte inferior
-    osc_y = h - 220
-    prev_o = None
-    for x in range(60, w - 60, 8):
-        wave = math.sin((x * 0.05) + (t * 12.0)) * 28 + math.sin((x * 0.12) - (t * 8.0)) * 14
-        pt = (x, int(osc_y + wave))
-        if prev_o:
-            draw.line([prev_o, pt], fill=cyan, width=2)
-        prev_o = pt
-
-    draw.text((60, 60), "HUD TELEMETRÍA // TIEMPO REAL", fill=cyan)
-    draw.text((60, 95), f"RPM: {int(180000 + 40000 * math.sin(t*3)):,}  BOOST: 2.34 BAR", fill=green)
+def draw_blueprint_cad(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str, narration: str = ""):
+    draw_paper_cutout_diorama(draw, w, h, t, duration, title, narration)
 
 
-def draw_anime_speedlines(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str):
-    white = (255, 255, 255)
-    yellow = (245, 158, 11)
-    cx, cy = w // 2, h // 2
+def draw_vector_flow(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str, narration: str = ""):
+    draw_paper_cutout_diorama(draw, w, h, t, duration, title, narration)
 
-    # Líneas radiales de velocidad
-    num_rays = 48
-    seed = int(t * 24) % 100
-    np.random.seed(seed)
-    for i in range(num_rays):
-        angle = (i * 2 * math.pi / num_rays) + (np.random.rand() * 0.05)
-        r_inner = 140 + np.random.rand() * 80
-        r_outer = max(w, h)
-        x1 = cx + math.cos(angle) * r_inner
-        y1 = cy + math.sin(angle) * r_inner
-        x2 = cx + math.cos(angle) * r_outer
-        y2 = cy + math.sin(angle) * r_outer
-        col = white if (i % 2 == 0) else yellow
-        draw.line([(x1, y1), (x2, y2)], fill=col, width=int(2 + np.random.rand() * 4))
 
-    # Círculo de choque central
-    pulse = 1.0 + 0.15 * math.sin(t * 16.0)
-    r_center = int(90 * pulse)
-    draw.arc([(cx - r_center, cy - r_center), (cx + r_center, cy + r_center)], start=0, end=360, fill=yellow, width=6)
-    draw.text((cx - 130, cy - 10), "MÁXIMO BOOST", fill=white)
+def draw_da_vinci_codex(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str, narration: str = ""):
+    draw_paper_cutout_diorama(draw, w, h, t, duration, title, narration)
+
+
+def draw_hud_telemetry(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str, narration: str = ""):
+    draw_paper_cutout_diorama(draw, w, h, t, duration, title, narration)
+
+
+def draw_anime_speedlines(draw: ImageDraw.ImageDraw, w: int, h: int, t: float, duration: float, title: str, narration: str = ""):
+    draw_paper_cutout_diorama(draw, w, h, t, duration, title, narration)
 
 
 def render_opuscar_animation_video(
@@ -749,19 +938,23 @@ def render_opuscar_animation_video(
     fps: int = 60,
     output_dir: Optional[Path] = None,
 ) -> Path:
-    """Renderiza el video cinematográfico completo en MP4 utilizando la arquitectura Lemo-Opuscar a 60 fps."""
-    style_data = get_opuscar_style_by_id(style_id)
+    """Renderiza el video cinematográfico completo en MP4 con 8-9 escenas dinámicas Paper-Cut 2.5D a 60 FPS."""
     if output_dir is None:
         output_dir = _repo_root / "projects" / f"opuscar_{style_id}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    frames_dir = output_dir / "frames"
-    frames_dir.mkdir(parents=True, exist_ok=True)
+    # Limpieza ortográfica y gramatical previa del guion canónico
+    try:
+        from studio.karaoke_subtitles import clean_and_correct_spanish_orthography
+        clean_narration, _ = clean_and_correct_spanish_orthography(narration)
+        narration = clean_narration
+    except Exception:
+        pass
 
-    # 1. Sintetizar narración y calcular duración
+    # 1. Sintetizar narración + música documental y calcular duración exacta
     audio_path = output_dir / "narration.mp3"
     dur_sec = asyncio.run(synthesize_opuscar_audio(narration, audio_path, voice=voice))
-    dur_sec = max(4.0, dur_sec)
+    dur_sec = max(10.0, dur_sec)
 
     # 2. Configurar resolución Full HD (9:16 vertical 1080x1920 o 16:9 1920x1080)
     if is_vertical:
@@ -769,81 +962,41 @@ def render_opuscar_animation_video(
     else:
         width, height = 1920, 1080
 
-    total_frames = int(dur_sec * fps)
-    low_text = (title + " " + narration).lower()
+    # Renderizar a 60 fps reales por pipe directo a FFmpeg (suavidad absoluta sin caídas de frames)
+    render_fps = max(30, int(fps or 60))
+    total_frames = int(dur_sec * render_fps)
+    scenes = parse_narration_into_diorama_scenes(narration, dur_sec, title)
 
-    # Detección inteligente de temática para garantizar correspondencia visual 1:1
-    if any(k in low_text for k in ("sahara", "richat", "mauritania", "desierto", "crater")):
-        style_id = "ojo_sahara_diorama"
-        draw_fn = draw_ojo_sahara_diorama
-    elif any(k in low_text for k in ("chapultepec", "castillo", "alcazar", "maximiliano", "carlota")):
-        style_id = "chapultepec_diorama"
-        draw_fn = draw_chapultepec_diorama
-    elif any(k in low_text for k in ("maya", "campeche", "valeriana", "lidar", "piramide", "sakil")):
-        style_id = "mayan_diorama"
-        draw_fn = draw_mayan_diorama
-    elif style_id == "ojo_sahara_diorama":
-        draw_fn = draw_ojo_sahara_diorama
-    elif style_id == "chapultepec_diorama":
-        draw_fn = draw_chapultepec_diorama
-    elif style_id == "mayan_diorama":
-        draw_fn = draw_mayan_diorama
-    elif style_id == "blueprint_cad" and not any(k in low_text for k in ["turbo", "compresor", "motor", "cilindro", "rpm", "boost", "mecanic"]):
-        style_id = "paper_cutout_diorama"
-        draw_fn = draw_paper_cutout_diorama
-    elif style_id == "blueprint_cad":
-        draw_fn = draw_blueprint_cad
-    elif style_id == "vector_flow":
-        draw_fn = draw_vector_flow
-    elif style_id == "da_vinci_codex":
-        draw_fn = draw_da_vinci_codex
-    elif style_id == "hud_telemetry":
-        draw_fn = draw_hud_telemetry
-    elif style_id == "anime_speedlines":
-        draw_fn = draw_anime_speedlines
-    else:
-        draw_fn = draw_paper_cutout_diorama
-
-    # Estilo de paleta
-    pal = (style_data or {}).get("palette", {})
-    bg_hex = pal.get("background", "#fbf5e8")
-    if style_id in ("paper_cutout_diorama", "chapultepec_diorama", "mayan_diorama", "ojo_sahara_diorama"):
-        bg_hex = "#fbf5e8"
-    h_c = bg_hex.lstrip("#")
-    bg_rgb = tuple(int(h_c[i:i+2], 16) for i in (0, 2, 4)) if len(h_c) == 6 else (251, 245, 232)
-
-    # 3. Renderizar cada cuadro como función pura del tiempo t
-    for f in range(total_frames):
-        t = f / fps
-        im = Image.new("RGB", (width, height), bg_rgb)
-        draw = ImageDraw.Draw(im)
-        draw.font = _load_font(max(14, width // 40))
-        draw_fn(draw, width, height, t, dur_sec, title)
-
-        frame_path = frames_dir / f"frame_{f:05d}.png"
-        im.save(str(frame_path))
-
-    # 4. Crear archivo de subtítulos ASS dinámicos sincronizados progresivamente
-    words = [w.strip() for w in narration.split() if w.strip()]
-    dialogues = []
-    if words:
-        chunk_size = 5  # 4-6 palabras por línea para 9:16 vertical
-        chunks = [words[i:i + chunk_size] for i in range(0, len(words), chunk_size)]
-        chunk_dur = dur_sec / max(1, len(chunks))
-        for idx, ch in enumerate(chunks):
-            start_t = idx * chunk_dur
-            end_t = min(dur_sec, (idx + 1) * chunk_dur)
-            s_min, s_sec = int(start_t // 60), start_t % 60
-            e_min, e_sec = int(end_t // 60), end_t % 60
-            phrase = " ".join(ch)
-            dialogues.append(
-                f"Dialogue: 0,{s_min}:{s_sec:05.2f},{e_min}:{e_sec:05.2f},Default,,0,0,0,,{phrase}"
-            )
-    else:
-        dialogues.append(f"Dialogue: 0,0:00:00.20,0:00:{dur_sec:05.2f},Default,,0,0,0,,{title}")
-
+    # 3. Crear archivo de subtítulos ASS Big Focus
     subtitles_ass = output_dir / "subtitles.ass"
-    sub_content = f"""[Script Info]
+    try:
+        from studio.karaoke_subtitles import generate_dynamic_karaoke_ass
+        generate_dynamic_karaoke_ass(
+            audio_path=audio_path,
+            output_ass_path=subtitles_ass,
+            reference_text=narration,
+            total_duration=dur_sec,
+            width=width,
+            height=height,
+        )
+    except Exception:
+        words = [w.strip() for w in narration.split() if w.strip()]
+        dialogues = []
+        if words:
+            chunk_size = 5
+            chunks = [words[i:i + chunk_size] for i in range(0, len(words), chunk_size)]
+            chunk_dur = dur_sec / max(1, len(chunks))
+            for idx, ch in enumerate(chunks):
+                start_t = idx * chunk_dur
+                end_t = min(dur_sec, (idx + 1) * chunk_dur)
+                s_min, s_sec = int(start_t // 60), start_t % 60
+                e_min, e_sec = int(end_t // 60), end_t % 60
+                phrase = " ".join(ch)
+                dialogues.append(f"Dialogue: 0,0:{s_min:02d}:{s_sec:05.2f},0:{e_min:02d}:{e_sec:05.2f},Default,,0,0,0,,{phrase}")
+        else:
+            dialogues.append(f"Dialogue: 0,0:00:00.20,0:00:{dur_sec:05.2f},Default,,0,0,0,,{title}")
+
+        sub_content = f"""[Script Info]
 Title: Lemo-Opuscar Subtitles
 ScriptType: v4.00+
 PlayResX: {width}
@@ -851,17 +1004,16 @@ PlayResY: {height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,44,&H00FFFFFF,&H0000D7FF,&H000B0F19,&H90000000,-1,0,0,0,100,100,0,0,1,4.5,2.5,2,40,40,240,1
+Style: Default,Arial Black,44,&H00FFFFFF,&H0000D7FF,&H000B0F19,&H90000000,-1,0,0,0,100,100,0,0,1,4.8,2.6,2,50,50,245,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """ + "\n".join(dialogues) + "\n"
-    subtitles_ass.write_text(sub_content, encoding="utf-8")
+        subtitles_ass.write_text(sub_content, encoding="utf-8")
 
-    # Guardar metadatos para la API / UI
+    # 4. Guardar metadatos
     meta_path = output_dir / "meta.json"
     try:
-        import json
         meta_path.write_text(
             json.dumps({
                 "duration": dur_sec,
@@ -870,47 +1022,107 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "title": title,
                 "narration": narration,
                 "voice": voice,
-            }, indent=2),
+                "scenes_count": len(scenes),
+            }, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
     except Exception:
         pass
 
-    # 5. Multiplexar con FFmpeg
+    # 5. Enviar cuadros directamente por pipe rawvideo a FFmpeg (ultra rápido y limpio)
     final_video = output_dir / f"opuscar_{style_id}_{width}x{height}.mp4"
+    tmp_video = output_dir / f"opuscar_tmp_{os.getpid()}_{int(time.time()*1000)}.mp4"
     ffmpeg_bin = _get_ffmpeg()
 
     cmd = [
         ffmpeg_bin, "-y",
-        "-framerate", str(fps),
-        "-i", str((frames_dir / "frame_%05d.png").resolve()),
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-s", f"{width}x{height}",
+        "-r", str(render_fps),
+        "-i", "-",
         "-i", str(audio_path.resolve()),
         "-vf", f"subtitles={subtitles_ass.name}",
+        "-map", "0:v:0",
+        "-map", "1:a:0",
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-crf", "20",
         "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "192k",
+        "-ar", "44100",
+        "-ac", "2",
         "-shortest",
-        str(final_video.resolve()),
+        str(tmp_video.resolve()),
     ]
-    subprocess.run(cmd, cwd=str(output_dir.resolve()), check=True, capture_output=True)
+    log_err_path = output_dir / "ffmpeg_render.log"
+    with open(log_err_path, "wb") as err_file:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(output_dir.resolve()),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=err_file,
+        )
+        assert proc.stdin is not None
+        try:
+            for f in range(total_frames):
+                t = f / float(render_fps)
+                im = Image.new("RGB", (width, height), (248, 240, 224))
+                draw_multiscene_papercut_diorama(im, width, height, t, dur_sec, title, scenes)
+                proc.stdin.write(im.tobytes())
+            proc.stdin.close()
+        except Exception as e_pipe:
+            logger.error(f"Error procesando frames en pipe FFmpeg: {e_pipe}")
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
+            raise e_pipe
+        proc.wait()
+    if proc.returncode != 0:
+        if tmp_video.exists():
+            try:
+                tmp_video.unlink()
+            except Exception:
+                pass
+        err_msg = (log_err_path.read_text(encoding="utf-8", errors="ignore") if log_err_path.exists() else "")[-400:]
+        raise RuntimeError(f"Error FFmpeg en Lemo-Opuscar: {err_msg}")
+
+    # Reemplazo atómico a destino final
+    try:
+        os.replace(str(tmp_video), str(final_video))
+    except Exception:
+        try:
+            if final_video.exists():
+                final_video.unlink()
+            import shutil
+            shutil.move(str(tmp_video), str(final_video))
+        except Exception:
+            if tmp_video.exists() and not final_video.exists():
+                tmp_video.rename(final_video)
+
+    meta_payload = {
+        "style_id": style_id,
+        "title": title,
+        "narration": narration,
+        "voice": voice,
+        "duration": round(float(dur_sec), 2),
+        "fps": render_fps,
+        "width": width,
+        "height": height,
+        "scenes_count": len(scenes),
+        "filename": final_video.name,
+    }
+    try:
+        (output_dir / "meta.json").write_text(json.dumps(meta_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
     return final_video
-
-
-# ---------------------------------------------------------------------------
-# Intro / Outro de marca con estilos Lemo-Opuscar para videos de Blender
-# ---------------------------------------------------------------------------
-
-def _load_font(size: int):
-    for name in ("arialbd.ttf", "segoeuib.ttf", "arial.ttf", "DejaVuSans-Bold.ttf"):
-        try:
-            return ImageFont.truetype(name, size)
-        except Exception:
-            continue
-    return ImageFont.load_default()
 
 
 def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> List[str]:
@@ -937,23 +1149,7 @@ def render_opuscar_title_card(
     fps: int = 24,
     duration: float = 2.5,
 ) -> Path:
-    """Tarjeta animada (con pista de audio silenciosa) usando el fondo procedural del estilo elegido."""
-    style = get_opuscar_style_by_id(style_id) or {}
-    pal = style.get("palette", {})
-    h_c = pal.get("background", "#0b192c").lstrip("#")
-    bg = tuple(int(h_c[i:i + 2], 16) for i in (0, 2, 4))
-    t_c = pal.get("text", "#ffffff").lstrip("#")
-    txt_rgb = tuple(int(t_c[i:i + 2], 16) for i in (0, 2, 4))
-    a_c = pal.get("accent", "#ffde59").lstrip("#")
-    acc_rgb = tuple(int(a_c[i:i + 2], 16) for i in (0, 2, 4))
-
-    draw_fn = {
-        "vector_flow": draw_vector_flow,
-        "da_vinci_codex": draw_da_vinci_codex,
-        "hud_telemetry": draw_hud_telemetry,
-        "anime_speedlines": draw_anime_speedlines,
-    }.get(style_id, draw_blueprint_cad)
-
+    """Tarjeta animada con el fondo procedural del estilo elegido."""
     frames_dir = out_mp4.parent / f"_card_{out_mp4.stem}"
     if frames_dir.exists():
         shutil.rmtree(frames_dir, ignore_errors=True)
@@ -962,13 +1158,12 @@ def render_opuscar_title_card(
     font_t = _load_font(max(28, width // 14))
     font_s = _load_font(max(18, width // 26))
     total = int(duration * fps)
+    scenes = parse_narration_into_diorama_scenes(subtitle or title, duration, title)
     for f in range(total):
         t = f / fps
-        im = Image.new("RGB", (width, height), bg)
+        im = Image.new("RGB", (width, height), (248, 240, 224))
         d = ImageDraw.Draw(im)
-        d.font = _load_font(max(14, width // 40))
-        draw_fn(d, width, height, t, duration, "")
-        # Velo para legibilidad + texto con fundido de entrada y salida
+        draw_multiscene_papercut_diorama(d, width, height, t, duration, title, scenes)
         alpha = min(1.0, t / 0.5, (duration - t) / 0.4 if duration - t < 0.4 else 1.0)
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, int(165 * alpha)))
         im = Image.alpha_composite(im.convert("RGBA"), overlay)
@@ -976,15 +1171,13 @@ def render_opuscar_title_card(
         y = int(height * 0.38)
         for line in _wrap_text(d, title.upper(), font_t, int(width * 0.84)):
             wline = d.textlength(line, font=font_t)
-            d.text(((width - wline) / 2, y), line, font=font_t,
-                   fill=txt_rgb + (int(255 * alpha),))
+            d.text(((width - wline) / 2, y), line, font=font_t, fill=(255, 255, 255, int(255 * alpha)))
             y += int(font_t.size * 1.25)
         if subtitle:
             y += 16
             for line in _wrap_text(d, subtitle, font_s, int(width * 0.8)):
                 wline = d.textlength(line, font=font_s)
-                d.text(((width - wline) / 2, y), line, font=font_s,
-                       fill=acc_rgb + (int(255 * alpha),))
+                d.text(((width - wline) / 2, y), line, font=font_s, fill=(255, 222, 89, int(255 * alpha)))
                 y += int(font_s.size * 1.4)
         im.convert("RGB").save(frames_dir / f"f_{f:05d}.png")
 
@@ -1017,12 +1210,10 @@ def wrap_video_with_opuscar_branding(
     height: int = 1280,
     fps: int = 24,
 ) -> Path:
-    """Antepone una intro y añade un cierre Lemo-Opuscar al video principal (conserva su audio)."""
+    """Antepone una intro y añade un cierre Lemo-Opuscar al video principal."""
     work = out_video.parent
-    intro = render_opuscar_title_card(work / "_brand_intro.mp4", intro_title, intro_subtitle,
-                                      style_id, width, height, fps, 2.5)
-    outro = render_opuscar_title_card(work / "_brand_outro.mp4", outro_title, "",
-                                      style_id, width, height, fps, 2.5)
+    intro = render_opuscar_title_card(work / "_brand_intro.mp4", intro_title, intro_subtitle, style_id, width, height, fps, 2.5)
+    outro = render_opuscar_title_card(work / "_brand_outro.mp4", outro_title, "", style_id, width, height, fps, 2.5)
     main = main_video
     if not _has_audio(main_video):
         main = work / "_brand_main_audio.mp4"

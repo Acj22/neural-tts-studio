@@ -42,6 +42,10 @@ from studio.blender.models_library.printer_3d_fdm import (
 from studio.blender.models_library.turbocharger_specialized import (
     build_specialized_turbocharger_model,
 )
+from studio.blender.models_library.pyramid_monument import (
+    create_pyramid_monument_3d,
+    build_pyramid_keyframes,
+)
 from studio.blender.animation_controller import build_4_stroke_cycle_keyframes
 from studio.blender.camera_director import setup_studio_lighting, setup_camera_for_shot
 from studio.blender.camera_plans import apply_camera_plan
@@ -325,6 +329,9 @@ def run_blender_render(spec: dict) -> None:
                                      scene_phase=cycle_phase, highlight_component=highlight_comp)
     elif model_type in ("turbocharger", "turbo", "turbocompresor"):
         data = build_specialized_turbocharger_model(center_z=1.25)
+    elif model_type in ("pyramid_monument", "pyramid", "teotihuacan", "monument", "temple", "maya", "arqueologia"):
+        data = create_pyramid_monument_3d(base_size=7.0, num_tiers=4)
+        build_pyramid_keyframes(total_frames=total_frames, orbit_radius=11.5, orbit_height=7.0)
     elif model_type == "printer_3d_fdm":
         data = create_printer_3d_3d(center_z=2.0)
         build_printer_3d_keyframes(printer_data=data, start_frame=1, end_frame=total_frames,

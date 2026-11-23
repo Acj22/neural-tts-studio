@@ -457,6 +457,8 @@ function drawOjoSaharaCanvas(ctx, w, h, t, dur, title) {
 
 function detectOpuscarArchetype(text) {
   const low = (text || "").toLowerCase();
+  if (["escuadron", "escuadrón", "piloto", "caza", "avion", "avión", "aereo", "aéreo", "guerra", "201", "aguila", "águila", "militar"].some(k => low.includes(k))) return "aviation";
+  if (["nieve", "helada", "frio", "frío", "clima", "tormenta", "invierno", "polar"].some(k => low.includes(k))) return "snow_weather";
   if (low.includes("sahara") || low.includes("richat") || low.includes("mauritania")) return "ojo_sahara";
   if (low.includes("chapultepec") || low.includes("alcazar") || low.includes("maximiliano") || low.includes("carlota")) return "chapultepec";
   if (low.includes("maya") || low.includes("campeche") || low.includes("valeriana") || low.includes("lidar") || low.includes("piramide") || low.includes("sakil")) return "mayan";
@@ -465,6 +467,122 @@ function detectOpuscarArchetype(text) {
   if (["espacio", "planeta", "galaxia", "orbita", "agujero", "negro", "wow", "senal", "señal", "estrella", "satelite", "satélite", "universo", "cosmos", "nasa", "astron", "marte", "luna", "telescopio"].some(k => low.includes(k))) return "cosmic";
   if (["ciudad", "templo", "muralla", "monumento", "torre", "palacio", "catacumba", "paris", "historia", "roma", "coliseo", "antigu", "arquit", "tubos", "hospital", "castaneda", "castañeda"].some(k => low.includes(k))) return "architectural";
   return "mystery";
+}
+
+function drawAviationDioramaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo de cielo y papel cálido
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Placa superior estilo paper-cut
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#b45309';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('AVIACIÓN DE GUERRA // ESCUADRÓN 201', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Águilas Aztecas').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.52;
+
+  // Nubes pasando a velocidad
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 3; i++) {
+    const nx = ((t * 120 + i * 260) % (w + 200)) - 100;
+    const ny = cy - 140 + i * 70;
+    ctx.beginPath(); ctx.ellipse(nx, ny, 60, 20, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Caza P-47 en vuelo
+  const pitch = Math.sin(t * 3.2) * 12;
+  const bx = cx;
+  const by = cy + pitch;
+
+  // Alas
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(bx, by + 20, 210, 36, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#475569';
+  ctx.beginPath(); ctx.ellipse(bx, by + 20, 204, 32, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Escarapelas tricolor
+  for (const rx of [bx - 120, bx + 120]) {
+    ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.arc(rx, by + 20, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(rx, by + 20, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.arc(rx, by + 20, 6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Fuselaje
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(bx, by - 20, 42, 105, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#334155';
+  ctx.beginPath(); ctx.ellipse(bx, by - 20, 38, 100, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Cabina
+  ctx.fillStyle = '#38bdf8';
+  ctx.beginPath(); ctx.ellipse(bx, by - 30, 22, 38, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Hélice
+  const propAng = t * 30.0;
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 5;
+  for (let p = 0; p < 3; p++) {
+    const a = propAng + p * (Math.PI * 2 / 3);
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 120);
+    ctx.lineTo(bx + Math.cos(a) * 90, (by - 120) + Math.sin(a) * 90);
+    ctx.stroke();
+  }
+}
+
+function drawSnowWeatherDioramaCanvas(ctx, w, h, t, dur, title) {
+  // Fondo de invierno oscuro
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(186, 230, 253, 0.15)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Placa superior
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
+  ctx.fillStyle = '#0284c7';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('METEOROLOGÍA // HISTORIA DOCUMENTADA', 36, 42);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText((title || 'Nevada Histórica').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.restore();
+
+  const cx = w / 2;
+  const cy = h * 0.52;
+
+  // Ciudad nevada
+  for (let i = -2; i <= 2; i++) {
+    const bx = cx + i * 90;
+    const bh = 140 + Math.abs(i) * 30;
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(bx - 35, cy + 120 - bh, 70, bh);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx - 40, cy + 120 - bh - 8, 80, 14);
+  }
+
+  // Copos de nieve animados
+  ctx.fillStyle = '#ffffff';
+  for (let s = 0; s < 40; s++) {
+    const sy = ((t * 80 + s * 45) % (h * 0.7)) + (h * 0.15);
+    const sx = (s * 37 + Math.sin(t * 3.0 + s) * 20) % w;
+    ctx.beginPath(); ctx.arc(sx, sy, 3 + (s % 3), 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 function drawOceanicDioramaCanvas(ctx, w, h, t, dur, title) {
@@ -740,91 +858,299 @@ function drawArchitecturalDioramaCanvas(ctx, w, h, t, dur, title) {
 }
 
 function drawMysteryArchiveCanvas(ctx, w, h, t, dur, title) {
-  // Fondo pergamino archivo
-  ctx.fillStyle = '#f6f1e6';
-  ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(180, 160, 130, 0.25)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  // Motor Multi-Escena 2.5D Paper-Cut Diorama en tiempo real para cualquier tema nuevo
+  const narrEl = document.getElementById('opuscarNarrationInput');
+  const rawNarr = (narrEl && narrEl.value) ? narrEl.value : (title || 'Investigación Documental');
+  let paras = rawNarr.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (paras.length < 4) {
+    const sents = rawNarr.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+    if (sents.length >= 4) paras = sents;
+  }
+  const numScenes = Math.max(4, Math.min(8, paras.length || 8));
+  const sceneDur = Math.max(2.5, (dur || 20) / numScenes);
+  const sceneIdx = Math.floor(t / sceneDur) % numScenes;
+  const localT = t % sceneDur;
+  const activeText = paras[sceneIdx] || title || '';
 
-  // Placa superior
+  // Fondo papel craft con retícula sutil
+  ctx.fillStyle = '#fbf5e8';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(218, 206, 184, 0.45)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 36) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 36) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Nubes paper-cut flotantes
+  const drawStickerCloud = (cx0, cy0, sc) => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(198, 185, 165, 0.55)';
+    ctx.beginPath(); ctx.roundRect(cx0 - 38 * sc + 3, cy0 - 10 * sc + 4, 76 * sc, 24 * sc, 12 * sc); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.roundRect(cx0 - 38 * sc, cy0 - 10 * sc, 76 * sc, 24 * sc, 12 * sc); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx0 - 14 * sc, cy0 - 10 * sc, 15 * sc, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx0 + 10 * sc, cy0 - 13 * sc, 18 * sc, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  };
+  drawStickerCloud(((70 + t * 14) % (w + 120)) - 60, h * 0.20, 0.85);
+  drawStickerCloud(((w - 60 - t * 10) % (w + 120)), h * 0.27, 0.7);
+
+  // Badge superior derecho con año o cifra extraída del párrafo (sin placas superpuestas invasivas)
+  const yearMatch = activeText.match(/\b(1[5-9]\d{2}|20[0-3]\d)\b/);
+  const badgeVal = yearMatch ? yearMatch[1] : `ESC 0${sceneIdx + 1}`;
   ctx.save();
   ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(20, 20, w - 40, 64, 14); ctx.fill();
-  ctx.fillStyle = '#dc2626';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('EXPEDIENTE INVESTIGADO // CLASIFICADO', 36, 42);
-  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.roundRect(w - 118, 24, 102, 46, 12); ctx.fill();
+  ctx.fillStyle = '#991b1b';
+  ctx.beginPath(); ctx.roundRect(w - 115, 27, 96, 40, 10); ctx.fill();
+  ctx.fillStyle = '#fef08a';
   ctx.font = 'bold 14px sans-serif';
-  ctx.fillText((title || 'Caso Sin Resolver').slice(0, 36).toUpperCase(), 36, 64);
+  ctx.textAlign = 'center';
+  ctx.fillText(badgeVal, w - 67, 46);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.fillText(yearMatch ? 'AÑO DOCUMENTADO' : 'ACTO VISUAL', w - 67, 60);
   ctx.restore();
 
   const cx = w / 2;
-  const cy = h * 0.52;
+  const cy = h * 0.50;
 
-  // Carpeta de archivo paper-cut
-  const fw = w * 0.72;
-  const fh = 220;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(cx - fw / 2 - 5, cy - fh / 2 - 5, fw + 10, fh + 10, 14); ctx.fill();
-  ctx.fillStyle = '#d97706';
-  ctx.beginPath(); ctx.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, 10); ctx.fill();
+  const drawSceneDiorama = (mode, sScale) => {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(sScale, sScale);
+    ctx.translate(-cx, -cy);
 
-  // Sello CONFIDENCIAL rojo
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(cx - 100, cy - 30, 200, 44, 8); ctx.fill();
-  ctx.fillStyle = '#dc2626';
-  ctx.beginPath(); ctx.roundRect(cx - 96, cy - 26, 192, 36, 6); ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('CONFIDENCIAL // CLASIFICADO', cx, cy - 3);
+    if (mode === 0) {
+      // ESCENA 1: Panorama Desierto / Horizonte 2.5D con Sol, Dunas, Cactus y Antena
+      const pulse = Math.sin(t * 3) * 4;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx, cy - 55, 48 + pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.arc(cx, cy - 55, 43 + pulse, 0, Math.PI * 2); ctx.fill();
 
-  // Lupa de investigación giratoria
-  const dialAngle = t * 1.8;
-  const dx = cx + Math.cos(dialAngle) * 25;
-  const dy = cy + 70;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(dx, dy, 48, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#f8fafc';
-  ctx.beginPath(); ctx.arc(dx, dy, 44, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(dx - 40, dy); ctx.lineTo(dx + 40, dy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(dx, dy - 40); ctx.lineTo(dx, dy + 40); ctx.stroke();
+      // Dunas en capas con borde blanco sticker
+      const dunes = [
+        { y: cy + 5, col: '#d97706' },
+        { y: cy + 38, col: '#b45309' },
+        { y: cy + 72, col: '#92400e' }
+      ];
+      dunes.forEach((d, idx) => {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.roundRect(cx - w * 0.42 - 3, d.y - 3, w * 0.84 + 6, 48, 14); ctx.fill();
+        ctx.fillStyle = d.col;
+        ctx.beginPath(); ctx.roundRect(cx - w * 0.42, d.y, w * 0.84, 42, 12); ctx.fill();
+      });
 
-  // Cota técnica
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(cx - 100, cy + 150, 200, 36, 10); ctx.fill();
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath(); ctx.roundRect(cx - 98, cy + 152, 196, 32, 8); ctx.fill();
-  ctx.fillStyle = '#ef4444';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.fillText('ESTADO: EN INVESTIGACIÓN', cx, cy + 172);
-  ctx.textAlign = 'left';
+      // Torre de radio con ondas
+      ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx + 55, cy + 5); ctx.lineTo(cx + 70, cy - 65); ctx.lineTo(cx + 85, cy + 5); ctx.stroke();
+      for (let r = 1; r <= 3; r++) {
+        const rad = ((t * 25 + r * 14) % 45);
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx + 70, cy - 65, rad, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (mode === 1) {
+      // ESCENA 2: Mapa Cartográfico Paralelo 27° N + Rosa de los Vientos
+      const mw = w * 0.78, mh = 190;
+      ctx.fillStyle = 'rgba(180,165,140,0.6)';
+      ctx.beginPath(); ctx.roundRect(cx - mw / 2 + 5, cy - mh / 2 + 6, mw, mh, 16); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.roundRect(cx - mw / 2 - 4, cy - mh / 2 - 4, mw + 8, mh + 8, 18); ctx.fill();
+      ctx.fillStyle = '#f4e7ce';
+      ctx.beginPath(); ctx.roundRect(cx - mw / 2, cy - mh / 2, mw, mh, 14); ctx.fill();
+
+      // Paralelo 27° punteado y ruta animada
+      ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(cx - mw * 0.42, cy - 10); ctx.lineTo(cx + mw * 0.42, cy - 10); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#991b1b'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('PARALELO 27° N // VÉRTICE MAPIMÍ', cx - mw * 0.38, cy - 18);
+
+      // Pin pulsante
+      const pr = 12 + Math.sin(t * 5) * 4;
+      ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx + 15, cy - 10, pr, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath(); ctx.arc(cx + 15, cy - 10, 6, 0, Math.PI * 2); ctx.fill();
+    } else if (mode === 2) {
+      // ESCENA 3: Impacto Cohete Athena / Meteorito Allende en Portal Nocturno
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx, cy, 102, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(cx, cy, 96, 0, Math.PI * 2); ctx.fill();
+
+      // Estela de fuego y proyectil
+      const off = Math.sin(t * 6) * 4;
+      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.moveTo(cx - 55, cy - 55); ctx.lineTo(cx + 15 + off, cy + 15 + off); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx + 22 + off, cy + 22 + off, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.arc(cx + 22 + off, cy + 22 + off, 16, 0, Math.PI * 2); ctx.fill();
+    } else if (mode === 3) {
+      // ESCENA 4: Brújula Magnética Descontrolada + Osciloscopio
+      const cw = w * 0.78, ch = 195;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.roundRect(cx - cw / 2 - 4, cy - ch / 2 - 4, cw + 8, ch + 8, 18); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.roundRect(cx - cw / 2, cy - ch / 2, cw, ch, 14); ctx.fill();
+
+      // Brújula izquierda
+      const bx = cx - cw * 0.22, by = cy - 15;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(bx, by, 44, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fef3c7';
+      ctx.beginPath(); ctx.arc(bx, by, 39, 0, Math.PI * 2); ctx.fill();
+      const ang = t * 4.2 + Math.sin(t * 7) * 1.1;
+      ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(ang) * 30, by + Math.sin(ang) * 30); ctx.stroke();
+
+      // Onda de osciloscopio derecha
+      ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i < 90; i += 3) {
+        const wx = cx + 5 + i;
+        const wy = by + Math.sin(t * 8 + i * 0.22) * 20;
+        if (i === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+      }
+      ctx.stroke();
+    } else if (mode === 4) {
+      // ESCENA 5: Corte Geológico de Estratos y Magnetita
+      const layers = [
+        { name: '01. ARENA DESÉRTICA', col: '#d97706', y: cy - 68 },
+        { name: '02. SEDIMENTO MARINO FÓSIL', col: '#b45309', y: cy - 18 },
+        { name: '03. YACIMIENTO DE MAGNETITA (Fe3O4)', col: '#475569', y: cy + 32 }
+      ];
+      layers.forEach(l => {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.roundRect(cx - w * 0.38 - 3, l.y - 3, w * 0.76 + 6, 42, 10); ctx.fill();
+        ctx.fillStyle = l.col;
+        ctx.beginPath(); ctx.roundRect(cx - w * 0.38, l.y, w * 0.76, 36, 8); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(l.name, cx - w * 0.34, l.y + 22);
+      });
+    } else {
+      // ESCENA 6: Contraste Mito vs Ciencia / Medalla Documental
+      const cardW = w * 0.36, cardH = 155;
+      // Tarjeta Mito
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.roundRect(cx - cardW - 12, cy - cardH / 2 - 3, cardW + 6, cardH + 6, 14); ctx.fill();
+      ctx.fillStyle = '#581c87';
+      ctx.beginPath(); ctx.roundRect(cx - cardW - 9, cy - cardH / 2, cardW, cardH, 12); ctx.fill();
+      ctx.fillStyle = '#e9d5ff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('MITO POPULAR', cx - cardW / 2 - 9, cy - 35);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('ANOMALÍA / OVNI', cx - cardW / 2 - 9, cy + 15);
+
+      // Tarjeta Ciencia
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.roundRect(cx + 6, cy - cardH / 2 - 3, cardW + 6, cardH + 6, 14); ctx.fill();
+      ctx.fillStyle = '#065f46';
+      ctx.beginPath(); ctx.roundRect(cx + 9, cy - cardH / 2, cardW, cardH, 12); ctx.fill();
+      ctx.fillStyle = '#a7f3d0'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('CIENCIA REAL', cx + cardW / 2 + 9, cy - 35);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('MAGNETITA + SOLAR', cx + cardW / 2 + 9, cy + 15);
+      ctx.textAlign = 'left';
+    }
+    ctx.restore();
+  };
+
+  const transDur = 0.45;
+  const isTrans = localT > (sceneDur - transDur);
+  if (isTrans) {
+    const tau = (localT - (sceneDur - transDur)) / transDur;
+    const s = tau * tau * (3 - 2 * tau);
+    // Escena saliente con suavizado Hermite
+    ctx.save();
+    ctx.globalAlpha = 1 - s;
+    drawSceneDiorama(sceneIdx % 6, 1.0 - 0.04 * s);
+    ctx.restore();
+    // Escena entrante con suavizado Hermite
+    ctx.save();
+    ctx.globalAlpha = s;
+    drawSceneDiorama((sceneIdx + 1) % 6, 0.96 + 0.04 * s);
+    ctx.restore();
+  } else {
+    const pop = sceneIdx === 0 ? Math.min(1, localT / 0.45) : 1.0;
+    const sScale = 0.85 + 0.15 * pop;
+    drawSceneDiorama(sceneIdx % 6, sScale);
+  }
+}
+
+function drawPixelFXAmbientParticles(ctx, w, h, t, accentColor = "rgba(245, 158, 11, 0.4)") {
+  ctx.save();
+  for (let i = 0; i < 22; i++) {
+    const seed = i * 137.5;
+    const px = ((Math.sin(seed + t * 0.4) * 0.45 + 0.5) * w);
+    const py = (((seed * 29.3 + t * 50) % (h * 0.75)) + h * 0.12);
+    const rad = 1.5 + (Math.sin(seed * 2.2 + t * 2.0) + 1.0) * 1.4;
+    ctx.fillStyle = accentColor;
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawRollingCounterBadge(ctx, x, y, label, targetNum, unit, t, duration = 3.2) {
+  ctx.save();
+  const normT = Math.min(1.0, Math.max(0.0, t / duration));
+  const easeVal = 1 - Math.pow(1 - normT, 3);
+  const currentVal = Math.round(targetNum * easeVal);
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, 164, 46, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillText(label.toUpperCase(), x + 12, y + 16);
+
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 16px "Courier New", monospace';
+  const formatted = currentVal.toLocaleString() + ' ' + (unit || '');
+  ctx.fillText(formatted, x + 12, y + 36);
+  ctx.restore();
 }
 
 function drawPaperCutoutDiorama(ctx, w, h, t, dur, title) {
   const archetype = detectOpuscarArchetype(title);
-  if (archetype === "ojo_sahara") return drawOjoSaharaCanvas(ctx, w, h, t, dur, title);
-  if (archetype === "chapultepec") return drawChapultepecLive(ctx, w, h, t, dur, title);
-  if (archetype === "mayan") return drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
-  if (archetype === "oceanic") return drawOceanicDioramaCanvas(ctx, w, h, t, dur, title);
-  if (archetype === "geological") return drawGeologicalDioramaCanvas(ctx, w, h, t, dur, title);
-  if (archetype === "cosmic") return drawCosmicDioramaCanvas(ctx, w, h, t, dur, title);
-  if (archetype === "architectural") return drawArchitecturalDioramaCanvas(ctx, w, h, t, dur, title);
-  return drawMysteryArchiveCanvas(ctx, w, h, t, dur, title);
-}
-  // Ojitos
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(-12, -10, 8, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(12, -10, 8, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath(); ctx.arc(-11, -10, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(11, -10, 4, 0, Math.PI * 2); ctx.fill();
-  // Sonrisa
-  ctx.beginPath(); ctx.arc(0, 12, 10, 0.1, Math.PI - 0.1); ctx.stroke();
-  ctx.restore();
+  if (archetype === "aviation") drawAviationDioramaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "snow_weather") drawSnowWeatherDioramaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "ojo_sahara") drawOjoSaharaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "chapultepec") drawChapultepecLive(ctx, w, h, t, dur, title);
+  else if (archetype === "mayan") drawMayaDioramaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "oceanic") drawOceanicDioramaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "geological") drawGeologicalDioramaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "cosmic") drawCosmicDioramaCanvas(ctx, w, h, t, dur, title);
+  else if (archetype === "architectural") drawArchitecturalDioramaCanvas(ctx, w, h, t, dur, title);
+  else drawMysteryArchiveCanvas(ctx, w, h, t, dur, title);
+
+  // Insignia dinámica con odómetro numérico según contexto
+  if (archetype === "aviation") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Misiones Voladas", 59, "operativas", t);
+  } else if (archetype === "snow_weather") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Temperatura Mínima", -4, "°C", t);
+  } else if (archetype === "chapultepec") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Año de Construcción", 1785, "d.C.", t);
+  } else if (archetype === "oceanic") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Profundidad Abisal", 11034, "metros", t);
+  } else if (archetype === "mayan") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Antigüedad Estelar", 3200, "años", t);
+  } else if (archetype === "ojo_sahara") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Diámetro Geológico", 40, "km", t);
+  } else if (archetype === "cosmic") {
+    drawRollingCounterBadge(ctx, 24, h - 86, "Distancia Orbital", 384400, "km", t);
+  }
+
+  // Efecto ambiental de partículas procedimentales (PixelFX)
+  drawPixelFXAmbientParticles(ctx, w, h, t);
 }
 
 function drawChapultepecLive(ctx, w, h, t, dur, title) {
@@ -1522,20 +1848,16 @@ async function searchAndGenerateOpuscarScript(useRandom = false) {
       fmtSel.value = durationMode === "shorts" ? "9:16" : "16:9";
     }
 
-    // 4. Seleccionar estilo visual ideal según temática
+    // 4. Seleccionar estilo visual Paper-Cut 2.5D Multi-Escena por defecto para cualquier tema nuevo
     const styleSel = document.getElementById("opuscarStyleSelect");
     if (styleSel) {
       const qLow = (query + " " + (data.best_title || "")).toLowerCase();
-      if (qLow.includes("sahara") || qLow.includes("richat") || qLow.includes("mauritania") || qLow.includes("desierto") || qLow.includes("cráter")) {
+      if (qLow.includes("sahara") || qLow.includes("richat") || qLow.includes("mauritania")) {
         styleSel.value = "ojo_sahara_diorama";
-      } else if (qLow.includes("chapultepec") || qLow.includes("castillo") || qLow.includes("alcazar") || qLow.includes("maximiliano") || qLow.includes("reforma") || qLow.includes("palacio")) {
+      } else if (qLow.includes("chapultepec")) {
         styleSel.value = "chapultepec_diorama";
-      } else if (qLow.includes("maya") || qLow.includes("campeche") || qLow.includes("valeriana") || qLow.includes("arqueol") || qLow.includes("pirámide")) {
+      } else if (qLow.includes("valeriana") || (qLow.includes("maya") && qLow.includes("campeche"))) {
         styleSel.value = "mayan_diorama";
-      } else if (category === "lugares_mundo" || category === "historia_mexico") {
-        styleSel.value = "paper_cutout_diorama";
-      } else if (category === "misterio") {
-        styleSel.value = "da_vinci_codex";
       } else {
         styleSel.value = "paper_cutout_diorama";
       }
@@ -1549,14 +1871,57 @@ async function searchAndGenerateOpuscarScript(useRandom = false) {
       const durBadge = document.getElementById("opuscarResultDurationBadge");
       const hookSpan = document.getElementById("opuscarResultHook");
       const tagsSpan = document.getElementById("opuscarResultTags");
+      const scriptPreview = document.getElementById("opuscarResultScriptPreview");
+      const wordCountSpan = document.getElementById("opuscarResultWordCount");
 
       if (titleP) titleP.textContent = data.best_title || query;
       if (durBadge) durBadge.textContent = data.estimated_duration_label || (durationMode === "shorts" ? "~75s (Shorts)" : "4-6 min");
       if (hookSpan) hookSpan.textContent = `Hook: "${data.thumbnail_hook || "VIRAL"}"`;
       if (tagsSpan) tagsSpan.textContent = (data.hashtags || []).slice(0, 4).join(" ");
+      if (scriptPreview && data.script) {
+        scriptPreview.textContent = data.script;
+        const wc = data.word_count || data.script.trim().split(/\s+/).length;
+        if (wordCountSpan) wordCountSpan.textContent = `${wc} palabras · ~${Math.round(wc / 2.5)}s`;
+      }
+
+      // Renderizar los 3 ganchos psicológicos de alta retención
+      const hooksSec = document.getElementById("opuscarHooksSection");
+      const hooksCont = document.getElementById("opuscarHooksContainer");
+      if (hooksSec && hooksCont && data.hooks && data.hooks.length > 0) {
+        hooksCont.innerHTML = "";
+        data.hooks.forEach((hObj) => {
+          const hBtn = document.createElement("button");
+          hBtn.type = "button";
+          hBtn.className = "p-2 rounded-lg bg-slate-900/90 hover:bg-amber-500/15 border border-slate-700/80 hover:border-amber-500/40 text-left transition space-y-0.5 group";
+          hBtn.innerHTML = `
+            <div class="flex items-center justify-between text-[10px] font-bold text-amber-300">
+              <span>${hObj.type_name}</span>
+              <span class="text-slate-400 group-hover:text-amber-200 text-[9px]">Aplicar Gancho ↵</span>
+            </div>
+            <p class="text-[11px] text-slate-300 group-hover:text-white leading-relaxed">"${hObj.text}"</p>
+          `;
+          hBtn.onclick = () => {
+            if (narrInput && data.script) {
+              // Reemplazar la primera oración del guion con el gancho seleccionado
+              const sentences = data.script.split(/(?<=[.?!])\s+/);
+              if (sentences.length > 1) {
+                narrInput.value = hObj.text + " " + sentences.slice(1).join(" ");
+              } else {
+                narrInput.value = hObj.text + " " + data.script;
+              }
+              if (scriptPreview) scriptPreview.textContent = narrInput.value;
+            }
+          };
+          hooksCont.appendChild(hBtn);
+        });
+        hooksSec.classList.remove("hidden");
+      }
     }
   } catch (err) {
-    alert("No se pudo generar el guion: " + err.message);
+    const msg = err.message === "Failed to fetch"
+      ? "El servidor local se estaba iniciando o reconectando. Ya está activo en 127.0.0.1:7860; por favor vuelve a hacer clic en 'Investigar y Redactar'."
+      : err.message;
+    alert("No se pudo generar el guion: " + msg);
   } finally {
     if (btnSearch) {
       btnSearch.disabled = false;
@@ -1573,8 +1938,12 @@ window.toggleOpuscarPlay = toggleOpuscarPlay;
 window.scrubOpuscarTimeline = scrubOpuscarTimeline;
 window.renderOpuscarVideo = renderOpuscarVideo;
 window.closeOpuscarVideoModal = closeOpuscarVideoModal;
-window.onOpuscarSearchCategoryChange = onOpuscarSearchCategoryChange;
 window.searchAndGenerateOpuscarScript = searchAndGenerateOpuscarScript;
+window.searchAndGenerateOpusCarScript = searchAndGenerateOpuscarScript;
+window._realSearchAndGenerateOpuscarScript = searchAndGenerateOpuscarScript;
+window.onOpuscarSearchCategoryChange = onOpuscarSearchCategoryChange;
+window.onOpusCarSearchCategoryChange = onOpuscarSearchCategoryChange;
+window._realOnOpuscarSearchCategoryChange = onOpuscarSearchCategoryChange;
 
 window.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {

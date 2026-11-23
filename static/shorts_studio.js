@@ -10,6 +10,9 @@ async function initShortsStudio() {
   try {
     const res = await fetch("/api/animated-shorts/topics");
     const data = await res.json();
+    if (data.video_url && data.video_url.startsWith("/projects/short_") && !data.video_url.includes("/animated_shorts/")) {
+      data.video_url = data.video_url.replace("/projects/", "/projects/animated_shorts/");
+    }
     if (data.status === "success") {
       shortsTopics = data.topics;
       renderShortsTopicCards();
@@ -129,6 +132,9 @@ async function generateShortsScript() {
     });
 
     const data = await res.json();
+    if (data.video_url && data.video_url.startsWith("/projects/short_") && !data.video_url.includes("/animated_shorts/")) {
+      data.video_url = data.video_url.replace("/projects/", "/projects/animated_shorts/");
+    }
     if (data.status === "success") {
       activeShortsScript = data.script;
       renderShortsScriptPreview(data.script);
@@ -239,6 +245,9 @@ async function compileEarshotFoley() {
     });
 
     const data = await res.json();
+    if (data.video_url && data.video_url.startsWith("/projects/short_") && !data.video_url.includes("/animated_shorts/")) {
+      data.video_url = data.video_url.replace("/projects/", "/projects/animated_shorts/");
+    }
     if (data.status === "success") {
       if (statusEl) {
         statusEl.innerHTML = `
@@ -278,7 +287,10 @@ async function renderAnimatedShortVideo() {
   if (progText) progText.textContent = "Sintetizando locución neuronal y foley procedural Earshot...";
 
   try {
-    const voice = document.getElementById("voiceSelect")?.value || "es-MX-DaliaNeural";
+    let voice = document.getElementById("shortsVoiceSelect")?.value || document.getElementById("opuscarVoiceSelect")?.value || "";
+    if (!voice || !voice.includes("Neural")) {
+      voice = "es-MX-JorgeNeural";
+    }
 
     const res = await fetch("/api/animated-shorts/render-video", {
       method: "POST",
@@ -301,6 +313,9 @@ async function renderAnimatedShortVideo() {
     if (progText) progText.textContent = "¡Video compilado exitosamente!";
 
     const data = await res.json();
+    if (data.video_url && data.video_url.startsWith("/projects/short_") && !data.video_url.includes("/animated_shorts/")) {
+      data.video_url = data.video_url.replace("/projects/", "/projects/animated_shorts/");
+    }
 
     // Guardar en localStorage
     try {
@@ -351,6 +366,9 @@ async function loadLastShortsVideo() {
     const res = await fetch("/api/animated-shorts/last-video");
     if (res.ok) {
       const data = await res.json();
+    if (data.video_url && data.video_url.startsWith("/projects/short_") && !data.video_url.includes("/animated_shorts/")) {
+      data.video_url = data.video_url.replace("/projects/", "/projects/animated_shorts/");
+    }
       if (data.has_video && data.video) {
         videoData = data.video;
       }
@@ -362,6 +380,9 @@ async function loadLastShortsVideo() {
       }
     }
     if (!videoData || !videoData.video_url) return;
+    if (videoData.video_url.startsWith("/projects/short_") && !videoData.video_url.includes("/animated_shorts/")) {
+      videoData.video_url = videoData.video_url.replace("/projects/", "/projects/animated_shorts/");
+    }
 
     const card = document.getElementById("shortsVideoCard");
     const vid = document.getElementById("shortsPreviewPlayer");

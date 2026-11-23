@@ -108,10 +108,16 @@ def generate_earshot_foley_track(scenes: List[Dict[str, Any]], total_duration_se
             if sample_len > 0:
                 master_buffer[start_idx:end_idx] += sample_data[:sample_len]
 
-    # Normalización del master buffer de foley para evitar saturación
+    # Normalización del master buffer de foley y masterización de estudio
     max_val = np.max(np.abs(master_buffer))
     if max_val > 0.001:
         master_buffer = (master_buffer / max_val) * 0.72
+
+    try:
+        from studio.audio_mastering import master_audio_samples
+        master_buffer = master_audio_samples(master_buffer, sample_rate=SAMPLE_RATE)
+    except Exception:
+        pass
 
     output_wav.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(output_wav), "w") as wf:

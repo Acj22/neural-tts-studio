@@ -385,37 +385,38 @@ def build_specialized_turbocharger_model(center_z: float = 1.25) -> Dict[str, An
     cz = center_z
 
     # =========================================================================
-    # A. PEDESTAL Y ENTORNO OSCURO DE ESTUDIO
+    # A. ILUMINACIÓN TRI-PUNTO CON CONTRASTE DE TEMPERATURA APUNTADA AL CENTRO
     # =========================================================================
-    pedestal = C.box("Studio_Pedestal", (12.0, 12.0, 0.25), (0.0, 0.0, cz - 0.95), mat=m_floor, bev=0.04)
-    grp("studio_env", pedestal)
+    target_pt = Vector((0.0, 0.0, cz))
 
-    # Esquema de Iluminación Tri-Punto con Contraste de Temperatura
     # 1. Key Light Frontal Neutral
     key_l = bpy.data.lights.new("Studio_Key_Light", type="AREA")
-    key_l.energy = 95.0
+    key_l.energy = 320.0
     key_l.size = 2.4
     key_l.color = (1.0, 0.98, 0.94)
     key_obj = bpy.data.objects.new("Studio_Key_Light", key_l)
     key_obj.location = (2.2, -3.5, cz + 2.4)
+    key_obj.rotation_euler = (target_pt - Vector(key_obj.location)).to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.collection.objects.link(key_obj)
 
     # 2. Rim Light Cálida (Lado Turbina X > 0)
     rim_l = bpy.data.lights.new("Studio_Rim_Turbine", type="AREA")
-    rim_l.energy = 140.0
+    rim_l.energy = 380.0
     rim_l.size = 1.8
     rim_l.color = (1.0, 0.42, 0.12)  # Ámbar cálido 950°C
     rim_obj = bpy.data.objects.new("Studio_Rim_Turbine", rim_l)
     rim_obj.location = (2.8, 2.4, cz + 1.8)
+    rim_obj.rotation_euler = (target_pt - Vector(rim_obj.location)).to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.collection.objects.link(rim_obj)
 
     # 3. Rim Light Fría (Lado Compresor X < 0)
     fill_l = bpy.data.lights.new("Studio_Fill_Compressor", type="AREA")
-    fill_l.energy = 110.0
+    fill_l.energy = 340.0
     fill_l.size = 2.0
     fill_l.color = (0.20, 0.70, 1.0)  # Cian frío 40°C
     fill_obj = bpy.data.objects.new("Studio_Fill_Compressor", fill_l)
     fill_obj.location = (-2.8, -2.5, cz + 1.5)
+    fill_obj.rotation_euler = (target_pt - Vector(fill_obj.location)).to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.collection.objects.link(fill_obj)
 
     # =========================================================================

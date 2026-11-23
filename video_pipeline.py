@@ -1,8 +1,11 @@
 import base64
 import io
 import json
+import logging
+import os
 import random
 import re
+import shutil
 import subprocess
 import textwrap
 import time
@@ -17,6 +20,8 @@ import requests
 from deep_translator import MyMemoryTranslator
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+logger = logging.getLogger("video_pipeline")
+
 STYLE_PRESETS = {
     "cinematic": "Cinematic photorealistic 8k movie still, dramatic volumetric lighting, shallow depth of field, ultra detailed, no text, no watermark",
     "documentary": "National Geographic and Netflix historical documentary style photography, moody atmospheric lighting, hyper-realistic, 8k, no text",
@@ -25,6 +30,7 @@ STYLE_PRESETS = {
     "3d_animation": "Pixar and DreamWorks 3D animated movie style, soft global illumination, expressive, rich textures, 8k render, no text",
     "dark_mystery": "Dark mystery thriller atmosphere, chiaroscuro lighting, cinematic shadows, moody and suspenseful photography, no text",
     "illustration": "Modern digital editorial illustration, dramatic composition, concept art, no text",
+    "3d_blender": "Photorealistic 3D engineering cutaway diorama render, Blender Eevee Next studio lighting, exploded view mechanical model, metallic materials, high precision, octane render look, 8k, no text",
     "sketch_bw": "Hand-drawn black ink line art sketch on a pure white background, minimalist stick figure / pencil-sketch look, no color, no text, no watermark",
     "none": "",
     "custom_only": "",
@@ -715,6 +721,23 @@ def _generate_with_gemini(
         if elapsed < 4.5:
             time.sleep(4.5 - elapsed)
 
+        # 1. Probar primero con el endpoint oficial de Google Imagen 3
+        try:
+            imagen_url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={api_key}"
+            imagen_payload = {
+                "instances": [{"prompt": prompt}],
+                "parameters": {"sampleCount": 1, "aspectRatio": aspect_code}
+            }
+            resp_img = requests.post(imagen_url, json=imagen_payload, timeout=35)
+            if resp_img.status_code == 200:
+                img_data = resp_img.json()
+                preds = img_data.get("predictions") or []
+                if preds and preds[0].get("bytesBase64Encoded"):
+                    raw_b = base64.b64decode(preds[0]["bytesBase64Encoded"])
+                    return Image.open(io.BytesIO(raw_b)).convert("RGB"), ""
+        except Exception:
+            pass
+
         for model_name in gemini_models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             payload = {
@@ -862,22 +885,25 @@ def _generate_with_fal(prompt: str, w: int, h: int, seed: int) -> tuple[Optional
 
 
 def _generate_with_pollinations(prompt: str, w: int, h: int, seed: int) -> tuple[Optional[Image.Image], str]:
-    """Genera imágenes 100% gratis y sin cuenta con Pollinations AI (modelo Flux sin marca de agua)."""
+    """Genera imágenes 100% gratis y sin cuenta con Pollinations AI."""
     last_err = "Pollinations ocupado"
-    for attempt in range(2):
+    clean_p = quote(prompt[:750])
+    urls = [
+        f"https://image.pollinations.ai/prompt/{clean_p}?width={w}&height={h}&seed={seed}&nologo=true",
+        f"https://image.pollinations.ai/prompt/{clean_p}?nologo=true",
+    ]
+    for url in urls:
         try:
-            clean_p = quote(prompt[:950])
-            pol_url = (
-                f"https://image.pollinations.ai/prompt/{clean_p}"
-                f"?model=flux&width={w}&height={h}&seed={seed + attempt}&nologo=true&enhance=false"
-            )
-            r = requests.get(pol_url, timeout=40, headers={"User-Agent": "Mozilla/5.0"})
+            r = requests.get(url, timeout=35, headers={"User-Agent": "Mozilla/5.0"})
             if r.status_code == 200 and "image" in r.headers.get("content-type", ""):
                 return Image.open(io.BytesIO(r.content)).convert("RGB"), ""
-            last_err = f"Pollinations HTTP {r.status_code}"
+            if r.status_code == 402:
+                last_err = "Pollinations cuota temporal de 45s por IP"
+            else:
+                last_err = f"Pollinations HTTP {r.status_code}"
         except Exception as exc:
             last_err = str(exc)
-        time.sleep(1.5)
+        time.sleep(1.2)
     return None, last_err
 
 
@@ -1047,6 +1073,10 @@ def _generate_with_hf_spaces(
     return None, last_error
 
 
+import threading as _threading
+_GEMINI_PRO_LOCK = _threading.Lock()
+
+
 def _generate_with_gemini_pro_web(
     prompt: str,
     width: int,
@@ -1057,48 +1087,91 @@ def _generate_with_gemini_pro_web(
     para generar ilustraciones con Nano Banana / Imagen 3 sin pagar API adicional."""
     psid = (IMAGE_SETTINGS.get("gemini_1psid") or "").strip()
     psidts = (IMAGE_SETTINGS.get("gemini_1psidts") or "").strip() or None
-    if not psid:
+    extra_cookies: list[dict[str, Any]] = IMAGE_SETTINGS.get("gemini_cookies_list") or []
+    if not psid and not extra_cookies:
         return (
             None,
-            "Falta conectar tu sesión de Gemini Pro. Haz clic en '🌐 Iniciar Sesión en Gemini Pro (1 Clic)' o pega tu cookie __Secure-1PSID en '🔑 Configurar Motor de Imágenes'.",
+            "Falta conectar tu sesión de Gemini Pro. Haz clic en '🌐 Conectar Gemini Pro en 1 Clic (Captura Automática)' en '🔑 Configurar Motor de Imágenes'.",
         )
 
     import asyncio
+    import sys
     from gemini_webapi import GeminiClient
+    import gemini_webapi.utils as _gutils
+
+    try:
+        import gemini_webapi.utils.load_browser_cookies as _lbc
+        _lbc.load_browser_cookies = lambda *a, **k: {}
+        gat_mod = sys.modules.get("gemini_webapi.utils.get_access_token")
+        if gat_mod is not None:
+            gat_mod.load_browser_cookies = lambda *a, **k: {}
+            if not getattr(gat_mod, "_patched_safe_extract", False):
+                _orig_extract = gat_mod._extract_payload
+
+                def _safe_extract_payload(response):
+                    url_str = str(getattr(response, "url", "") or "")
+                    txt_str = getattr(response, "text", "") or ""
+                    if (
+                        "accounts.google.com" in url_str
+                        or "ServiceLogin" in url_str
+                        or "boq_identityfrontend" in txt_str
+                    ):
+                        return None
+                    return _orig_extract(response)
+
+                gat_mod._extract_payload = _safe_extract_payload
+                gat_mod._patched_safe_extract = True
+    except Exception:
+        pass
 
     aspect_str = "16:9 widescreen horizontal landscape" if width >= height else "9:16 vertical portrait"
     files = [str(reference_image_path)] if (reference_image_path and reference_image_path.exists()) else None
 
-    # Reemplazar palabras de personas realistas por "cartoon stick-figure character" para que el filtro de personas de Google nunca rechace dibujar
-    safe_prompt = re.sub(
-        r"\b(a person|person|people|a man|a woman|a boy|a girl|a child|children)\b",
-        "a simple cartoon stick-figure character",
-        prompt,
-        flags=re.IGNORECASE,
-    )
     full_prompt = (
-        f"Generate an image ({aspect_str} 2D cartoon storyboard illustration). "
-        f"Always use the image generation tool to draw:\n\n"
-        f"{safe_prompt}"
+        f"Generate a high-quality image ({aspect_str}) using your image generation tool. "
+        f"Depict the following scene with rich details, no text, no letters, no watermark:\n\n"
+        f"{prompt}"
     )
 
-    # Extraer solo la oración central de la escena por si hay que reintentar con un prompt corto y directo
-    short_scene = safe_prompt.split("STYLE:")[0].replace("SCENE TO DRAW:", "").strip()
+    short_scene = prompt.split("STYLE:")[0].replace("SCENE TO DRAW:", "").strip()
 
     async def _async_gen() -> tuple[Optional[Image.Image], str]:
         from gemini_webapi.utils import rotate_1psidts
 
-        client = GeminiClient(psid, psidts)
+        client = GeminiClient(psid or None, psidts)
+        for c in extra_cookies:
+            c_name = (c.get("name") or "").strip()
+            c_val = (c.get("value") or "").strip()
+            c_dom = (c.get("domain") or ".google.com").strip()
+            if c_name == "OSID" and any(x.get("name") == "__Secure-OSID" for x in extra_cookies):
+                continue
+            if c_name and c_val:
+                client._cookies.set(c_name, c_val, domain=c_dom, secure=True)
+        osid_val = (IMAGE_SETTINGS.get("gemini_osid") or "").strip()
+        if osid_val and not any(x.get("name") in ("__Secure-OSID", "OSID") for x in extra_cookies):
+            client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True)
+        if psid:
+            client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True)
+        if psidts:
+            client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True)
+
         try:
-            await client.init(timeout=40, auto_close=False, auto_refresh=False)
-            # Rotar preventivamente __Secure-1PSIDTS para que la sesión no caduque a los 15 minutos en lotes largos
+            await client.init(timeout=30, auto_close=False, auto_refresh=False)
+
+            acc_status = getattr(client, "account_status", None)
+            if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
+                return (
+                    None,
+                    "Opera GX rotó __Secure-1PSIDTS mientras copiabas las cookies una por una. Para copiar las 18 cookies sincronizadas al mismo segundo: en gemini.google.com abre F12 → pestaña Network (Red), presiona F5, haz clic derecho en la primera fila ('app') → Copy → Copy as cURL (cmd), pégalo en la Caja 3 y pulsa Guardar.",
+                )
+
             try:
-                rotated_ts = await rotate_1psidts(client.cookies)
-                if rotated_ts:
-                    client.cookies["__Secure-1PSIDTS"] = rotated_ts
-                    IMAGE_SETTINGS["gemini_1psidts"] = rotated_ts
-                    sf = Path(__file__).parent / "settings.json"
-                    sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
+                if client.client is not None:
+                    rotated_ts = await rotate_1psidts(client.client)
+                    if rotated_ts:
+                        IMAGE_SETTINGS["gemini_1psidts"] = rotated_ts
+                        sf = Path(__file__).parent / "settings.json"
+                        sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception:
                 pass
 
@@ -1112,19 +1185,13 @@ def _generate_with_gemini_pro_web(
             ):
                 return (
                     None,
-                    "Tu cookie temporal '__Secure-1PSIDTS' de Gemini Pro caducó (Google bajó la sesión a modo invitado sin generador de imágenes). Entra a gemini.google.com (F12 → Application → Cookies), copia el nuevo valor de '__Secure-1PSIDTS', pégalo en '🔑 Configurar Motor de Imágenes' → Guardar, cierra la pestaña de gemini.google.com y vuelve a generar.",
+                    "Tu sesión de Gemini Pro bajó a modo invitado sin generador de imágenes. Haz clic en '🌐 Conectar Gemini Pro en 1 Clic (Captura Automática)' en '🔑 Configurar Motor de Imágenes' para sincronizar todas las cookies de sesión.",
                 )
 
             if not response.images:
-                await asyncio.sleep(2.5)
+                await asyncio.sleep(1.5)
                 response = await client.generate_content(
-                    f"Generate a 2D hand-drawn black ink and color sketch image on a pure white background of: {short_scene}. Use simple cartoon stick figures with round heads and dot eyes, no text.",
-                    temporary=True,
-                )
-            if not response.images:
-                await asyncio.sleep(3.0)
-                response = await client.generate_content(
-                    f"Draw an illustration image: {short_scene}, 2D colorful ink sketch on white background, no text.",
+                    f"Generate an image using your image generation tool ({aspect_str}): {short_scene}. No text, no watermark.",
                     temporary=True,
                 )
             if not response.images:
@@ -1135,15 +1202,6 @@ def _generate_with_gemini_pro_web(
             tmp_dir.mkdir(parents=True, exist_ok=True)
             fname = f"gweb_{int(time.time() * 1000)}_{random.randint(100, 999)}.png"
             saved_file = await response.images[0].save(path=str(tmp_dir), filename=fname, full_size=True)
-
-            new_ts = client.cookies.get("__Secure-1PSIDTS")
-            if new_ts and new_ts != psidts:
-                IMAGE_SETTINGS["gemini_1psidts"] = new_ts
-                try:
-                    sf = Path(__file__).parent / "settings.json"
-                    sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
-                except Exception:
-                    pass
 
             if saved_file and Path(saved_file).exists():
                 im = Image.open(saved_file).convert("RGB")
@@ -1161,17 +1219,19 @@ def _generate_with_gemini_pro_web(
             except Exception:
                 pass
 
-    res_box: list[tuple[Optional[Image.Image], str]] = [(None, "Error en hilo Gemini Pro")]
+    with _GEMINI_PRO_LOCK:
+        res_box: list[tuple[Optional[Image.Image], str]] = [(None, "Tiempo de espera agotado en Gemini Pro")]
 
-    def _runner():
-        res_box[0] = asyncio.run(_async_gen())
+        def _runner():
+            try:
+                res_box[0] = asyncio.run(_async_gen())
+            except Exception as exc:
+                res_box[0] = (None, f"Gemini Pro: {exc}")
 
-    import threading
-
-    t = threading.Thread(target=_runner, daemon=True)
-    t.start()
-    t.join(timeout=65)
-    return res_box[0]
+        t = _threading.Thread(target=_runner, daemon=True)
+        t.start()
+        t.join(timeout=75)
+        return res_box[0]
 
 
 def generate_image_for_scene(
@@ -1196,20 +1256,25 @@ def generate_image_for_scene(
         w, h = 576, 1024
 
     provider = (IMAGE_SETTINGS.get("provider") or "auto").strip().lower()
+    allow_fallback = bool(IMAGE_SETTINGS.get("allow_fallback"))
     generated_img: Optional[Image.Image] = None
     used_provider = ""
     last_error = "No se pudo generar la imagen"
     provider_errors: list[str] = []
 
     if provider == "gemini_pro":
-        chain = ["gemini_pro", "hf_dev", "magic"]
+        chain = ["gemini_pro"]
+        if allow_fallback:
+            chain.extend(["hf_dev", "pollinations", "magic"])
     elif provider == "magic":
         chain = ["magic", "hf_dev"]
     elif provider == "gemini":
         chain = []
         if (IMAGE_SETTINGS.get("gemini_1psid") or "").strip():
             chain.append("gemini_pro")
-        chain.extend(["gemini", "hf_dev", "magic", "pollinations"])
+        chain.append("gemini")
+        if allow_fallback:
+            chain.extend(["hf_dev", "magic", "pollinations"])
     elif provider == "runware":
         chain = ["runware", "hf_dev", "magic", "pollinations"]
     elif provider == "together":
@@ -1257,27 +1322,16 @@ def generate_image_for_scene(
         if generated_img is not None:
             used_provider = eng
             break
-        provider_errors.append(f"{eng}: {str(last_error)[:110]}")
+        provider_errors.append(f"{eng}: {str(last_error)[:220]}")
 
     # Respaldo opcional si el usuario activó allow_fallback
-    if generated_img is None and IMAGE_SETTINGS.get("allow_fallback") and "pollinations" not in chain:
+    if generated_img is None and allow_fallback and "pollinations" not in chain:
         generated_img, last_error = _generate_with_pollinations(prompt, w, h, seed)
         if generated_img is not None:
             used_provider = "pollinations"
 
     if generated_img is None:
-        all_errs = " | ".join(provider_errors) or str(last_error)
-        hint = ""
-        low_errs = all_errs.lower()
-        if "unauthenticated" in low_errs or "expired" in low_errs:
-            hint += " Tus cookies de Gemini Pro caducaron: vuelve a copiar __Secure-1PSID y __Secure-1PSIDTS."
-        elif "texto sin imagen" in low_errs:
-            hint += " Gemini bloqueó o rechazó dibujar ese prompt; haz clic en '🎨 Regenerar Imagen IA' en esa escena o ajusta una palabra del prompt."
-        if "zerogpu quota" in low_errs or "0s left" in low_errs:
-            hint += " La cuota diaria gratuita de Hugging Face ZeroGPU se agotó (se renueva en 24 h)."
-        if "magic" in low_errs and "service failed" in low_errs:
-            hint += " El servicio gratuito MagicStudio está caído en este momento."
-        raise RuntimeError(f"No se pudo generar la imagen → {all_errs}.{hint}")
+        raise RuntimeError(str(last_error) if provider == "gemini_pro" and not allow_fallback else (" | ".join(provider_errors) or str(last_error)))
 
     generated_img = _crop_and_resize_to_target(generated_img, width, height)
 
@@ -1791,16 +1845,14 @@ def mix_narration_with_bg_music(
     bg_music_style: str = "doc_mystery",
     bg_music_volume: float = 0.14,
     custom_music_path: Optional[Path] = None,
+    scenes: Optional[list[dict[str, Any]]] = None,
+    enable_foley: bool = False,
 ) -> Path:
-    """Mezcla la narración maestra con música de fondo aplicando Auto-Ducking inteligente:
-    cuando el narrador habla, la música se mantiene suave debajo de la voz; en las pausas,
-    respira ligeramente hacia arriba para mantener el ritmo cinematográfico."""
+    """Mezcla la narración maestra con música de fondo aplicando Auto-Ducking inteligente.
+    Los efectos de sonido (SFX/Foley) se mantienen desactivados por defecto para máxima claridad."""
     import soundfile as sf
 
     if not narration_wav_path.exists():
-        return narration_wav_path
-
-    if bg_music_style == "none" or bg_music_volume <= 0.005:
         return narration_wav_path
 
     voice_samples, sr = sf.read(narration_wav_path, dtype="float32")
@@ -1809,30 +1861,66 @@ def mix_narration_with_bg_music(
     n_samples = len(voice_samples)
     dur_sec = n_samples / float(sr)
 
-    if bg_music_style == "custom" and custom_music_path and custom_music_path.exists():
-        music_samples = _load_custom_music_resampled(custom_music_path, n_samples, sr=sr)
+    # 1. Capa de Foley desactivada para una mezcla limpia centrada en voz y música
+    foley_samples = np.zeros(n_samples, dtype=np.float32)
+    if enable_foley and scenes and len(scenes) > 1:
+        try:
+            from studio.animated_shorts.earshot_sound_designer import synthesize_foley_sample
+            for idx, sc in enumerate(scenes):
+                st_sec = float(sc.get("start_sec", 0.0))
+                st_samp = int(st_sec * sr)
+                if st_samp >= n_samples:
+                    continue
+                if idx == 0:
+                    fx_name = "foley_cinematic_riser"
+                elif idx == len(scenes) - 1:
+                    fx_name = "foley_sub_boom"
+                elif idx % 3 == 0:
+                    fx_name = "foley_metal_click"
+                else:
+                    fx_name = "foley_camera_glide"
+                fx_audio = synthesize_foley_sample(fx_name, duration_sec=0.85)
+                # Resamplear si difiere de sr
+                end_samp = min(n_samples, st_samp + len(fx_audio))
+                flen = end_samp - st_samp
+                if flen > 0:
+                    foley_samples[st_samp:end_samp] += fx_audio[:flen] * 0.32
+        except Exception as e_foley:
+            logger.debug(f"Aviso al sintetizar Foley: {e_foley}")
+
+    # 2. Capa de Música de fondo con Auto-Ducking
+    if bg_music_style != "none" and bg_music_volume > 0.005:
+        if bg_music_style == "custom" and custom_music_path and custom_music_path.exists():
+            music_samples = _load_custom_music_resampled(custom_music_path, n_samples, sr=sr)
+        else:
+            music_samples = generate_royalty_free_music(bg_music_style, duration_sec=dur_sec, sr=sr)
+
+        if len(music_samples) < n_samples:
+            music_samples = np.pad(music_samples, (0, n_samples - len(music_samples)))
+        else:
+            music_samples = music_samples[:n_samples]
+
+        # Auto-Ducking envolvente suave (ventana de 280ms)
+        win = max(64, int(sr * 0.28))
+        kernel = np.ones(win, dtype=np.float32) / float(win)
+        voice_env = np.convolve(np.abs(voice_samples), kernel, mode="same")
+        speaking_mask = np.clip(voice_env / 0.035, 0.0, 1.0)
+
+        base_vol = float(np.clip(bg_music_volume, 0.0, 0.55))
+        ducking_gain = base_vol * (1.38 - 0.38 * speaking_mask)
+        music_layer = music_samples * ducking_gain
     else:
-        music_samples = generate_royalty_free_music(bg_music_style, duration_sec=dur_sec, sr=sr)
+        music_layer = np.zeros(n_samples, dtype=np.float32)
 
-    if len(music_samples) < n_samples:
-        music_samples = np.pad(music_samples, (0, n_samples - len(music_samples)))
-    else:
-        music_samples = music_samples[:n_samples]
-
-    # Auto-Ducking envolvente suave (ventana de 280ms)
-    win = max(64, int(sr * 0.28))
-    kernel = np.ones(win, dtype=np.float32) / float(win)
-    voice_env = np.convolve(np.abs(voice_samples), kernel, mode="same")
-    speaking_mask = np.clip(voice_env / 0.035, 0.0, 1.0)
-
-    # Durante la voz: volumen base (ej. 0.14); en pausas: sube suavemente x1.38
-    base_vol = float(np.clip(bg_music_volume, 0.0, 0.55))
-    ducking_gain = base_vol * (1.38 - 0.38 * speaking_mask)
-
-    mixed = voice_samples + (music_samples * ducking_gain)
-    peak = float(np.max(np.abs(mixed)))
-    if peak > 0.96:
-        mixed = (mixed / peak) * 0.95
+    mixed = voice_samples + foley_samples + music_layer
+    try:
+        from studio.audio_mastering import apply_studio_mastering
+        mixed = apply_studio_mastering(mixed, sample_rate=sr)
+    except Exception as exc:
+        logger.debug(f"Mastering fallback: {exc}")
+        peak = float(np.max(np.abs(mixed)))
+        if peak > 0.96:
+            mixed = (mixed / peak) * 0.95
 
     sf.write(output_wav_path, mixed.astype(np.float32), sr, format="WAV", subtype="PCM_16")
     return output_wav_path
@@ -1864,25 +1952,34 @@ def _render_camera_motion_frame(
     vignette_overlay: Optional[Image.Image] = None,
 ) -> Image.Image:
     """Aplica movimiento continuo de cámara (Ken Burns Zoom-In, Zoom-Out, Pan Lateral)
-    usando recorte sub-píxel de alta velocidad + viñeta cinematográfica."""
-    # Curva suave (mezcla lineal + smoothstep para movimiento constante y orgánico)
+    con impacto visual cinemático: zoom-punch en transiciones, micro-paneo orgánico
+    y viñeta de alto contraste."""
+    import math
+
     p = float(np.clip(progress, 0.0, 1.0))
     smooth_p = 0.35 * p + 0.65 * (p * p * (3.0 - 2.0 * p))
 
+    # Zoom-punch dinámico en el primer 15% del corte para enganchar la vista
+    punch = 0.038 * math.exp(-p * 14.0)
+
+    # Micro-movimiento documental (handheld micro-shake sutil)
+    shake_x = 0.003 * math.sin(p * 22.0)
+    shake_y = 0.003 * math.cos(p * 28.0)
+
     if motion_type == "zoom_in":
-        zoom = 1.0 + 0.13 * smooth_p
-        cx, cy = 0.5, 0.48
+        zoom = 1.0 + 0.14 * smooth_p + punch
+        cx, cy = 0.5 + shake_x, 0.48 + shake_y
     elif motion_type == "zoom_out":
-        zoom = 1.13 - 0.13 * smooth_p
-        cx, cy = 0.5, 0.48
+        zoom = (1.14 - 0.13 * smooth_p) + punch
+        cx, cy = 0.5 + shake_x, 0.48 + shake_y
     elif motion_type == "pan_right":
-        zoom = 1.11
-        cx = 0.44 + 0.12 * smooth_p
-        cy = 0.49
+        zoom = 1.12 + punch
+        cx = 0.44 + 0.12 * smooth_p + shake_x
+        cy = 0.49 + shake_y
     elif motion_type == "pan_left":
-        zoom = 1.11
-        cx = 0.56 - 0.12 * smooth_p
-        cy = 0.49
+        zoom = 1.12 + punch
+        cx = 0.56 - 0.12 * smooth_p + shake_x
+        cy = 0.49 + shake_y
     else:
         return base_img
 
@@ -1938,24 +2035,25 @@ def render_project_video(
     burn_static_box = burn_subtitles and subtitle_style == "classic_box"
 
     # 1. Cargar fotogramas base de cada escena en Full HD 1080p
-    raw_scene_images: list[tuple[Image.Image, float, str]] = []
+    raw_scene_images: list[tuple[Image.Image, float, str, str]] = []
     motion_cycle = ["zoom_in", "pan_right", "zoom_out", "pan_left"]
 
     for idx, sc in enumerate(scenes, start=1):
         img_file = project_dir / "images" / f"scene_{idx:03d}.png"
+        sc_text = sc.get("text", "")
         if img_file.exists():
             base_img = Image.open(img_file).convert("RGB")
             if base_img.size != (width, height):
                 base_img = base_img.resize((width, height), Image.Resampling.LANCZOS)
                 base_img = base_img.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
             if burn_static_box:
-                base_img = _draw_subtitle_on_image(base_img, sc["text"])
+                base_img = _draw_subtitle_on_image(base_img, sc_text)
         else:
             ts_label = f"{format_mm_ss(sc['start_sec'])} - {format_mm_ss(sc['end_sec'])}"
-            base_img = _create_placeholder_image(width, height, idx, sc["text"], ts_label, draw_sub=burn_static_box)
+            base_img = _create_placeholder_image(width, height, idx, sc_text, ts_label, draw_sub=burn_static_box)
 
-        duration = max(0.2, float(sc.get("duration_sec", 1.0)))
-        if camera_effect == "ken_burns_mix":
+        duration = max(0.4, float(sc.get("duration_sec", 1.0)))
+        if camera_effect in ("living_ai_motion", "ken_burns_mix"):
             m_type = motion_cycle[(idx - 1) % len(motion_cycle)]
         elif camera_effect == "zoom_in_dramatic":
             m_type = "zoom_in"
@@ -1964,125 +2062,14 @@ def render_project_video(
         else:
             m_type = "none"
 
-        raw_scene_images.append((base_img, duration, m_type))
+        raw_scene_images.append((base_img, duration, m_type, sc_text))
 
-    vignette_overlay = _build_vignette_overlay(width, height, strength=0.34) if camera_effect != "none" else None
-
-    concat_lines: list[str] = []
-    last_frame_path: Optional[Path] = None
+    vignette_overlay = _build_vignette_overlay(width, height, strength=0.32) if camera_effect != "none" else None
 
     black_img = Image.new("RGB", (width, height), (0, 0, 0)) if transition == "fade_black" else None
     white_img = Image.new("RGB", (width, height), (255, 255, 255)) if transition == "fade_white" else None
 
-    # 2. Generar movimiento de cámara en cada escena + transiciones suaves entre escenas
-    num_scenes = len(raw_scene_images)
-    motion_fps = 12  # 12 fotogramas clave por segundo para movimiento fluido y renderizado veloz
-
-    for i in range(num_scenes):
-        curr_base, dur, curr_motion = raw_scene_images[i]
-        has_next = i < num_scenes - 1
-        t_dur = (
-            min(float(transition_duration), dur * 0.45, 1.2)
-            if (has_next and transition and transition != "none")
-            else 0.0
-        )
-        hold_dur = max(0.08, dur - t_dur) if t_dur >= 0.15 else dur
-
-        if curr_motion == "none":
-            frame_path = frames_dir / f"scene_{i+1:03d}_static.jpg"
-            curr_base.save(frame_path, format="JPEG", quality=96, subsampling=0)
-            safe_curr = str(frame_path.resolve()).replace("\\", "/")
-            concat_lines.append(f"file '{safe_curr}'")
-            concat_lines.append(f"duration {hold_dur:.3f}")
-            last_frame_path = frame_path
-            end_curr_img = curr_base
-        else:
-            hold_steps = max(4, min(90, int(round(hold_dur * motion_fps))))
-            hold_step_dur = hold_dur / float(hold_steps)
-            end_ratio = hold_dur / max(0.2, dur)
-
-            for hs in range(hold_steps):
-                prog = (hs / float(max(1, hold_steps))) * end_ratio
-                m_frame = _render_camera_motion_frame(
-                    curr_base,
-                    prog,
-                    curr_motion,
-                    width,
-                    height,
-                    vignette_overlay=vignette_overlay,
-                )
-                m_path = frames_dir / f"scene_{i+1:03d}_m_{hs:03d}.jpg"
-                m_frame.save(m_path, format="JPEG", quality=94, subsampling=0)
-                safe_m = str(m_path.resolve()).replace("\\", "/")
-                concat_lines.append(f"file '{safe_m}'")
-                concat_lines.append(f"duration {hold_step_dur:.3f}")
-                last_frame_path = m_path
-
-            end_curr_img = _render_camera_motion_frame(
-                curr_base,
-                1.0,
-                curr_motion,
-                width,
-                height,
-                vignette_overlay=vignette_overlay,
-            )
-
-        if t_dur >= 0.15 and has_next:
-            next_base, next_dur, next_motion = raw_scene_images[i + 1]
-            start_next_img = (
-                _render_camera_motion_frame(
-                    next_base,
-                    0.0,
-                    next_motion,
-                    width,
-                    height,
-                    vignette_overlay=vignette_overlay,
-                )
-                if next_motion != "none"
-                else next_base
-            )
-
-            steps = max(6, min(24, int(round(t_dur * 20))))
-            step_dur = t_dur / float(steps)
-
-            for s in range(1, steps + 1):
-                raw_a = s / float(steps)
-                alpha = raw_a * raw_a * (3.0 - 2.0 * raw_a)
-                if transition == "crossfade":
-                    blended = Image.blend(end_curr_img, start_next_img, alpha)
-                elif transition == "fade_black":
-                    if alpha <= 0.5:
-                        blended = Image.blend(end_curr_img, black_img, alpha * 2.0)
-                    else:
-                        blended = Image.blend(black_img, start_next_img, (alpha - 0.5) * 2.0)
-                elif transition == "fade_white":
-                    if alpha <= 0.5:
-                        blended = Image.blend(end_curr_img, white_img, alpha * 2.0)
-                    else:
-                        blended = Image.blend(white_img, start_next_img, (alpha - 0.5) * 2.0)
-                elif transition == "slide_left":
-                    blended = Image.new("RGB", (width, height))
-                    shift = int(round(width * alpha))
-                    blended.paste(end_curr_img, (-shift, 0))
-                    blended.paste(start_next_img, (width - shift, 0))
-                else:
-                    blended = Image.blend(end_curr_img, start_next_img, alpha)
-
-                trans_path = frames_dir / f"trans_{i+1:03d}_{s:02d}.jpg"
-                blended.save(trans_path, format="JPEG", quality=94, subsampling=0)
-                safe_trans = str(trans_path.resolve()).replace("\\", "/")
-                concat_lines.append(f"file '{safe_trans}'")
-                concat_lines.append(f"duration {step_dur:.3f}")
-                last_frame_path = trans_path
-
-    if last_frame_path is not None:
-        safe_last = str(last_frame_path.resolve()).replace("\\", "/")
-        concat_lines.append(f"file '{safe_last}'")
-
-    concat_file = frames_dir / "concat_list.txt"
-    concat_file.write_text("\n".join(concat_lines), encoding="utf-8")
-
-    # 3. Preparar pista de audio final (Narración + Música de Fondo Sin Copyright con Auto-Ducking)
+    # 2. Preparar pista de audio final (Narración + Música Sin Copyright con Auto-Ducking; SIN efectos sonoros molestos)
     narration_path = project_dir / "narracion_completa.wav"
     mixed_audio_path = project_dir / "audio_mezclado_final.wav"
     final_audio_path = mix_narration_with_bg_music(
@@ -2091,9 +2078,11 @@ def render_project_video(
         bg_music_style=bg_music,
         bg_music_volume=bg_music_volume,
         custom_music_path=custom_music_path,
+        scenes=scenes,
+        enable_foley=False,  # Quitar efectos de sonido procedimentales manteniendo la música
     )
 
-    # 4. Generar archivo de subtítulos dinámicos .ASS si está activado
+    # 3. Generar archivo de subtítulos dinámicos .ASS si está activado
     ass_filename = "subtitulos_dinamicos.ass"
     ass_path = project_dir / ass_filename
     if use_ass_subs:
@@ -2106,26 +2095,33 @@ def render_project_video(
         ass_path.write_text(ass_content, encoding="utf-8")
 
     output_mp4 = project_dir / "video_youtube.mp4"
+    tmp_mp4 = project_dir / f"video_youtube_tmp_{os.getpid()}_{int(time.time()*1000)}.mp4"
+
+    # 4. Renderizado 100% fluido a 30 FPS continuos por pipe directo a FFmpeg (cero congelamientos, cero stepped judder)
+    render_fps = 30
+    num_scenes = len(raw_scene_images)
+    log_err_path = project_dir / "render_ffmpeg.log"
 
     cmd = [
         ffmpeg_exe,
-        "-nostdin",
         "-y",
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        str(concat_file.resolve()),
-        "-i",
-        str(final_audio_path.resolve()),
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-s", f"{width}x{height}",
+        "-r", str(render_fps),
+        "-i", "-",
+        "-i", str(final_audio_path.resolve()),
     ]
     if use_ass_subs and ass_path.exists():
-        # Usamos nombre relativo ejecutando FFmpeg con cwd=project_dir para evitar problemas con 'C:' en filtros de Windows
         cmd.extend(["-vf", f"ass={ass_filename}"])
 
     cmd.extend(
         [
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
             "-c:v",
             "libx264",
             "-profile:v",
@@ -2133,27 +2129,148 @@ def render_project_video(
             "-level",
             "4.2",
             "-crf",
-            "17",
+            "18",
             "-preset",
-            "fast",
+            "veryfast",
             "-pix_fmt",
             "yuv420p",
-            "-r",
-            "30",
             "-movflags",
             "+faststart",
             "-c:a",
             "aac",
             "-b:a",
-            "256k",
+            "192k",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
             "-shortest",
-            str(output_mp4.resolve()),
+            str(tmp_mp4.resolve()),
         ]
     )
 
-    proc = subprocess.run(cmd, cwd=str(project_dir.resolve()), capture_output=True, text=True)
+    def _get_rendered_scene_frame(base: Image.Image, t_sec: float, p_norm: float, dur_s: float, m_dir: str, text_s: str) -> Image.Image:
+        if camera_effect == "living_ai_motion":
+            try:
+                from studio.living_scene_engine import render_living_scene_frame
+                return render_living_scene_frame(
+                    base_img=base,
+                    t=t_sec,
+                    scene_duration=dur_s,
+                    scene_text=text_s,
+                    width=width,
+                    height=height,
+                    motion_type=m_dir,
+                    vignette_overlay=vignette_overlay,
+                )
+            except Exception as e_liv:
+                logger.debug(f"Aviso en living motion: {e_liv}")
+        return _render_camera_motion_frame(
+            base,
+            p_norm,
+            m_dir,
+            width,
+            height,
+            vignette_overlay=vignette_overlay,
+        )
+
+    with open(log_err_path, "wb") as err_file:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(project_dir.resolve()),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=err_file,
+        )
+        assert proc.stdin is not None
+        try:
+            for i in range(num_scenes):
+                curr_base, dur, curr_motion, sc_text = raw_scene_images[i]
+                has_next = i < num_scenes - 1
+                t_dur = (
+                    min(float(transition_duration), dur * 0.40, 0.85)
+                    if (has_next and transition and transition != "none")
+                    else 0.0
+                )
+                scene_frames = max(1, int(round(dur * render_fps)))
+                trans_frames = max(2, int(round(t_dur * render_fps))) if t_dur >= 0.12 else 0
+                hold_frames = max(1, scene_frames - trans_frames)
+
+                # Fotogramas principales de la escena
+                for f in range(hold_frames):
+                    t_sec = f / float(render_fps)
+                    p_prog = f / float(max(1, scene_frames))
+                    frame = _get_rendered_scene_frame(curr_base, t_sec, p_prog, dur, curr_motion, sc_text)
+                    proc.stdin.write(frame.tobytes())
+
+                # Transición fluida con la siguiente escena
+                if trans_frames > 0 and has_next:
+                    next_base, next_dur, next_motion, next_text = raw_scene_images[i + 1]
+                    for s in range(trans_frames):
+                        f_cur = hold_frames + s
+                        t_sec_cur = f_cur / float(render_fps)
+                        p_cur = f_cur / float(max(1, scene_frames))
+                        end_curr = _get_rendered_scene_frame(curr_base, t_sec_cur, p_cur, dur, curr_motion, sc_text)
+
+                        t_sec_next = s / float(render_fps)
+                        p_next = (s / float(max(1, trans_frames))) * (t_dur / max(0.5, next_dur))
+                        start_next = _get_rendered_scene_frame(next_base, t_sec_next, p_next, next_dur, next_motion, next_text)
+
+                        raw_a = (s + 1) / float(trans_frames)
+                        alpha = raw_a * raw_a * (3.0 - 2.0 * raw_a)
+
+                        if transition == "crossfade":
+                            blended = Image.blend(end_curr, start_next, alpha)
+                        elif transition == "fade_black" and black_img:
+                            if alpha <= 0.5:
+                                blended = Image.blend(end_curr, black_img, alpha * 2.0)
+                            else:
+                                blended = Image.blend(black_img, start_next, (alpha - 0.5) * 2.0)
+                        elif transition == "fade_white" and white_img:
+                            if alpha <= 0.5:
+                                blended = Image.blend(end_curr, white_img, alpha * 2.0)
+                            else:
+                                blended = Image.blend(white_img, start_next, (alpha - 0.5) * 2.0)
+                        elif transition == "slide_left":
+                            blended = Image.new("RGB", (width, height))
+                            shift = int(round(width * alpha))
+                            blended.paste(end_curr, (-shift, 0))
+                            blended.paste(start_next, (width - shift, 0))
+                        else:
+                            blended = Image.blend(end_curr, start_next, alpha)
+
+                        proc.stdin.write(blended.tobytes())
+
+            proc.stdin.close()
+        except Exception:
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
+            raise
+        proc.wait()
+
     if proc.returncode != 0:
-        raise RuntimeError(f"Error en FFmpeg: {proc.stderr[-400:]}")
+        if tmp_mp4.exists():
+            try:
+                tmp_mp4.unlink()
+            except Exception:
+                pass
+        err_msg = log_err_path.read_text(encoding="utf-8", errors="ignore") if log_err_path.exists() else "Unknown"
+        raise RuntimeError(f"Error en FFmpeg (returncode {proc.returncode}): {err_msg[-400:]}")
+
+    # Reemplazo atómico hacia el archivo definitivo para evitar archivos corruptos o colisiones de lectura
+    try:
+        os.replace(str(tmp_mp4), str(output_mp4))
+    except Exception:
+        try:
+            if output_mp4.exists():
+                output_mp4.unlink()
+            shutil.move(str(tmp_mp4), str(output_mp4))
+        except Exception as e_mv:
+            logger.error(f"Error al mover video temporal a definitivo: {e_mv}")
+            if tmp_mp4.exists() and not output_mp4.exists():
+                tmp_mp4.rename(output_mp4)
 
     return output_mp4
 

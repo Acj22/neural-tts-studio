@@ -457,7 +457,8 @@ def render_scene_3d_still(
         timeout_sec=120,
     )
 
-    rendered_frame = temp_dir / "frame_.png"
+    candidates = sorted(temp_dir.glob("frame*.png"))
+    rendered_frame = candidates[0] if candidates else (temp_dir / "frame_.png")
     if rendered_frame.is_file():
         if output_png.exists():
             output_png.unlink()

@@ -4,6 +4,7 @@ import random
 import json
 import os
 import re
+import threading
 import time
 import uuid
 import wave
@@ -728,6 +729,7 @@ class SettingsRequest(BaseModel):
     gemini_api_key: Optional[str] = Field(None, description="API Key gratuita de Google AI Studio")
     gemini_1psid: Optional[str] = Field(None, description="Cookie __Secure-1PSID de gemini.google.com")
     gemini_1psidts: Optional[str] = Field(None, description="Cookie __Secure-1PSIDTS de gemini.google.com")
+    gemini_osid: Optional[str] = Field(None, description="Cookie OSID / __Secure-OSID o bloque Copy as cURL de gemini.google.com")
     runware_api_key: Optional[str] = Field(None, description="API Key de Runware.ai")
     together_api_key: Optional[str] = Field(None, description="API Key de Together AI")
     fal_api_key: Optional[str] = Field(None, description="API Key de Fal.ai")
@@ -740,7 +742,7 @@ class RenderVideoRequest(BaseModel):
     transition: str = Field("crossfade", description="Tipo de transición: 'crossfade', 'fade_black', 'fade_white', 'slide_left', 'none'")
     transition_duration: float = Field(0.5, ge=0.1, le=1.5, description="Duración de la transición en segundos")
     subtitle_style: str = Field("hormozi_yellow", description="Estilo de subtítulos dinámicos")
-    camera_effect: str = Field("ken_burns_mix", description="Efecto de cámara en cada escena")
+    camera_effect: str = Field("living_ai_motion", description="Efecto de cámara o micro-animación en cada escena")
     bg_music: str = Field("doc_mystery", description="Música de fondo sin copyright")
     bg_music_volume: float = Field(0.14, ge=0.0, le=0.55, description="Volumen de música de fondo")
     custom_music_b64: Optional[str] = Field(None, description="Música personalizada opcional en base64")
@@ -865,6 +867,13 @@ def apply_studio_voice_mastering(samples: np.ndarray, sr: int = 24000) -> np.nda
         processed[:fade_in] *= np.linspace(0.0, 1.0, fade_in, dtype=np.float32)
     if fade_out > 8:
         processed[-fade_out:] *= np.linspace(1.0, 0.0, fade_out, dtype=np.float32)
+
+    # 5. Masterización de estudio profesional con Spotify Pedalboard (C++ / JUCE)
+    try:
+        from studio.audio_mastering import master_audio_samples
+        processed = master_audio_samples(processed, sr)
+    except Exception:
+        pass
 
     return processed
 
@@ -1472,6 +1481,13 @@ def get_settings_endpoint():
     gem = s.get("gemini_api_key") or ""
     psid = s.get("gemini_1psid") or ""
     psidts = s.get("gemini_1psidts") or ""
+    osid = s.get("gemini_osid") or ""
+    clist = s.get("gemini_cookies_list") or []
+    if not osid and clist:
+        for c in clist:
+            if c.get("name") in ("OSID", "__Secure-OSID") and c.get("value"):
+                osid = c["value"]
+                break
     rw = s.get("runware_api_key") or ""
     tog = s.get("together_api_key") or ""
     fal = s.get("fal_api_key") or ""
@@ -1480,8 +1496,11 @@ def get_settings_endpoint():
         "has_gemini_pro": bool(psid and psidts),
         "has_gemini_pro_psid": bool(psid),
         "has_gemini_pro_psidts": bool(psidts),
+        "has_gemini_pro_osid": bool(osid),
         "gemini_pro_hint": _mask_key(psid),
         "gemini_pro_ts_hint": _mask_key(psidts),
+        "gemini_pro_osid_hint": _mask_key(osid),
+        "gemini_cookies_count": len(clist),
         "has_gemini": bool(gem),
         "gemini_hint": _mask_key(gem),
         "has_token": bool(tok),
@@ -1496,6 +1515,104 @@ def get_settings_endpoint():
     }
 
 
+def _clear_gemini_webapi_cache() -> None:
+    import tempfile
+    try:
+        cdir = Path(tempfile.gettempdir()) / "gemini_webapi"
+        if cdir.exists():
+            for f in cdir.glob(".cached_cookies_*.json"):
+                try:
+                    f.unlink(missing_ok=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+def _parse_cookie_block(raw_text: str) -> list[dict[str, str]]:
+    """Extrae TODAS las cookies desde cualquier formato de F12:
+    - Copy as cURL (cmd / bash)
+    - Copy as PowerShell
+    - Copy as fetch / Node.js
+    - Copy request headers (cookie: ...)
+    - Tabla de Application -> Cookies
+    """
+    raw = (raw_text or "").strip()
+    if not raw:
+        return []
+
+    by_name: dict[str, dict[str, str]] = {}
+
+    def _add_cookie(name: str, val: str, dom: str = "") -> None:
+        n = name.strip().strip("\"'^\\")
+        v = val.strip().strip("\"'^\\")
+        if not n or not v or n.lower() in ("cookie", "path", "domain", "expires", "max-age", "secure", "httponly", "samesite"):
+            return
+        if not dom:
+            dom = "gemini.google.com" if n in ("OSID", "__Secure-OSID", "COMPASS") else ".google.com"
+        by_name[n] = {"name": n, "value": v, "domain": dom}
+
+    # 1. Formato 'Copy as PowerShell': New-Object System.Net.Cookie("NAME", "VALUE", "/", "DOMAIN")
+    ps_matches = re.findall(
+        r'System\.Net\.Cookie\(\s*["\']([^"\']+)["\']\s*,\s*["\']([^"\']+)["\']\s*,\s*["\'][^"\']*["\']\s*,\s*["\']([^"\']+)["\']\s*\)',
+        raw,
+    )
+    for n, v, d in ps_matches:
+        _add_cookie(n, v, d)
+    if by_name:
+        return list(by_name.values())
+
+    # Limpiar escapes de Windows CMD (Copy as cURL cmd usa ^" y ^\^" y ^&)
+    cleaned = raw.replace('^\\^"', '"').replace('^"', '"').replace("^'", "'").replace("^&", "&").replace("^\n", "").replace("^\r\n", "")
+
+    # 2. Formato 'Copy as cURL' (-b "..." / --cookie "..." / -H "cookie: ...") o 'Copy as fetch' ("cookie": "...") o headers
+    cookie_strings: list[str] = []
+    for pat in (
+        r'(?:-b|--cookie)\s+["\']([^"\']+)["\']',
+        r'["\']?cookie["\']?\s*:\s*["\']([^"\']+)["\']',
+        r'(?im)^cookie\s*:\s*(.+)$',
+    ):
+        for m in re.finditer(pat, cleaned):
+            cookie_strings.append(m.group(1).strip())
+
+    if cookie_strings:
+        for c_str in cookie_strings:
+            for pair in c_str.split(";"):
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    _add_cookie(k, v)
+        if by_name:
+            return list(by_name.values())
+
+    # 3. Formato Tabla F12 (separado por tabuladores)
+    if "\t" in raw:
+        for line in raw.splitlines():
+            parts = [p.strip() for p in line.split("\t") if p.strip()]
+            if len(parts) >= 2:
+                name, val = parts[0], parts[1]
+                dom = ".google.com"
+                for p in parts[2:]:
+                    if "google.com" in p:
+                        dom = p
+                        break
+                if name in ("OSID", "__Secure-OSID", "COMPASS") and dom == ".google.com":
+                    dom = "gemini.google.com"
+                _add_cookie(name, val, dom)
+        if by_name:
+            return list(by_name.values())
+
+    # 4. Formato cadena directa k1=v1; k2=v2
+    if ";" in cleaned and "=" in cleaned:
+        for pair in cleaned.split(";"):
+            if "=" in pair:
+                k, v = pair.split("=", 1)
+                _add_cookie(k, v)
+        if by_name:
+            return list(by_name.values())
+
+    return []
+
+
 @app.post("/api/settings")
 def save_settings_endpoint(req: SettingsRequest):
     if req.provider is not None:
@@ -1507,10 +1624,52 @@ def save_settings_endpoint(req: SettingsRequest):
             video_pipeline._EXHAUSTED_HF_TOKENS.clear()
         else:
             video_pipeline.IMAGE_SETTINGS["gemini_api_key"] = val_gem
-    if req.gemini_1psid is not None:
-        video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = req.gemini_1psid.strip()
-    if req.gemini_1psidts is not None:
-        video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = req.gemini_1psidts.strip()
+
+    cookie_updated = False
+    existing = {
+        c.get("name"): c
+        for c in (video_pipeline.IMAGE_SETTINGS.get("gemini_cookies_list") or [])
+        if c.get("name") and c.get("value")
+    }
+    for raw_field, target_key in (
+        (req.gemini_1psid, "gemini_1psid"),
+        (req.gemini_1psidts, "gemini_1psidts"),
+        (req.gemini_osid, "gemini_osid"),
+    ):
+        if raw_field is not None:
+            val = raw_field.strip()
+            multi = _parse_cookie_block(val)
+            if multi:
+                if len(multi) >= 4:
+                    existing.clear()
+                for c in multi:
+                    existing[c["name"]] = c
+                    if c["name"] == "__Secure-1PSID":
+                        video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
+                    elif c["name"] == "__Secure-1PSIDTS":
+                        video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = c["value"]
+                    elif c["name"] in ("__Secure-OSID", "OSID"):
+                        video_pipeline.IMAGE_SETTINGS["gemini_osid"] = c["value"]
+                cookie_updated = True
+            elif val:
+                if val.startswith("sidts-"):
+                    video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = val
+                    existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": val, "domain": ".google.com"}
+                elif target_key == "gemini_osid":
+                    video_pipeline.IMAGE_SETTINGS["gemini_osid"] = val
+                    existing.pop("OSID", None)
+                    existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": val, "domain": "gemini.google.com"}
+                elif target_key == "gemini_1psid":
+                    video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = val
+                    existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": val, "domain": ".google.com"}
+                else:
+                    video_pipeline.IMAGE_SETTINGS[target_key] = val
+                cookie_updated = True
+
+    if cookie_updated:
+        video_pipeline.IMAGE_SETTINGS["gemini_cookies_list"] = list(existing.values())
+        _clear_gemini_webapi_cache()
+
     if req.runware_api_key is not None:
         video_pipeline.IMAGE_SETTINGS["runware_api_key"] = req.runware_api_key.strip()
     if req.together_api_key is not None:
@@ -1529,7 +1688,7 @@ def save_settings_endpoint(req: SettingsRequest):
 @app.post("/api/gemini-pro/login-browser")
 def gemini_pro_login_browser_endpoint():
     """Abre una ventana de Chrome/Edge en https://gemini.google.com/app y captura automáticamente
-    las cookies __Secure-1PSID y __Secure-1PSIDTS en cuanto el usuario inicia sesión."""
+    TODAS las cookies de sesión (__Secure-1PSID, __Secure-1PSIDTS, OSID, SID, etc.) en cuanto el usuario inicia sesión."""
     import subprocess
     import curl_cffi.requests
 
@@ -1549,21 +1708,51 @@ def gemini_pro_login_browser_endpoint():
     profile_dir.mkdir(parents=True, exist_ok=True)
     port = 9234
 
+    # Forzar ventana visible (SW_SHOWNORMAL = 1) aunque el servidor corra en segundo plano
+    si = None
+    if os.name == "nt":
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 1  # SW_SHOWNORMAL
+
     proc = subprocess.Popen(
         [
             browser_exe,
             f"--user-data-dir={profile_dir}",
             f"--remote-debugging-port={port}",
+            "--remote-allow-origins=*",
             "--no-first-run",
             "--no-default-browser-check",
             "--new-window",
             "https://gemini.google.com/app",
-        ]
+        ],
+        startupinfo=si,
     )
+
+    # Traer la ventana de Chrome al frente del escritorio en Windows
+    if os.name == "nt":
+        try:
+            import ctypes
+            time.sleep(1.2)
+            user32 = ctypes.windll.user32
+            WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+            def _bring_to_front(hwnd, lparam):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length > 0:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buf, length + 1)
+                    if "Gemini" in buf.value or "accounts.google" in buf.value.lower():
+                        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                        user32.SetForegroundWindow(hwnd)
+                return True
+            user32.EnumWindows(WNDENUMPROC(_bring_to_front), 0)
+        except Exception:
+            pass
 
     found_psid = ""
     found_psidts = ""
-    deadline = time.time() + 110.0
+    found_cookies_list: list[dict[str, str]] = []
+    deadline = time.time() + 120.0
 
     try:
         while time.time() < deadline:
@@ -1574,18 +1763,19 @@ def gemini_pro_login_browser_endpoint():
                 if tabs_resp.status_code == 200:
                     tabs = tabs_resp.json()
                     ws_url = None
+                    on_gemini_app = False
                     for tb in tabs:
-                        if tb.get("webSocketDebuggerUrl") and "gemini.google.com" in (tb.get("url") or ""):
+                        tb_url = tb.get("url") or ""
+                        if tb.get("webSocketDebuggerUrl") and tb_url.startswith("https://gemini.google.com") and "accounts.google.com" not in tb_url:
                             ws_url = tb["webSocketDebuggerUrl"]
+                            on_gemini_app = True
                             break
-                    if not ws_url and tabs:
-                        ws_url = tabs[0].get("webSocketDebuggerUrl")
 
-                    if ws_url:
+                    if ws_url and on_gemini_app:
                         with curl_cffi.requests.Session() as sess:
                             ws = sess.ws_connect(ws_url)
                             ws.send_json({"id": 1, "method": "Network.getAllCookies"})
-                            msg = ws.recv_json(timeout=2)
+                            msg = ws.recv_json()
                             ws.close()
                         cookies = (msg.get("result") or {}).get("cookies") or []
                         cmap = {
@@ -1593,10 +1783,20 @@ def gemini_pro_login_browser_endpoint():
                             for c in cookies
                             if "google.com" in (c.get("domain") or "")
                         }
-                        # Verificar que haya sesión activa real de Google (SID/SSID + __Secure-1PSID)
-                        if cmap.get("__Secure-1PSID") and (cmap.get("SID") or cmap.get("__Secure-1PAPISID") or cmap.get("SSID")):
+                        # Verificar que esté autenticado en gemini.google.com (con OSID/__Secure-OSID y __Secure-1PSID)
+                        has_gemini_osid = bool(cmap.get("OSID") or cmap.get("__Secure-OSID"))
+                        if cmap.get("__Secure-1PSID") and has_gemini_osid and (cmap.get("SID") or cmap.get("__Secure-1PAPISID") or cmap.get("SSID")):
                             found_psid = cmap["__Secure-1PSID"]
                             found_psidts = cmap.get("__Secure-1PSIDTS", "")
+                            found_cookies_list = [
+                                {
+                                    "name": str(c.get("name")),
+                                    "value": str(c.get("value")),
+                                    "domain": str(c.get("domain") or ".google.com"),
+                                }
+                                for c in cookies
+                                if "google.com" in (c.get("domain") or "") and c.get("name") and c.get("value")
+                            ]
                             break
             except Exception:
                 pass
@@ -1610,14 +1810,27 @@ def gemini_pro_login_browser_endpoint():
     if not found_psid:
         raise HTTPException(
             status_code=400,
-            detail="No se detectó inicio de sesión en Gemini Pro antes de cerrar la ventana. Inténtalo de nuevo o pega la cookie __Secure-1PSID manualmente.",
+            detail="No se detectó inicio de sesión completo en gemini.google.com antes de cerrar la ventana. Inténtalo de nuevo y espera a que cargue el chat de Gemini.",
         )
 
+    _clear_gemini_webapi_cache()
     video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = found_psid
     video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = found_psidts
+    video_pipeline.IMAGE_SETTINGS["gemini_cookies_list"] = found_cookies_list
     video_pipeline.IMAGE_SETTINGS["provider"] = "gemini_pro"
     SETTINGS_FILE.write_text(json.dumps(video_pipeline.IMAGE_SETTINGS, indent=2), encoding="utf-8")
     return get_settings_endpoint()
+
+
+_PROJECT_RENDER_LOCKS: dict[str, threading.Lock] = {}
+_PROJECT_RENDER_LOCKS_MUTEX = threading.Lock()
+
+
+def _get_project_render_lock(project_id: str) -> threading.Lock:
+    with _PROJECT_RENDER_LOCKS_MUTEX:
+        if project_id not in _PROJECT_RENDER_LOCKS:
+            _PROJECT_RENDER_LOCKS[project_id] = threading.Lock()
+        return _PROJECT_RENDER_LOCKS[project_id]
 
 
 @app.post("/api/project/{project_id}/render")
@@ -1627,22 +1840,26 @@ def render_video_endpoint(project_id: str, req: RenderVideoRequest):
     if not meta_file.exists():
         raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
 
-    meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    meta["transition"] = req.transition
-    meta["transition_duration"] = req.transition_duration
-    meta["subtitle_style"] = req.subtitle_style
-    meta["camera_effect"] = req.camera_effect
-    meta["bg_music"] = req.bg_music
-    meta["bg_music_volume"] = req.bg_music_volume
-
-    custom_music_file = proj_dir / "custom_bg_music.bin"
-    if req.custom_music_b64:
-        try:
-            custom_music_file.write_bytes(_decode_b64_image(req.custom_music_b64))
-        except Exception as exc:
-            print(f"Aviso al guardar música personalizada en render: {exc}")
+    lock = _get_project_render_lock(project_id)
+    if not lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Ya se está renderizando este video. Por favor espera a que termine.")
 
     try:
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        meta["transition"] = req.transition
+        meta["transition_duration"] = req.transition_duration
+        meta["subtitle_style"] = req.subtitle_style
+        meta["camera_effect"] = req.camera_effect
+        meta["bg_music"] = req.bg_music
+        meta["bg_music_volume"] = req.bg_music_volume
+
+        custom_music_file = proj_dir / "custom_bg_music.bin"
+        if req.custom_music_b64:
+            try:
+                custom_music_file.write_bytes(_decode_b64_image(req.custom_music_b64))
+            except Exception as exc:
+                print(f"Aviso al guardar música personalizada en render: {exc}")
+
         render_project_video(
             project_dir=proj_dir,
             scenes=meta["scenes"],
@@ -1658,12 +1875,14 @@ def render_video_endpoint(project_id: str, req: RenderVideoRequest):
             custom_music_path=custom_music_file if custom_music_file.exists() else None,
         )
         create_project_zip(proj_dir, meta)
+
+        meta["video_url"] = f"/projects/{project_id}/video_youtube.mp4?t={int(time.time())}"
+        meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        return meta
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    meta["video_url"] = f"/projects/{project_id}/video_youtube.mp4?t={int(time.time())}"
-    meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    return meta
+    finally:
+        lock.release()
 
 
 @app.get("/api/project/{project_id}/zip")
@@ -1983,6 +2202,95 @@ def fruti_render_endpoint(project_id: str, req: FrutiRenderRequest):
 from studio.api import init_studio_router
 from studio.opuscar.api import router as opuscar_router
 from studio.animated_shorts.api import router as animated_shorts_router
+from studio.omni_bridge import (
+    OMNI_TOPIC_PRESETS,
+    generate_omni_hybrid_script,
+    render_omni_hybrid_video,
+)
+
+class OmniScriptRequest(BaseModel):
+    topic: str = ""
+
+class OmniRenderRequest(BaseModel):
+    title: str
+    acts: list[dict[str, Any]]
+    voice: str = "es-MX-JorgeNeural"
+    format: str = "vertical"
+
+class OpuscarToYouTubeRequest(BaseModel):
+    title: str
+    scenes: list[dict[str, Any]]
+    style: str = "cinematic"
+    voice: str = "es-MX-JorgeNeural"
+
+@app.get("/api/omni/topics")
+def get_omni_topics():
+    return {"status": "success", "topics": OMNI_TOPIC_PRESETS}
+
+@app.post("/api/omni/script")
+def get_omni_script(req: OmniScriptRequest):
+    return generate_omni_hybrid_script(req.topic)
+
+@app.post("/api/omni/render")
+async def render_omni_video_endpoint(req: OmniRenderRequest):
+    try:
+        mp4_path, dur = await render_omni_hybrid_video(
+            title=req.title,
+            acts=req.acts,
+            voice=req.voice,
+            format_type=req.format,
+        )
+        proj_name = mp4_path.parent.name
+        return {
+            "status": "success",
+            "title": req.title,
+            "duration": dur,
+            "video_url": f"/projects/{proj_name}/video_youtube.mp4",
+            "zip_url": f"/projects/{proj_name}/paquete_youtube.zip",
+            "project_id": proj_name,
+        }
+    except Exception as exc:
+        print(f"Error al compilar video Omni-Studio: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@app.post("/api/opuscar/export-to-youtube")
+def export_opuscar_to_youtube(req: OpuscarToYouTubeRequest):
+    slug = re.sub(r"[^a-zA-Z0-9_]", "", req.title.lower().replace(" ", "_"))[:25]
+    project_id = f"yt_{int(time.time())}_{slug}"
+    p_dir = PROJECTS_DIR / project_id
+    p_dir.mkdir(parents=True, exist_ok=True)
+    (p_dir / "images").mkdir(parents=True, exist_ok=True)
+    (p_dir / "audio").mkdir(parents=True, exist_ok=True)
+    
+    yt_scenes = []
+    accum_t = 0.0
+    for idx, sc in enumerate(req.scenes, start=1):
+        dur = float(sc.get("duration", 8.0))
+        text = sc.get("narration") or sc.get("text") or sc.get("title", f"Escena {idx}")
+        yt_scenes.append({
+            "index": idx,
+            "text": text,
+            "start_sec": accum_t,
+            "end_sec": accum_t + dur,
+            "duration_sec": dur,
+            "timestamp_label": f"{video_pipeline.format_mm_ss(accum_t)} - {video_pipeline.format_mm_ss(accum_t + dur)}",
+            "image_prompt": f"Cinematic photorealistic 8k render, {req.title}, {text[:100]}, no text",
+            "image_url": None,
+        })
+        accum_t += dur
+        
+    meta = {
+        "project_id": project_id,
+        "title": req.title,
+        "style": req.style,
+        "width": 1920,
+        "height": 1080,
+        "voice": req.voice,
+        "scenes": yt_scenes,
+        "created_at": time.time(),
+    }
+    (p_dir / "project.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"status": "success", "project_id": project_id, "meta": meta}
 
 app.include_router(init_studio_router(PROJECTS_DIR, _synthesize_segment_samples))
 app.include_router(opuscar_router)

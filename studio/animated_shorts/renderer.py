@@ -73,11 +73,55 @@ def _load_font(size: int = 32) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-async def synthesize_shorts_audio(text: str, output_path: Path, voice: str = "es-MX-DaliaNeural") -> float:
-    """Sintetiza la narración completa de los 5 actos con Edge TTS."""
+def _resolve_edge_voice(voice: str) -> str:
+    """Mapea IDs de voces de Kokoro, Piper o variantes al formato válido de Edge TTS."""
+    if not voice or not isinstance(voice, str):
+        return "es-MX-JorgeNeural"
+    
+    # Si ya es una voz válida de Edge TTS
+    if "Neural" in voice:
+        return voice
+        
+    v = voice.lower()
+    # Mapeo femenino
+    if any(k in v for k in ["dalia", "dora", "ef_", "af_", "bf_", "femenina", "mujer", "beatriz", "larissa"]):
+        return "es-MX-DaliaNeural"
+    # Mapeo inglés
+    if v.startswith("en") or v.startswith("am_") or v.startswith("bm_"):
+        return "en-US-ChristopherNeural"
+    # Mapeo España
+    if "es-es" in v or "sharvard" in v or "davefx" in v or "alvaro" in v:
+        return "es-ES-AlvaroNeural"
+    # Por defecto para voces masculinas en español (em_alex, em_santa, es_m_*, etc.)
+    return "es-MX-JorgeNeural"
+
+
+async def synthesize_shorts_audio(text: str, output_path: Path, voice: str = "es-MX-JorgeNeural") -> float:
+    """Sintetiza la narración completa de los 5 actos con Edge TTS garantizando compatibilidad."""
     import edge_tts
-    comm = edge_tts.Communicate(text, voice, rate="+2%")
-    await comm.save(str(output_path))
+    edge_voice = _resolve_edge_voice(voice)
+
+    try:
+        comm = edge_tts.Communicate(text, edge_voice, rate="+2%")
+        await comm.save(str(output_path))
+    except Exception as exc:
+        logger.warning(f"Aviso al sintetizar con voz '{edge_voice}': {exc}. Reintentando con 'es-MX-JorgeNeural'...")
+        try:
+            comm = edge_tts.Communicate(text, "es-MX-JorgeNeural", rate="+2%")
+            await comm.save(str(output_path))
+        except Exception as exc2:
+            logger.error(f"Fallo Edge TTS ({exc2}). Generando audio de respaldo con ffmpeg...")
+            ffmpeg_bin = _get_ffmpeg()
+            dur_est = max(10.0, len(text.split()) * 0.38)
+            cmd = [
+                ffmpeg_bin, "-y",
+                "-f", "lavfi",
+                "-i", "anullsrc=r=44100:cl=mono",
+                "-t", str(dur_est),
+                str(output_path.resolve()),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+            return dur_est
 
     ffmpeg_bin = _get_ffmpeg()
     cmd = [ffmpeg_bin, "-i", str(output_path.resolve())]
@@ -162,6 +206,19 @@ def draw_animated_short_frame(
     font_title = _load_font(28)
     draw.text((px1 + 25, py1 + 16), f"⚡ {tag_text} · {act_name}", fill=accent_col, font=font_label)
     draw.text((px1 + 25, py1 + 52), (title or "Animated Short")[:40].upper(), fill=(248, 250, 252), font=font_title)
+
+    # 3.5 Partículas procedimentales dinámicas en suspensión (PixelFX)
+    for p_idx in range(24):
+        p_seed = p_idx * 137.5
+        px = int((math.sin(p_seed + t * 0.9) * 0.44 + 0.5) * w)
+        py = int(((p_seed * 23.7 + t * 70.0) % (h * 0.72)) + h * 0.12)
+        p_rad = int(2 + (math.sin(p_seed * 2.5 + t * 3.0) + 1.0) * 2.2)
+        p_bright = (
+            min(255, accent_col[0] + 60),
+            min(255, accent_col[1] + 60),
+            min(255, accent_col[2] + 60),
+        )
+        draw.ellipse([(px - p_rad, py - p_rad), (px + p_rad, py + p_rad)], fill=p_bright)
 
     # 4. Escenario Visual Dinámico según Acto (1 a 5)
     t_act = t % 15.0
@@ -304,7 +361,7 @@ def render_animated_short_video(
     foley_wav_path = output_dir / "earshot_foley.wav"
     generate_earshot_foley_track(scenes, dur_sec, foley_wav_path)
 
-    # 3. Mezclar Narración + Foley Earshot con Sidechain Ducking
+    # 3. Mezclar Narración + Foley Earshot con Sidechain Ducking y Masterización Spotify Pedalboard
     mixed_audio_path = output_dir / "audio_master.wav"
     ffmpeg_bin = _get_ffmpeg()
     mix_cmd = [
@@ -319,38 +376,52 @@ def render_animated_short_video(
     ]
     subprocess.run(mix_cmd, check=True, capture_output=True)
 
-    # 4. Renderizar cuadros visuales en 9:16 (1080x1920)
+    # Masterización profesional de estudio con Spotify Pedalboard
+    try:
+        from studio.audio_mastering import master_audio_file
+        master_audio_file(mixed_audio_path)
+    except Exception as e_mast:
+        logger.warning(f"Aviso al masterizar audio: {e_mast}")
+
+    # 4. Renderizar cuadros visuales en 9:16 (1080x1920) con el Motor Multi-Escena 2.5D Paper-Cut Diorama
     width, height = 1080, 1920
-    total_frames = int(dur_sec * fps)
+    render_fps = 30
+    total_frames = int(dur_sec * render_fps)
+    from studio.opuscar.renderer import parse_narration_into_diorama_scenes, draw_multiscene_papercut_diorama
+    para_narration = "\n\n".join([sc.get("narration", "").strip() for sc in scenes if sc.get("narration", "").strip()]) or full_narration
+    diorama_scenes = parse_narration_into_diorama_scenes(para_narration, dur_sec, title)
 
-    for f in range(total_frames):
-        t = f / fps
-        im = Image.new("RGB", (width, height), (15, 23, 42))
-        draw = ImageDraw.Draw(im)
-        draw_animated_short_frame(draw, width, height, t, dur_sec, title, scenes, topic_id=topic_id)
-        im.save(str(frames_dir / f"frame_{f:05d}.png"))
-
-    # 5. Generar subtítulos ASS dinámicos sincronizados por frase
-    words = [w.strip() for w in full_narration.split() if w.strip()]
-    dialogues = []
-    if words:
-        chunk_size = 5
-        chunks = [words[i:i + chunk_size] for i in range(0, len(words), chunk_size)]
-        chunk_dur = dur_sec / max(1, len(chunks))
-        for idx, ch in enumerate(chunks):
-            start_t = idx * chunk_dur
-            end_t = min(dur_sec, (idx + 1) * chunk_dur)
-            s_min, s_sec = int(start_t // 60), start_t % 60
-            e_min, e_sec = int(end_t // 60), end_t % 60
-            phrase = " ".join(ch)
-            dialogues.append(
-                f"Dialogue: 0,{s_min}:{s_sec:05.2f},{e_min}:{e_sec:05.2f},Default,,0,0,0,,{phrase}"
-            )
-    else:
-        dialogues.append(f"Dialogue: 0,0:00:00.20,0:00:{dur_sec:05.2f},Default,,0,0,0,,{title}")
-
+    # 5. Generar subtítulos ASS karaoke dinámicos palabra por palabra (faster-whisper + stable-ts)
     subtitles_ass = output_dir / "subtitles.ass"
-    sub_content = f"""[Script Info]
+    try:
+        from studio.karaoke_subtitles import generate_dynamic_karaoke_ass
+        generate_dynamic_karaoke_ass(
+            audio_path=audio_voice_path,
+            output_ass_path=subtitles_ass,
+            reference_text=full_narration,
+            total_duration=dur_sec,
+            width=width,
+            height=height,
+        )
+    except Exception as e_karaoke:
+        logger.warning(f"Aviso generando subtítulos karaoke ({e_karaoke}), usando subtítulos por frase.")
+        words = [w.strip() for w in full_narration.split() if w.strip()]
+        dialogues = []
+        if words:
+            chunk_size = 5
+            chunks = [words[i:i + chunk_size] for i in range(0, len(words), chunk_size)]
+            chunk_dur = dur_sec / max(1, len(chunks))
+            for idx, ch in enumerate(chunks):
+                start_t = idx * chunk_dur
+                end_t = min(dur_sec, (idx + 1) * chunk_dur)
+                s_min, s_sec = int(start_t // 60), start_t % 60
+                e_min, e_sec = int(end_t // 60), end_t % 60
+                phrase = " ".join(ch)
+                dialogues.append(f"Dialogue: 0,0:{s_min:02d}:{s_sec:05.2f},0:{e_min:02d}:{e_sec:05.2f},Default,,0,0,0,,{phrase}")
+        else:
+            dialogues.append(f"Dialogue: 0,0:00:00.20,0:00:{dur_sec:05.2f},Default,,0,0,0,,{title}")
+
+        sub_content = f"""[Script Info]
 Title: Animated Shorts Subtitles
 ScriptType: v4.00+
 PlayResX: {width}
@@ -358,19 +429,23 @@ PlayResY: {height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,48,&H00FFFFFF,&H0000D7FF,&H000B0F19,&H90000000,-1,0,0,0,100,100,0,0,1,4.5,2.5,2,40,40,240,1
+Style: Default,Arial Black,46,&H00FFFFFF,&H0000D7FF,&H000B0F19,&H90000000,-1,0,0,0,100,100,0,0,1,4.8,2.6,2,50,50,245,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """ + "\n".join(dialogues) + "\n"
-    subtitles_ass.write_text(sub_content, encoding="utf-8")
+        subtitles_ass.write_text(sub_content, encoding="utf-8")
 
-    # 6. Multiplexar con FFmpeg a MP4 final
+    # 6. Multiplexar por pipe directo con FFmpeg a MP4 final
     final_video = output_dir / "animated_short_9_16.mp4"
     cmd_mux = [
         ffmpeg_bin, "-y",
-        "-framerate", str(fps),
-        "-i", str((frames_dir / "frame_%05d.png").resolve()),
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-s", f"{width}x{height}",
+        "-pix_fmt", "rgb24",
+        "-r", str(render_fps),
+        "-i", "-",
         "-i", str(mixed_audio_path.resolve()),
         "-vf", f"subtitles={subtitles_ass.name}",
         "-c:v", "libx264",
@@ -379,10 +454,34 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-b:a", "192k",
+        "-movflags", "+faststart",
         "-shortest",
         str(final_video.resolve()),
     ]
-    subprocess.run(cmd_mux, cwd=str(output_dir.resolve()), check=True, capture_output=True)
+    log_err_path = output_dir / "ffmpeg_shorts.log"
+    with open(log_err_path, "wb") as err_file:
+        proc = subprocess.Popen(
+            cmd_mux,
+            cwd=str(output_dir.resolve()),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=err_file,
+        )
+        assert proc.stdin is not None
+        try:
+            for f in range(total_frames):
+                t = f / float(render_fps)
+                im = Image.new("RGB", (width, height), (248, 240, 224))
+                draw = ImageDraw.Draw(im)
+                draw_multiscene_papercut_diorama(draw, width, height, t, dur_sec, title, diorama_scenes)
+                proc.stdin.write(im.tobytes())
+            proc.stdin.close()
+        except Exception:
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
+        proc.wait()
 
     # 7. Guardar metadatos en JSON
     meta_json = output_dir / "meta.json"
@@ -392,7 +491,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         "duration": dur_sec,
         "fps": fps,
         "voice": voice,
-        "video_url": f"/projects/{output_dir.name}/{final_video.name}",
+        "video_url": f"/projects/animated_shorts/{output_dir.name}/{final_video.name}",
         "filename": final_video.name,
         "scenes_count": len(scenes),
     }

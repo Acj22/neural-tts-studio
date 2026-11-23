@@ -5,13 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Neural TTS &amp; YouTube Auto-Video Studio</title>
   <script>
-    // Safeguards inmediatos en window para evitar ReferenceErrors en inline onchange
+    // Safeguards inmediatos en window para evitar ReferenceErrors en inline onclick/onchange
     window.expLoadProject = function(id) {
       if (typeof window.expLoadProjectById === "function" && window.expLoadProjectById !== window.expLoadProject) {
         return window.expLoadProjectById(id);
       }
     };
     window.expLoadProjectById = window.expLoadProject;
+
+    window.searchAndGenerateOpuscarScript = function(useRandom) {
+      if (typeof window._realSearchAndGenerateOpuscarScript === "function") {
+        return window._realSearchAndGenerateOpuscarScript(useRandom);
+      }
+      setTimeout(() => {
+        if (typeof window._realSearchAndGenerateOpuscarScript === "function") {
+          window._realSearchAndGenerateOpuscarScript(useRandom);
+        } else {
+          console.warn("Cargando motor de guiones Opuscar...");
+        }
+      }, 300);
+    };
+    window.searchAndGenerateOpusCarScript = window.searchAndGenerateOpuscarScript;
+    window.onOpuscarSearchCategoryChange = function(r) {
+      if (typeof window._realOnOpuscarSearchCategoryChange === "function") {
+        return window._realOnOpuscarSearchCategoryChange(r);
+      }
+    };
+    window.onOpusCarSearchCategoryChange = window.onOpuscarSearchCategoryChange;
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -63,9 +83,17 @@
       <div class="flex flex-wrap items-center gap-2">
         <div class="p-1 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center gap-1">
           <button
+            id="tabBtnOmni"
+            onclick="switchMode('omni')"
+            class="px-3.5 py-2 rounded-lg text-xs font-bold transition bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white shadow-lg flex items-center gap-1.5 ring-1 ring-amber-400/50"
+          >
+            <span>👑</span>
+            <span>Omni-Studio (Cine Híbrido ★★★)</span>
+          </button>
+          <button
             id="tabBtnBlender"
             onclick="switchMode('blender')"
-            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition bg-cyan-600 text-white shadow flex items-center gap-1.5"
+            class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white flex items-center gap-1.5"
           >
             <span>🧊</span>
             <span>Motor 3D Blender (Maqueta ★)</span>
@@ -456,6 +484,44 @@
                   <span id="opuscarResultHook" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300"></span>
                   <span id="opuscarResultTags" class="text-indigo-400 font-mono"></span>
                 </div>
+                <!-- Selector de Ganchos Psicológicos de Retención -->
+                <div id="opuscarHooksSection" class="hidden pt-1 border-t border-slate-800/80">
+                  <span class="text-[10px] uppercase font-bold text-amber-300 tracking-wider flex items-center gap-1 mb-1.5">
+                    <span>🎯</span> Ganchos Virales de Retención (Haz clic para alternar inicio):
+                  </span>
+                  <div id="opuscarHooksContainer" class="flex flex-col gap-1.5"></div>
+                </div>
+                <!-- Vista Completa del Guion Investigado -->
+                <div class="pt-1 border-t border-slate-800/80">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] uppercase font-bold text-indigo-300 tracking-wider flex items-center gap-1">
+                      <span>📜</span> Guion Narrativo Generado:
+                    </span>
+                    <span id="opuscarResultWordCount" class="text-[10px] text-slate-400 font-mono"></span>
+                  </div>
+                  <div id="opuscarResultScriptPreview" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 font-sans leading-relaxed max-h-56 overflow-y-auto whitespace-pre-line select-text border-l-2 border-l-indigo-500"></div>
+                  <!-- Botones de Enlace Inter-Módulos -->
+                  <div class="pt-2 flex flex-wrap gap-2 border-t border-slate-800/60">
+                    <button
+                      type="button"
+                      onclick="exportOpuscarToYouTube()"
+                      class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-[11px] transition shadow flex items-center gap-1.5"
+                      title="Exportar este guion con timestamps al Automatizador YouTube"
+                    >
+                      <span>🎬</span>
+                      <span>Enviar a Automatizador YouTube (1-Clic)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchMode('omni')"
+                      class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-[11px] transition shadow flex items-center gap-1.5"
+                      title="Producir como película híbrida en Omni-Studio"
+                    >
+                      <span>👑</span>
+                      <span>Producir en Omni-Studio Híbrido</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -471,12 +537,15 @@
             </div>
 
             <div>
-              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1">Guion / Narración a Sincronizar</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300">Guion / Narración a Sincronizar</label>
+                <span id="opuscarNarrationCount" class="text-[10px] text-slate-400"></span>
+              </div>
               <textarea
                 id="opuscarNarrationInput"
-                rows="2"
+                rows="5"
                 placeholder="Escribe la explicación a narrar y sincronizar..."
-                class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white"
+                class="w-full rounded-xl bg-slate-950 border border-slate-700 p-3 text-xs text-white leading-relaxed focus:outline-none focus:border-indigo-500"
               >En lo alto del Cerro del Chapulín se alza una fortaleza única en todo el continente americano: el Castillo de Chapultepec, construido en 1785 a 2,325 metros sobre el nivel del mar.</textarea>
             </div>
 
@@ -711,15 +780,50 @@
                   Generación de video Full HD 1080×1920 con movimiento de cámara continuo, partículas, audio foley y subtítulos Big Focus.
                 </p>
               </div>
-              <button
-                type="button"
-                id="btnRenderAnimatedShort"
-                onclick="renderAnimatedShortVideo()"
-                class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2 whitespace-nowrap"
-              >
-                <span>🚀</span>
-                <span>Renderizar Video Completo (MP4)</span>
-              </button>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  id="btnRenderAnimatedShort"
+                  onclick="renderAnimatedShortVideo()"
+                  class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2 whitespace-nowrap"
+                >
+                  <span>🚀</span>
+                  <span>Renderizar Video Completo (MP4)</span>
+                </button>
+                <button
+                  type="button"
+                  onclick="switchMode('omni')"
+                  class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white text-xs font-bold shadow-lg transition flex items-center gap-1.5 whitespace-nowrap"
+                  title="Llevar a Omni-Studio para renderizar con maqueta 3D Blender 5.3"
+                >
+                  <span>👑</span>
+                  <span>Producir en Omni-Studio Híbrido</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Selector de Voz dedicado para Animated Shorts -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 pb-1 border-t border-slate-800/80">
+              <div>
+                <label for="shortsVoiceSelect" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <span>🎙️</span>
+                  <span>Voz del Narrador (Locución Neuronal)</span>
+                </label>
+                <select id="shortsVoiceSelect" class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500">
+                  <option value="es-MX-JorgeNeural" selected>🇲🇽 Jorge (Masculina · Enérgica / Documental · MX)</option>
+                  <option value="es-MX-DaliaNeural">🇲🇽 Dalia (Femenina · Expresiva / Relato · MX)</option>
+                  <option value="es-MX-BeatrizNeural">🇲🇽 Beatriz (Femenina · Cálida / Educativa · MX)</option>
+                  <option value="es-ES-AlvaroNeural">🇪🇸 Álvaro (Masculina · Historia / Misterio · ES)</option>
+                  <option value="es-MX-CecilioNeural">🇲🇽 Cecilio (Masculina · Reflexiva / Profunda · MX)</option>
+                  <option value="es-MX-LarissaNeural">🇲🇽 Larissa (Femenina · Dinámica / Juvenil · MX)</option>
+                  <option value="en-US-ChristopherNeural">🇺🇸 Christopher (Inglés · Documental · US)</option>
+                </select>
+              </div>
+              <div class="flex flex-col justify-end">
+                <span class="text-[10px] text-slate-400 leading-relaxed">
+                  Audio sintetizado en alta definición, masterizado automáticamente con <strong>Foley Earshot</strong> y reducción sidechain (ducking) bajo la voz.
+                </span>
+              </div>
             </div>
 
             <!-- Barra de Progreso de Render -->
@@ -769,6 +873,169 @@
                       <span>↗ Abrir en Pestaña</span>
                     </a>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ============================================================ -->
+      <!-- 👑 MÓDULO OMNI-STUDIO: CINE HÍBRIDO MULTIMODAL UNIFICADO    -->
+      <!-- ============================================================ -->
+      <main id="panelOmni" class="lg:col-span-8 space-y-5">
+        <div class="glass rounded-2xl p-5 space-y-5 border border-amber-500/40 shadow-2xl bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950">
+          <!-- Encabezado del Módulo -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-2xl">👑</span>
+                <h2 class="text-lg font-bold text-white tracking-tight">OMNI-STUDIO: CINE HÍBRIDO MULTIMODAL</h2>
+                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-indigo-500/20 text-amber-300 border border-amber-500/40">
+                  Blender 5.3 + IA + Opuscar + Foley · 100% Gratuito
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                La convergencia total de todos los motores del estudio: orquesta en una sola línea de producción la investigación histórica/científica, maqueta 3D en Blender 5.3 EEVEE Next local, cine en código Lemo-Opuscar, fotorrealismo IA, diseño sonoro Foley psicoacústico Earshot y masterización broadcast en un video Full HD listo para publicar.
+              </p>
+            </div>
+          </div>
+
+          <!-- Buscador y Generador de Temas Híbridos -->
+          <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+            <div class="space-y-1.5">
+              <label for="omniTopicInput" class="block text-xs font-semibold text-slate-300">
+                <span>🎯 Tema a Investigar y Producir</span>
+              </label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input
+                  id="omniTopicInput"
+                  type="text"
+                  placeholder="Escribe cualquier tema (ej. 'La acústica de Teotihuacán', 'Motor de 4 tiempos', 'El batallón de San Patricio')..."
+                  class="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                />
+                <button
+                  type="button"
+                  id="btnOmniRandomScript"
+                  onclick="generateOmniScript(true)"
+                  class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  title="Elegir tema sorpresa verificado al azar"
+                >
+                  <span>🎲 Tema Sorpresa</span>
+                </button>
+                <button
+                  type="button"
+                  id="btnOmniGenerateScript"
+                  onclick="generateOmniScript(false)"
+                  class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-bold text-xs shadow-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+                >
+                  <span>✨ Redactar y Diseñar Escenas</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Sugerencias de Temas Rápidos -->
+            <div class="space-y-1.5 pt-1">
+              <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">💡 Temas de Hibridación Demostrada:</span>
+              <div id="omniTopicChips" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <!-- Selectores de Producción: Formato y Voz -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+              <div>
+                <label for="omniFormatSelect" class="block text-[11px] font-semibold text-slate-300 mb-1">
+                  <span>📐 Formato de Video</span>
+                </label>
+                <select id="omniFormatSelect" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                  <option value="vertical" selected>📱 Vertical 9:16 (Shorts / TikTok / Reels · 1080x1920)</option>
+                  <option value="horizontal">🎬 Horizontal 16:9 (Documental YouTube HD · 1920x1080)</option>
+                </select>
+              </div>
+              <div>
+                <label for="omniVoiceSelect" class="block text-[11px] font-semibold text-slate-300 mb-1">
+                  <span>🎙️ Voz Narrador (Edge TTS HD)</span>
+                </label>
+                <select id="omniVoiceSelect" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                  <option value="es-MX-JorgeNeural" selected>🇲🇽 Jorge (Masculina · Enérgica / Documental · MX)</option>
+                  <option value="es-MX-DaliaNeural">🇲🇽 Dalia (Femenina · Expresiva / Relato · MX)</option>
+                  <option value="es-ES-AlvaroNeural">🇪🇸 Álvaro (Masculina · Historia / Misterio · ES)</option>
+                  <option value="es-MX-BeatrizNeural">🇲🇽 Beatriz (Femenina · Cálida / Educativa · MX)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contenedor de Actos Híbridos Generados -->
+          <div id="omniScriptSection" class="hidden space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+              <h3 class="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <span>📋</span>
+                <span>Guion Híbrido en 5 Actos con Asignación Multi-Motor</span>
+              </h3>
+              <span class="text-[10px] text-slate-400">Edita cualquier texto antes de renderizar</span>
+            </div>
+            <div id="omniActsList" class="space-y-2.5"></div>
+
+            <!-- Botón Principal de Compilación -->
+            <div class="pt-3">
+              <button
+                type="button"
+                id="btnOmniRenderMaster"
+                onclick="renderOmniMasterVideo()"
+                class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:via-rose-400 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-rose-950/40 transition transform active:scale-[0.99] flex items-center justify-center gap-2"
+              >
+                <span>🚀</span>
+                <span>PRODUCIR OBRA MAESTRA HÍBRIDA (1 CLIC)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Barra de Progreso Multi-Etapa -->
+          <div id="omniProgressBox" class="hidden space-y-2 p-3.5 rounded-xl bg-slate-950 border border-amber-500/30">
+            <div class="flex items-center justify-between text-xs">
+              <span id="omniProgressText" class="text-amber-300 font-semibold animate-pulse">Iniciando producción multimodal...</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+              <div id="omniProgressBar" class="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-500 h-2.5 rounded-full transition-all duration-500 w-1/12"></div>
+            </div>
+          </div>
+
+          <!-- Reproductor Cinemático Integrado -->
+          <div id="omniVideoCard" class="hidden pt-2">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-5 p-4 rounded-xl bg-slate-950 border border-amber-500/40 shadow-2xl">
+              <div class="w-full max-w-[280px] rounded-xl overflow-hidden bg-black border border-amber-500/30 shadow-2xl flex justify-center">
+                <video
+                  id="omniVideoPlayer"
+                  controls
+                  preload="metadata"
+                  class="w-full h-auto max-h-[460px] object-contain bg-black"
+                ></video>
+              </div>
+              <div class="space-y-3 flex-1 text-xs text-slate-300">
+                <div>
+                  <h4 id="omniVideoTitle" class="font-bold text-base text-amber-300">Título de la Obra Maestra</h4>
+                  <p id="omniVideoMeta" class="text-[11px] text-emerald-400 font-mono mt-0.5">Full HD · Blender 5.3 + IA + Opuscar + Foley</p>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                    Video producido con la unión de todos los módulos: animación 3D procedural en Blender 5.3, arte fotorrealista IA, cine en código Lemo-Opuscar, efectos de sonido Foley psicoacústicos Earshot y masterización con Spotify Pedalboard.
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2.5 pt-2">
+                  <a
+                    id="omniDownloadBtn"
+                    href="#"
+                    download="obra_maestra_hibrida.mp4"
+                    class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg"
+                  >
+                    <span>📥 Descargar Video MP4</span>
+                  </a>
+                  <a
+                    id="omniZipBtn"
+                    href="#"
+                    download="paquete_hibrido.zip"
+                    class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5 border border-slate-700"
+                  >
+                    <span>📦 Descargar Paquete ZIP</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -1506,6 +1773,15 @@
                 <div id="ytAltTitlesList" class="flex flex-col gap-1.5"></div>
               </div>
 
+              <!-- Selector de Ganchos Psicológicos Virales (3 Opciones de Alto Impacto) -->
+              <div id="ytHooksSection" class="hidden space-y-1.5 pt-2 border-t border-slate-800/90">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                  <span>🎯</span>
+                  <span>Ganchos Virales de Retención (Haz clic para cambiar el inicio de tu guion):</span>
+                </div>
+                <div id="ytHooksContainer" class="flex flex-col gap-1.5"></div>
+              </div>
+
               <!-- Texto de Miniatura, Hashtags y Fuentes -->
               <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/90 text-[11px]">
                 <div class="flex flex-wrap items-center gap-2">
@@ -1636,6 +1912,7 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
               </label>
               <select id="ytVisualStyle" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white">
                 <option value="none">⛔ Ninguno (solo Prompt Maestro)</option>
+                <option value="3d_blender">🧊 Maqueta 3D Blender (Corte y Despiece Técnico Eevee)</option>
                 <option value="cinematic">🎥 Cinematográfico Realista 8K</option>
                 <option value="sketch_bw">✏️ Boceto B&amp;N / Stick Figure Minimalista</option>
                 <option value="documentary">🌍 Documental Histórico / NatGeo</option>
@@ -1723,7 +2000,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
                   onchange="if(document.getElementById('ytRenderCameraEffect')) document.getElementById('ytRenderCameraEffect').value = this.value;"
                   class="w-full rounded-xl bg-slate-950 border border-amber-500/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                 >
-                  <option value="ken_burns_mix" selected>✨ Cámara Viva Automática (Zoom + Paneo + Viñeta ★)</option>
+                  <option value="living_ai_motion" selected>🌟 Escenas Vivas 2.5D (Barco que flota, agua que ondea, partículas y líneas vivas ★ NUEVO)</option>
+                  <option value="ken_burns_mix">✨ Cámara Viva Clásica (Zoom + Paneo + Viñeta)</option>
                   <option value="zoom_in_dramatic">🔍 Zoom-In Dramático Continuo + Viñeta</option>
                   <option value="pan_cinema">🎞️ Paneo Cinematográfico Lateral + Viñeta</option>
                   <option value="none">⏹️ Imagen Estática (Sin movimiento)</option>
@@ -1901,26 +2179,37 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div class="text-xs font-bold text-indigo-200">⭐ Opción A: Usar tu Suscripción de Gemini Pro (gemini.google.com)</div>
-                    <p class="text-[11px] text-slate-300">En <a href="https://gemini.google.com/app" target="_blank" class="underline text-indigo-300">gemini.google.com</a> presiona <strong>F12 → Application → Cookies → https://gemini.google.com</strong> y pega ambas cookies (<code>__Secure-1PSID</code> y <code>__Secure-1PSIDTS</code>):</p>
+                    <p class="text-[11px] text-slate-300">
+                      Google ahora pide la cookie <code>__Secure-OSID</code> (u <code>OSID</code>) además de <code>1PSID</code> y <code>1PSIDTS</code>.<br/>
+                      • <strong>Desde donde ya estás (F12 → Application → Cookies → https://gemini.google.com):</strong> pega la cookie <code>__Secure-OSID</code> (u <code>OSID</code>) en la <strong>Caja 3</strong>.<br/>
+                      • <strong>O en 1 solo clic desde F12 → Network (Red):</strong> presiona <strong>F5</strong> en gemini.google.com, clic derecho en el primer elemento (<code>app</code>) → <strong>Copy → Copy as cURL (cmd)</strong> y pégalo en la Caja 3.
+                    </p>
                   </div>
-                  <a
-                    href="https://gemini.google.com/app"
-                    target="_blank"
-                    class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white text-xs font-semibold whitespace-nowrap shadow transition text-center"
-                  >
-                    🌐 Abrir gemini.google.com
-                  </a>
+                  <div class="flex flex-wrap gap-1.5">
+                    <a
+                      href="https://gemini.google.com/app"
+                      target="_blank"
+                      class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white text-xs font-bold whitespace-nowrap shadow-lg transition text-center"
+                    >
+                      🌐 Abrir gemini.google.com
+                    </a>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
-                  <div class="sm:col-span-5">
-                    <label id="lbl1psid" class="block text-[10px] text-slate-300 mb-1">1. Cookie <code>__Secure-1PSID</code> (REQUERIDA):</label>
-                    <input id="gemini1psidInput" type="password" placeholder="g.a000... (Cookie __Secure-1PSID)" autocomplete="off"
+                  <div class="sm:col-span-3">
+                    <label id="lbl1psid" class="block text-[10px] text-slate-300 mb-1">1. Cookie <code>__Secure-1PSID</code>:</label>
+                    <input id="gemini1psidInput" type="password" placeholder="g.a000... (__Secure-1PSID)" autocomplete="off"
                       class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
                   </div>
-                  <div class="sm:col-span-5">
-                    <label id="lbl1psidts" class="block text-[10px] text-amber-300 font-semibold mb-1">2. Cookie <code>__Secure-1PSIDTS</code> (REQUERIDA junto con 1PSID):</label>
-                    <input id="gemini1psidtsInput" type="password" placeholder="sidts-... (Pega aquí __Secure-1PSIDTS)" autocomplete="off"
-                      class="w-full rounded-lg bg-slate-950 border border-amber-500/40 px-2.5 py-1.5 text-xs text-slate-100" />
+                  <div class="sm:col-span-3">
+                    <label id="lbl1psidts" class="block text-[10px] text-slate-300 mb-1">2. Cookie <code>__Secure-1PSIDTS</code>:</label>
+                    <input id="gemini1psidtsInput" type="password" placeholder="sidts-... (__Secure-1PSIDTS)" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-950 border border-indigo-500/30 px-2.5 py-1.5 text-xs text-slate-100" />
+                  </div>
+                  <div class="sm:col-span-4">
+                    <label id="lblOsid" class="block text-[10px] text-amber-300 font-semibold mb-1">3. Cookie <code>__Secure-OSID</code> / <code>OSID</code> (o Copy as cURL):</label>
+                    <input id="geminiOsidInput" type="password" placeholder="Pega aquí __Secure-OSID, OSID o Copy as cURL" autocomplete="off"
+                      class="w-full rounded-lg bg-slate-950 border border-amber-500/50 px-2.5 py-1.5 text-xs text-slate-100" />
                   </div>
                   <div class="sm:col-span-2">
                     <button type="button" onclick="saveImageSettings()" class="w-full py-1.5 px-3 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-500/40 text-indigo-100 text-xs font-semibold transition">
@@ -2081,7 +2370,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
                 <div>
                   <label class="block text-[10px] font-bold uppercase tracking-wider text-amber-300 mb-1">🎥 Movimiento de Imagen</label>
                   <select id="ytRenderCameraEffect" onchange="if(document.getElementById('ytCameraEffect')) document.getElementById('ytCameraEffect').value = this.value;" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-white">
-                    <option value="ken_burns_mix" selected>✨ Cámara Viva (Zoom + Paneo ★)</option>
+                    <option value="living_ai_motion" selected>🌟 Escenas Vivas 2.5D (Barco que flota, agua que ondea, partículas y líneas vivas ★ NUEVO)</option>
+                    <option value="ken_burns_mix">✨ Cámara Viva Clásica (Zoom + Paneo)</option>
                     <option value="zoom_in_dramatic">🔍 Zoom-In Dramático</option>
                     <option value="pan_cinema">🎞️ Paneo Lateral Cine</option>
                     <option value="none">⏹️ Imagen Fija</option>
@@ -2121,10 +2411,16 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-3">
                   <button
-                    onclick="generateAllMissingImages()"
+                    onclick="generateAllMissingImages(false)"
                     class="px-4 py-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition"
                   >
-                    🎨 Generar Todas las Imágenes IA Faltantes
+                    🎨 Generar Imágenes Faltantes
+                  </button>
+                  <button
+                    onclick="generateAllMissingImages(true)"
+                    class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-xs font-bold text-white shadow-lg transition"
+                  >
+                    ⭐ Regenerar Todas las Escenas con Motor Actual
                   </button>
                   <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
                     <input id="ytBurnSubs" type="checkbox" checked class="rounded accent-indigo-500" />
@@ -2342,15 +2638,22 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     });
 
     function switchMode(mode) {
-      const panels = { blender: "panelBlender", opuscar: "panelOpuscar", shorts: "panelShorts", youtube: "panelYouTube", tts: "panelTTS", fruti: "panelFruti" };
-      const tabs = { blender: "tabBtnBlender", opuscar: "tabBtnOpuscar", shorts: "tabBtnShorts", youtube: "tabBtnYT", tts: "tabBtnTTS", fruti: "tabBtnFruti" };
+      const panels = { omni: "panelOmni", blender: "panelBlender", opuscar: "panelOpuscar", shorts: "panelShorts", youtube: "panelYouTube", tts: "panelTTS", fruti: "panelFruti" };
+      const tabs = { omni: "tabBtnOmni", blender: "tabBtnBlender", opuscar: "tabBtnOpuscar", shorts: "tabBtnShorts", youtube: "tabBtnYT", tts: "tabBtnTTS", fruti: "tabBtnFruti" };
       const active = "px-3.5 py-2 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white shadow flex items-center gap-1.5";
+      const activeOmni = "px-3.5 py-2 rounded-lg text-xs font-bold transition bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white shadow-lg flex items-center gap-1.5 ring-1 ring-amber-400/50";
       const inactive = "px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-300 hover:text-white flex items-center gap-1.5";
       Object.keys(panels).forEach((k) => {
         const pEl = document.getElementById(panels[k]);
         const tEl = document.getElementById(tabs[k]);
         if (pEl) pEl.classList.toggle("hidden", k !== mode);
-        if (tEl) tEl.className = k === mode ? active : inactive;
+        if (tEl) {
+          if (k === mode) {
+            tEl.className = (k === "omni") ? activeOmni : active;
+          } else {
+            tEl.className = inactive;
+          }
+        }
       });
       if (mode === "blender") {
         const v = document.getElementById("blenderLiveVideoPlayer");
@@ -3066,6 +3369,40 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
           });
         }
 
+        // Renderizar Ganchos Psicológicos Virales Clicables
+        const ytHooksSec = document.getElementById("ytHooksSection");
+        const ytHooksCont = document.getElementById("ytHooksContainer");
+        if (ytHooksSec && ytHooksCont) {
+          ytHooksCont.innerHTML = "";
+          if (data.hooks && data.hooks.length > 0) {
+            ytHooksSec.classList.remove("hidden");
+            data.hooks.forEach((hk) => {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.className = "text-left p-2 rounded-lg bg-slate-900/90 hover:bg-amber-500/20 border border-slate-800 hover:border-amber-500/50 text-xs text-slate-200 transition group flex items-start gap-2";
+              b.innerHTML = `<span class="shrink-0 text-amber-400 font-bold text-[11px] group-hover:scale-105 transition-transform">${hk.type_name}:</span> <span class="text-slate-300 group-hover:text-amber-100 flex-1">"${hk.text}"</span> <span class="text-[10px] text-amber-400 font-mono shrink-0 ml-auto bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Aplicar Gancho</span>`;
+              b.onclick = () => {
+                if (scriptBox) {
+                  let lines = scriptBox.value.split("\n\n");
+                  if (lines.length > 0) {
+                    lines[0] = hk.text;
+                    scriptBox.value = lines.join("\n\n");
+                  } else {
+                    scriptBox.value = hk.text + "\n\n" + scriptBox.value;
+                  }
+                  b.classList.add("bg-amber-500/30", "border-amber-400");
+                  setTimeout(() => {
+                    b.classList.remove("bg-amber-500/30", "border-amber-400");
+                  }, 600);
+                }
+              };
+              ytHooksCont.appendChild(b);
+            });
+          } else {
+            ytHooksSec.classList.add("hidden");
+          }
+        }
+
         if (titleBox) titleBox.classList.remove("hidden");
 
         // 3. Ajustar automáticamente el formato (9:16 para Shorts/TikTok o 16:9 para YouTube 4-6 min), estilo visual y música sugerida
@@ -3174,8 +3511,10 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
 
       const btn1 = document.getElementById("btnStep1");
       const btn2 = document.getElementById("btnAutoAll");
+      const btnRender = document.getElementById("btnRenderMP4");
       btn1.disabled = true;
       btn2.disabled = true;
+      if (btnRender) btnRender.disabled = true;
 
       try {
         setYTProgress(true, "Paso 1: Sintetizando narración neuronal y calculando timestamps exactos...", 15);
@@ -3220,6 +3559,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         renderProjectUI();
 
         if (fullAuto) {
+          const btnRenderMid = document.getElementById("btnRenderMP4");
+          if (btnRenderMid) btnRenderMid.disabled = true;
           const totalScenes = currentProject.scenes.length;
           let consecutiveFails = 0;
           for (let i = 0; i < totalScenes; i++) {
@@ -3255,6 +3596,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       } finally {
         btn1.disabled = false;
         btn2.disabled = false;
+        const btnRenderEnd = document.getElementById("btnRenderMP4");
+        if (btnRenderEnd) btnRenderEnd.disabled = false;
       }
     }
 
@@ -3373,15 +3716,34 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       });
     }
 
+    function _getActiveProviderLabel() {
+      const sel = document.getElementById("imgProviderSelect");
+      const val = sel ? sel.value : "gemini_pro";
+      const map = {
+        gemini_pro: "Gemini Pro ⭐",
+        magic: "MagicStudio",
+        hf_dev: "FLUX.1-dev",
+        hf_fast: "FLUX.1-schnell",
+        gemini: "Google AI Studio",
+        runware: "Runware",
+        together: "Together AI",
+        fal: "Fal.ai",
+        pollinations: "Pollinations",
+        auto: "IA"
+      };
+      return map[val] || "IA";
+    }
+
     async function generateSceneImage(sceneIndex, silent = false) {
       if (!currentProject) return;
       const btn = document.getElementById(`btnGenImg_${sceneIndex}`);
       const promptEl = document.getElementById(`promptInput_${sceneIndex}`);
       const customPrompt = (promptEl && promptEl.dataset.dirty === "true") ? promptEl.value.trim() : null;
+      const provLabel = _getActiveProviderLabel();
 
       if (btn) {
         btn.disabled = true;
-        btn.textContent = "⏳ Generando con FLUX.1...";
+        btn.textContent = `⏳ Generando con ${provLabel}...`;
       }
 
       try {
@@ -3408,7 +3770,10 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       } catch (err) {
         if (!silent) {
           const errBox = document.getElementById("ytErrorAlert");
-          errBox.textContent = `Escena #${sceneIndex}: ${err.message}`;
+          const msg = err.message === "Failed to fetch"
+            ? "El servidor local se estaba iniciando o reconectando. Ya está activo en 127.0.0.1:7860; vuelve a hacer clic en 'Generar'."
+            : err.message;
+          errBox.textContent = `Escena #${sceneIndex}: ${msg}`;
           errBox.classList.remove("hidden");
         }
         return false;
@@ -3419,29 +3784,22 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       }
     }
 
-    async function generateAllMissingImages() {
+    async function generateAllMissingImages(forceAll = false) {
       if (!currentProject) return;
-      const missing = currentProject.scenes.filter((s) => !s.image_url);
-      if (missing.length === 0) {
-        alert("¡Todas las escenas ya tienen su imagen generada!");
-        return;
+      let targets = forceAll ? [...currentProject.scenes] : currentProject.scenes.filter((s) => !s.image_url);
+      if (targets.length === 0) {
+        targets = [...currentProject.scenes];
       }
+      const provLabel = _getActiveProviderLabel();
 
-      setYTProgress(true, `Generando ${missing.length} imágenes faltantes con FLUX.1...`, 10);
+      setYTProgress(true, `Generando ${targets.length} imágenes con ${provLabel}...`, 10);
       let done = 0;
-      for (const sc of missing) {
+      for (const sc of targets) {
         done++;
-        const pct = 10 + (done / missing.length) * 80;
-        setYTProgress(true, `Generando imagen ${done} de ${missing.length} (Escena #${sc.index} [${sc.timestamp_label}])...`, pct);
-        try {
-          await generateSceneImage(sc.index, false);
-          // Si falló y no se actualizó la imagen, detener el bucle para no saturar con errores
-          const check = currentProject.scenes.find((s) => s.index === sc.index);
-          if (!check || !check.image_url) {
-            setYTProgress(false);
-            break;
-          }
-        } catch (e) {
+        const pct = 10 + (done / targets.length) * 85;
+        setYTProgress(true, `Generando con ${provLabel}: escena ${done} de ${targets.length} (Escena #${sc.index} [${sc.timestamp_label}])...`, pct);
+        const ok = await generateSceneImage(sc.index, false);
+        if (!ok) {
           setYTProgress(false);
           break;
         }
@@ -3606,6 +3964,13 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             ? `2. Cookie <code>__Secure-1PSIDTS</code>: <span class="text-emerald-300 font-bold">✅ Guardada (${s.gemini_pro_ts_hint})</span>`
             : `2. Cookie <code>__Secure-1PSIDTS</code> (⚠️ Falta pegar esta cookie):`;
         }
+        const lbl3 = document.getElementById("lblOsid");
+        if (lbl3) {
+          const countTag = s.gemini_cookies_count > 2 ? ` · ${s.gemini_cookies_count} cookies` : "";
+          lbl3.innerHTML = s.has_gemini_pro_osid
+            ? `3. Cookie <code>OSID</code>: <span class="text-emerald-300 font-bold">✅ Guardada (${s.gemini_pro_osid_hint}${countTag})</span>`
+            : `3. Cookie <code>__Secure-OSID</code> / <code>OSID</code> <span class="text-amber-300 font-bold">(⚠️ Falta esta 3ra cookie o Copy as cURL)</span>:`;
+        }
 
         const gBadge = document.getElementById("geminiStatusBadge");
         if (gBadge) {
@@ -3626,6 +3991,7 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       const provSel = document.getElementById("imgProviderSelect");
       const psidVal = (document.getElementById("gemini1psidInput") || {}).value?.trim();
       const psidtsVal = (document.getElementById("gemini1psidtsInput") || {}).value?.trim();
+      const osidVal = (document.getElementById("geminiOsidInput") || {}).value?.trim();
       const gemVal = (document.getElementById("geminiKeyInput") || {}).value?.trim();
       const tokenVal = (document.getElementById("hfTokenInput") || {}).value?.trim();
       const rwVal = (document.getElementById("runwareKeyInput") || {}).value?.trim();
@@ -3646,9 +4012,14 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         body.provider = "gemini_pro";
         if (provSel) provSel.value = "gemini_pro";
       }
+      if (osidVal) {
+        body.gemini_osid = osidVal;
+        body.provider = "gemini_pro";
+        if (provSel) provSel.value = "gemini_pro";
+      }
       if (gemVal) {
         body.gemini_api_key = gemVal;
-        if (!psidVal && provSel && provSel.value === "auto") {
+        if (!psidVal && !osidVal && provSel && provSel.value === "auto") {
           body.provider = "gemini";
           provSel.value = "gemini";
         }
@@ -3659,7 +4030,7 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       if (togVal) body.together_api_key = togVal;
 
       await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      ["gemini1psidInput", "gemini1psidtsInput", "geminiKeyInput", "hfTokenInput", "runwareKeyInput", "falKeyInput", "togetherKeyInput"].forEach((id) => {
+      ["gemini1psidInput", "gemini1psidtsInput", "geminiOsidInput", "geminiKeyInput", "hfTokenInput", "runwareKeyInput", "falKeyInput", "togetherKeyInput"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
@@ -3844,9 +4215,10 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
     </div>
   </div>
 
-  <script src="/static/opuscar.js?v=2.1.0"></script>
+  <script src="/static/opuscar.js?v=2.2.0"></script>
   <script src="/static/fruti.js"></script>
-  <script src="/static/shorts_studio.js?v=1.0.0"></script>
+  <script src="/static/shorts_studio.js?v=1.0.1"></script>
+  <script src="/static/omni_studio.js?v=1.0.0"></script>
   <script src="/static/explainer.js?v=2.6.0"></script>
 </body>
 </html>

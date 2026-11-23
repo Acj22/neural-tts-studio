@@ -379,82 +379,91 @@ def setup_educational_scene_base(
         studio_col = bpy.data.collections.new("Studio_Lighting")
         scene.collection.children.link(studio_col)
 
-    # 1. Telón de fondo ciclorama
+    # 1. Entorno 360° Studio World (sin plano partido que corte el horizonte) + Iluminación ambiental PBR
     lt = config.lighting
-    mat_bg = bpy.data.materials.get("Mat_StudioBackdrop")
-    if not mat_bg:
-        mat_bg = bpy.data.materials.new("Mat_StudioBackdrop")
-        mat_bg.use_nodes = True
-        bsdf = mat_bg.node_tree.nodes.get("Principled BSDF")
-        if bsdf:
-            bg_col = (*lt.backdrop_color_rgb, 1.0)
-            if "Base Color" in bsdf.inputs:
-                bsdf.inputs["Base Color"].default_value = (0.02, 0.03, 0.04, 1.0)
-            if "Roughness" in bsdf.inputs:
-                bsdf.inputs["Roughness"].default_value = 0.95
-            if "Emission Color" in bsdf.inputs:
-                bsdf.inputs["Emission Color"].default_value = bg_col
-            if "Emission Strength" in bsdf.inputs:
-                bsdf.inputs["Emission Strength"].default_value = lt.backdrop_emission_strength
+    if not scene.world:
+        scene.world = bpy.data.worlds.new("Studio_World_360")
+    scene.world.use_nodes = True
+    bg_node = scene.world.node_tree.nodes.get("Background")
+    if bg_node:
+        bg_node.inputs[0].default_value = (0.09, 0.14, 0.21, 1.0)
+        bg_node.inputs[1].default_value = 1.45
 
     plane_bg = bpy.data.objects.get("Studio_Backdrop_Plane")
-    if not plane_bg:
-        bpy.ops.mesh.primitive_plane_add(size=70.0, location=(0, 14.0, 3.0))
-        plane_bg = bpy.context.active_object
-        plane_bg.name = "Studio_Backdrop_Plane"
-        plane_bg.rotation_euler = (math.radians(90), 0, 0)
-        plane_bg.data.materials.append(mat_bg)
-        studio_col.objects.link(plane_bg)
-        if plane_bg.name in scene.collection.objects:
-            scene.collection.objects.unlink(plane_bg)
+    if plane_bg:
+        bpy.data.objects.remove(plane_bg, do_unlink=True)
+        plane_bg = None
 
-    # 2. Key Light
+    target_center = Vector((0.0, 0.0, 1.25))
+
+    def _aim_light_at_center(l_obj: Any) -> None:
+        direction = target_center - Vector(l_obj.location)
+        if direction.length > 0.001:
+            l_obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+
+    # 2. Key Light (apuntada directamente al modelo)
     key_obj = bpy.data.objects.get("Light_Key_Studio")
     if not key_obj:
         bpy.ops.object.light_add(type="AREA", radius=lt.key_size_m, location=lt.key_location)
         key_obj = bpy.context.active_object
         key_obj.name = "Light_Key_Studio"
-        key_obj.data.energy = lt.key_energy_w
+        key_obj.data.energy = lt.key_energy_w * 2.2
         key_obj.data.color = lt.key_color_rgb
+        _aim_light_at_center(key_obj)
         studio_col.objects.link(key_obj)
         if key_obj.name in scene.collection.objects:
             scene.collection.objects.unlink(key_obj)
 
-    # 3. Fill Light
+    # 3. Fill Light (apuntada directamente al modelo)
     fill_obj = bpy.data.objects.get("Light_Fill_Studio")
     if not fill_obj:
         bpy.ops.object.light_add(type="AREA", radius=lt.fill_size_m, location=lt.fill_location)
         fill_obj = bpy.context.active_object
         fill_obj.name = "Light_Fill_Studio"
-        fill_obj.data.energy = lt.fill_energy_w
+        fill_obj.data.energy = lt.fill_energy_w * 2.4
         fill_obj.data.color = lt.fill_color_rgb
+        _aim_light_at_center(fill_obj)
         studio_col.objects.link(fill_obj)
         if fill_obj.name in scene.collection.objects:
             scene.collection.objects.unlink(fill_obj)
 
-    # 4. Rim Light
+    # 4. Rim Light (apuntada directamente al modelo)
     rim_obj = bpy.data.objects.get("Light_Rim_Studio")
     if not rim_obj:
         bpy.ops.object.light_add(type="AREA", radius=lt.rim_size_m, location=lt.rim_location)
         rim_obj = bpy.context.active_object
         rim_obj.name = "Light_Rim_Studio"
-        rim_obj.data.energy = lt.rim_energy_w
+        rim_obj.data.energy = lt.rim_energy_w * 2.2
         rim_obj.data.color = lt.rim_color_rgb
+        _aim_light_at_center(rim_obj)
         studio_col.objects.link(rim_obj)
         if rim_obj.name in scene.collection.objects:
             scene.collection.objects.unlink(rim_obj)
 
-    # 5. Top Light
+    # 5. Top Light + Front Specular Light
     top_obj = bpy.data.objects.get("Light_Top_Studio")
     if not top_obj:
         bpy.ops.object.light_add(type="AREA", radius=4.0, location=lt.top_location)
         top_obj = bpy.context.active_object
         top_obj.name = "Light_Top_Studio"
-        top_obj.data.energy = lt.top_energy_w
+        top_obj.data.energy = lt.top_energy_w * 2.0
         top_obj.data.color = lt.top_color_rgb
+        _aim_light_at_center(top_obj)
         studio_col.objects.link(top_obj)
         if top_obj.name in scene.collection.objects:
             scene.collection.objects.unlink(top_obj)
+
+    front_obj = bpy.data.objects.get("Light_Front_Studio")
+    if not front_obj:
+        bpy.ops.object.light_add(type="AREA", radius=3.5, location=(0.5, -5.5, 1.8))
+        front_obj = bpy.context.active_object
+        front_obj.name = "Light_Front_Studio"
+        front_obj.data.energy = 650.0
+        front_obj.data.color = (1.0, 0.99, 0.96)
+        _aim_light_at_center(front_obj)
+        studio_col.objects.link(front_obj)
+        if front_obj.name in scene.collection.objects:
+            scene.collection.objects.unlink(front_obj)
 
     # 6. Cámara Director Vertical 9:16
     cam_obj = bpy.data.objects.get("Director_Camera_Obj")

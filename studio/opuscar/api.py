@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/api/opuscar", tags=["Lemo-Opuscar Animation Engine"]
 
 PROJECTS_DIR = Path(__file__).resolve().parent.parent.parent / "projects"
 LAST_RENDER_FILE = PROJECTS_DIR / "opuscar_last_render.json"
+_OPUSCAR_RENDER_LOCK = threading.Lock()
 
 
 class OpuscarRenderRequest(BaseModel):
@@ -67,7 +69,13 @@ def get_last_opuscar_video():
 @router.post("/render")
 def render_opuscar_video_endpoint(req: OpuscarRenderRequest):
     """Renderiza fotograma a fotograma el video MP4 con narración y subtítulos integrados."""
+    if not _OPUSCAR_RENDER_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Ya se está renderizando una animación en Lemo-Opuscar. Por favor espera a que concluya.")
     try:
+        from studio.karaoke_subtitles import clean_and_correct_spanish_orthography
+        req.title, _ = clean_and_correct_spanish_orthography(req.title)
+        req.narration, _ = clean_and_correct_spanish_orthography(req.narration)
+
         out_dir = PROJECTS_DIR / f"opuscar_{req.style_id}"
         video_path = render_opuscar_animation_video(
             style_id=req.style_id,
@@ -113,3 +121,5 @@ def render_opuscar_video_endpoint(req: OpuscarRenderRequest):
     except Exception as e:
         logger.exception("Error al renderizar animación Lemo-Opuscar:")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _OPUSCAR_RENDER_LOCK.release()

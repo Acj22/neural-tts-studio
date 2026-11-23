@@ -116,7 +116,11 @@ def render_shorts_video_endpoint(req: RenderVideoRequest):
             voice=req.voice,
             fps=req.fps,
         )
-        rel_url = f"/projects/{video_path.parent.name}/{video_path.name}"
+        try:
+            video_rel = video_path.relative_to(PROJECTS_DIR).as_posix()
+            rel_url = f"/projects/{video_rel}"
+        except Exception:
+            rel_url = f"/projects/animated_shorts/{video_path.parent.name}/{video_path.name}"
         data = {
             "status": "success",
             "title": req.title,

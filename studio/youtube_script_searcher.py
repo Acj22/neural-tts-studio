@@ -418,6 +418,52 @@ CURATED_RICH_DOSSIERS: list[dict[str, Any]] = [
             "En 2031, la monumental Estación Espacial Internacional de más de cuatrocientas toneladas llegará al final de su vida útil y será guiada para descansar para siempre en este abismo oceánico."
         ),
     },
+
+    # 12. LA ZONA DEL SILENCIO EN DURANGO (COHETE ATHENA 1970 Y METEORITO ALLENDE 1969)
+    {
+        "keywords": ["zona del silencio", "durango", "mapimi", "bolson de mapimi", "cohete athena", "anomalias magneticas", "meteorito allende"],
+        "category": "misterio",
+        "canonical_title": "La Zona del Silencio en Durango: Anomalías Magnéticas y Meteoritos",
+        "wiki_query": "Zona del Silencio",
+        "location": "Reserva de la Biosfera de Mapimí (Vértice de Durango, Chihuahua y Coahuila, en el paralelo 27 norte)",
+        "era": "Expedientes científicos de 1966, 1969 (Meteorito Allende) y julio de 1970 (Cohete Athena)",
+        "lead_investigator": "Ingeniero Harry de la Peña (PEMEX), Fuerza Aérea de EE. UU. e Instituto de Ecología (INECOL)",
+        "hook_question": "¿Por qué en medio del desierto de Durango existe un vértice donde en 1970 cayó un cohete militar estadounidense con cobalto radiactivo y las señales de radio se interrumpen repentinamente?",
+        "core_facts": [
+            "En 1966, el ingeniero de petróleos Harry de la Peña realizaba una prospección para PEMEX en el Bolsón de Mapimí cuando descubrió que sus radios portátiles perdían toda transmisión al ingresar a ciertas franjas específicas del desierto.",
+            "Tres años antes del incidente militar, el 8 de febrero de 1969, cayó a pocos kilómetros de esta región el famoso meteorito Allende, una condrita carbonácea de más de dos toneladas cuyos fragmentos contienen los minerales presolares más antiguos jamás analizados: cuatro mil quinientos sesenta y siete millones de años.",
+            "El suceso que catapultó su fama mundial ocurrió el 11 de julio de 1970, cuando la Fuerza Aérea de Estados Unidos lanzó el cohete de prueba Athena V-123-D desde la base de Green River, en Utah, con dirección al polígono de White Sands en Nuevo México.",
+            "Debido a una falla en sus giroscopios de control, el cohete Athena perdió su ruta, cruzó la frontera mexicana y se estrelló en el corazón del desierto de Mapimí transportando dos contenedores con cobalto-57 radiactivo.",
+            "Durante tres semanas, un equipo de técnicos de la NASA y del gobierno mexicano encabezado por Wernher von Braun rastreó el desierto en secreto, construyendo una vía férrea provisional para extraer toneladas de arena contaminada junto con los restos del proyectil.",
+            "Los estudios geológicos de la UNAM y del Instituto de Ecología explican que las interrupciones de radio y el giro errático de las brújulas se deben a formaciones subterráneas ricas en magnetita y óxidos de hierro combinadas con la ionización solar extrema de la cuenca árida.",
+        ],
+        "mystery_twist": (
+            "Ubicada exactamente en el paralelo 27 norte —la misma latitud geográfica que el Triángulo de las Bermudas y las pirámides de Giza—, la Zona del Silencio alberga hoy un laboratorio de la biosfera con especies endémicas prehistóricas como la tortuga del desierto Gopherus flavomarginatus."
+        ),
+    },
+
+    # 13. EL CASTILLO DE CHAPULTEPEC (1785 - ÚNICO ALCÁZAR REAL DE AMÉRICA)
+    {
+        "keywords": ["chapultepec", "castillo de chapultepec", "alcazar", "maximiliano", "carlota", "cerro del chapulin"],
+        "category": "historia_mexico",
+        "canonical_title": "El Castillo de Chapultepec: El Único Alcázar Real de América",
+        "wiki_query": "Castillo de Chapultepec",
+        "location": "Cumbre del Cerro del Chapulín a 2,325 metros sobre el nivel del mar, Ciudad de México",
+        "era": "Iniciado en 1785 por el virrey Bernardo de Gálvez / Imperio de Maximiliano (1864)",
+        "lead_investigator": "Museo Nacional de Historia (INAH)",
+        "hook_question": "¿Sabías que en lo alto de un volcán extinto y sagrado de la Ciudad de México se levanta el único castillo monárquico real jamás habitado por emperadores europeos en todo el continente americano?",
+        "core_facts": [
+            "En agosto de 1785, el virrey de la Nueva España Bernardo de Gálvez ordenó a los ingenieros militares Francisco Bambitelli y Manuel Agustín Mascaró construir una residencia fortificada sobre el Cerro del Chapulín, antiguo recinto sagrado de Moctezuma Ilhuicamina.",
+            "La corona española sospechó que los gruesos muros del edificio ocultaban una fortaleza para independizar la colonia; tras la repentina muerte de Gálvez en 1786, la Real Audiencia suspendió la obra y ordenó subastarla.",
+            "En 1841 el edificio se transformó en sede del Heroico Colegio Militar y, en 1847, durante la intervención estadounidense, sus cadetes defendieron el recinto hasta el último cartucho en la histórica batalla del 13 de septiembre.",
+            "Cuando el archiduque Maximiliano de Habsburgo y la princesa Carlota de Bélgica asumieron el Segundo Imperio Mexicano en 1864, eligieron el recinto como su palacio imperial, rebautizándolo como Castillo de Miravalle.",
+            "Maximiliano contrató al arquitecto Julius Hofmann y al botánico Wilhelm Knechtel para diseñar el Alcázar neoclásico, los jardines colgantes en la terraza y el trazo del Paseo de la Emperatriz —hoy Paseo de la Reforma— para conectar el castillo directamente con Palacio Nacional.",
+            "En 1939, el presidente Lázaro Cárdenas decretó que ningún mandatario volvería a habitar el castillo como residencia privada, entregándolo al pueblo de México como sede del Museo Nacional de Historia.",
+        ],
+        "mystery_twist": (
+            "Bajo la roca del cerro donde descansan los salones imperiales de Maximiliano, los arqueólogos del INAH descubrieron petroglifos mexicas y un túnel con elevador privado construido por Porfirio Díaz que atraviesa el corazón del peñón."
+        ),
+    },
 ]
 
 
@@ -438,26 +484,74 @@ def _match_curated_rich_dossier(query: str, category: str) -> Optional[dict[str,
     return None
 
 
+_SPANISH_SEARCH_STOPWORDS = {
+    "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "en",
+    "que", "y", "o", "a", "al", "por", "para", "con", "sin", "sobre", "como",
+    "cuando", "donde", "quien", "cual", "este", "esta", "estos", "estas",
+    "dia", "dias", "día", "días", "ano", "anos", "año", "años", "historia",
+    "secreto", "oculto", "misterio", "caso", "episodio", "real", "verdad",
+    "cómo", "cuándo", "dónde", "quién", "cuál", "cubrió", "ocurrió", "sucedió"
+}
+
+
 def _fetch_wikipedia_es_dossier(query: str, max_articles: int = 2) -> list[dict[str, str]]:
-    """Consulta la API de Wikipedia en Español priorizando artículos de respaldo histórico real."""
+    """Consulta la API de Wikipedia en Español priorizando artículos de respaldo histórico real y filtrando resultados irrelevantes."""
     api_url = "https://es.wikipedia.org/w/api.php"
     articles: list[dict[str, str]] = []
+
+    # Extraer palabras clave de alto contenido semántico (descartando conectores)
+    tokens = re.findall(r"\b[a-záéíóúñ0-9]+\b", query.lower())
+    content_tokens = [t for t in tokens if t not in _SPANISH_SEARCH_STOPWORDS and len(t) > 2]
+    if "nieve" in content_tokens and "nevada" not in content_tokens:
+        content_tokens.append("nevada")
+
+    clean_kw = " ".join(content_tokens)
+    clean_full = re.sub(r"[^\w\s]", " ", query).strip()
+    clean_full = re.sub(r"\s+", " ", clean_full)
+    core_q = re.split(r"[:(—–-]", query)[0].strip()
+
+    search_candidates: list[str] = []
+    if clean_kw and clean_kw != clean_full:
+        search_candidates.append(clean_kw)
+    if clean_full:
+        search_candidates.append(clean_full)
+    if core_q and core_q not in search_candidates:
+        search_candidates.append(core_q)
+    search_candidates.append(query)
+
     try:
-        r_search = requests.get(
-            api_url,
-            params={
-                "action": "query",
-                "list": "search",
-                "srsearch": query,
-                "srlimit": max_articles,
-                "format": "json",
-            },
-            headers={"User-Agent": USER_AGENT},
-            timeout=5,
-        )
-        if r_search.status_code != 200:
-            return articles
-        hits = (r_search.json().get("query") or {}).get("search") or []
+        hits = []
+        for cand_q in search_candidates:
+            r_search = requests.get(
+                api_url,
+                params={
+                    "action": "query",
+                    "list": "search",
+                    "srsearch": cand_q,
+                    "srlimit": 5,
+                    "format": "json",
+                },
+                headers={"User-Agent": USER_AGENT},
+                timeout=6,
+            )
+            if r_search.status_code == 200:
+                raw_hits = (r_search.json().get("query") or {}).get("search") or []
+                # Filtrar hits para asegurar que tengan relevancia temática real
+                valid_hits = []
+                for h in raw_hits:
+                    h_text = f"{h.get('title', '')} {h.get('snippet', '')}".lower()
+                    if content_tokens:
+                        # Al menos un token de contenido clave o año debe coincidir
+                        match_count = sum(1 for tok in content_tokens if tok in h_text)
+                        if match_count >= 1:
+                            valid_hits.append(h)
+                    else:
+                        valid_hits.append(h)
+
+                if valid_hits:
+                    hits = valid_hits
+                    break
+
         page_ids = [str(h["pageid"]) for h in hits[:max_articles] if "pageid" in h]
         if not page_ids:
             return articles
@@ -475,7 +569,7 @@ def _fetch_wikipedia_es_dossier(query: str, max_articles: int = 2) -> list[dict[
                 "format": "json",
             },
             headers={"User-Agent": USER_AGENT},
-            timeout=6,
+            timeout=7,
         )
         if r_detail.status_code != 200:
             return articles
@@ -487,6 +581,10 @@ def _fetch_wikipedia_es_dossier(query: str, max_articles: int = 2) -> list[dict[
             extract = (p.get("extract") or "").strip()
             url = (p.get("fullurl") or f"https://es.wikipedia.org/?curid={pid}").strip()
             if title and extract:
+                # Validar que el extracto sea relevante al tema antes de aceptarlo
+                ext_low = (title + " " + extract[:600]).lower()
+                if content_tokens and not any(tok in ext_low for tok in content_tokens):
+                    continue
                 clean_extract = re.sub(r"==+[^=]+==+", "\n", extract)
                 clean_extract = re.sub(r"\n{3,}", "\n\n", clean_extract).strip()
                 articles.append({"title": title, "url": url, "extract": clean_extract})
@@ -613,11 +711,30 @@ def _build_titles_for_topic(
             thumb = "LUGAR EXTREMO"
             tags = ["#LugaresDelMundo", "#Documental", "#HistorIAndo", "#Ciencia", "#Exploracion"]
 
+    hooks = [
+        {
+            "id": "paradox",
+            "type_name": "🔥 Paradoja Inversa (Desmitificación)",
+            "text": f"Todo lo que te dijeron sobre {clean_t} tiene un error fundamental que los registros oficiales acaban de desmentir.",
+        },
+        {
+            "id": "scale",
+            "type_name": "📊 Dato Numérico / Escala Imposible",
+            "text": f"Existe un detalle sobre {clean_t} tan colosal e inesperado que desafía las leyes convencionales de la época.",
+        },
+        {
+            "id": "challenge",
+            "type_name": "🧠 Reto Mental / Micro-Apuesta",
+            "text": f"Si estuvieras frente a {clean_t} en ese preciso instante histórico, ¿habrías tomado la misma decisión que cambió el destino?",
+        },
+    ]
+
     return {
         "best_title": best,
         "alternative_titles": alts,
         "thumbnail_hook": thumb,
         "hashtags": tags,
+        "hooks": hooks,
     }
 
 
@@ -630,7 +747,7 @@ def _generate_script_with_llm_if_available(
 ) -> Optional[str]:
     """Genera el guion mediante LLM inyectando de forma estricta las REGLAS DE INVESTIGACIÓN Y CALIDAD HISTÓRICA."""
     api_key = (video_pipeline.IMAGE_SETTINGS.get("gemini_api_key") or "").strip()
-    if not api_key or api_key.startswith("hf_"):
+    if not api_key or len(api_key) < 8:
         return None
 
     context_blocks: list[str] = []
@@ -650,7 +767,7 @@ def _generate_script_with_llm_if_available(
     is_short = duration_mode == "shorts"
 
     length_target = (
-        "un guion ágil para YouTube Shorts / TikTok de 60 a 85 segundos (entre 165 y 210 palabras exactas en 5 párrafos dinámicos)."
+        "un guion documental dinámico para YouTube Shorts / TikTok de MÁS DE 1 MINUTO (entre 70 y 85 segundos de locución, lo que equivale a entre 210 y 250 palabras distribuidas en 8 párrafos cortos de 1 escena visual cada uno)."
         if is_short
         else "un guion documental cinematográfico para YouTube de 4 a 6 minutos (entre 650 y 800 palabras ricas en 12 a 14 párrafos)."
     )
@@ -666,15 +783,14 @@ def _generate_script_with_llm_if_available(
         "4. DATOS Y CIFRAS NUMÉRICAS ANIMABLES: Menciona cantidades, medidas, población y años con cifras exactas para que el motor visual pueda animar contadores y reglas de cota en tiempo real.\n"
         "5. ELIMINAR REPETICIONES Y RELLENO: No repitas artificialmente el título del tema en cada párrafo. Menciona el tema una sola vez de forma natural y luego usa referencias contextuales ('el yacimiento', 'la expedición', 'el hallazgo'). Cada párrafo debe aportar información nueva.\n"
         "6. ACONTECIMIENTOS CONCRETOS: Explica qué encontraron exactamente, en qué lugar, en qué año, quién lo descubrió y qué relevancia histórica tiene.\n"
-        "7. ESTRUCTURA NARRATIVA (INTEGRADA SIN ENCABEZADOS):\n"
-        "   - INICIO: Una pregunta o revelación sorprendente que capture la atención en los primeros 3 segundos.\n"
-        "   - CONTEXTO: Dónde, cuándo y quiénes protagonizaron los hechos.\n"
-        "   - DESARROLLO: Orden cronológico de los acontecimientos sin saltos confusos.\n"
-        "   - DESCUBRIMIENTOS: Hechos tangibles y verificados con cifras concretas.\n"
-        "   - REVELACIÓN: El dato más impactante o giro documental.\n"
-        "   - CIERRE: Pregunta directa y llamada a la acción para encuesta y comentarios.\n"
+        "7. ESTRUCTURA NARRATIVA (INTEGRADA SIN ENCABEZADOS EN 8 PÁRRAFOS PARA SHORTS > 65s):\n"
+        "   - PÁRRAFO 1 (INICIO): Una pregunta o revelación sorprendente que capture la atención en los primeros 3 segundos.\n"
+        "   - PÁRRAFO 2 (CONTEXTO GEOGRÁFICO): Dónde y en qué entorno físico se ubica.\n"
+        "   - PÁRRAFOS 3 A 6 (DESARROLLO Y DESCUBRIMIENTOS CRONOLÓGICOS): Hechos tangibles, fechas exactas, protagonistas e instituciones con cifras concretas.\n"
+        "   - PÁRRAFO 7 (REVELACIÓN / EXPLICACIÓN CIENTÍFICA O HISTÓRICA): El dato más impactante o contraste entre mito y ciencia.\n"
+        "   - PÁRRAFO 8 (CIERRE): Pregunta directa y llamada a la acción para comentarios.\n"
         "8. MISTERIO SIN FALSEDADES: Distingue claramente entre hechos históricos comprobados, hipótesis académicas y leyendas de tradición oral. Nunca presentes una hipótesis como un hecho comprobado.\n"
-        "9. REGLA FINAL: Es preferible un guion conciso de 700 palabras con información real y sorprendente que uno largo lleno de relleno. La credibilidad de HistorIAndo está por encima de todo.\n\n"
+        "9. REGLA FINAL DE EXTENSIÓN (> 1 MINUTO): Para Shorts escribe EXACTAMENTE 8 párrafos ágiles (de 26 a 31 palabras cada uno), logrando un total estricto de entre 205 y 245 palabras (72 a 85 segundos de locución). NO excedas las 255 palabras en modo Shorts.\n\n"
         "FORMATO DE SALIDA:\n"
         "- Escribe ÚNICAMENTE el texto que leerá el locutor.\n"
         "- NO incluyas encabezados como 'Inicio:', 'Desarrollo:', 'Narrador:', '[Música]' ni asteriscos de Markdown.\n"
@@ -688,30 +804,51 @@ def _generate_script_with_llm_if_available(
         f"INFORMACIÓN VERIFICADA DISPONIBLE:\n{context_str}"
     )
 
-    try:
-        resp = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
-            json={
-                "contents": [
-                    {"role": "user", "parts": [{"text": system_prompt + "\n\n" + user_prompt}]}
-                ],
-                "generationConfig": {"temperature": 0.55, "maxOutputTokens": 2400},
-            },
-            timeout=18,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            cands = data.get("candidates") or []
-            if cands:
-                parts = ((cands[0].get("content") or {}).get("parts")) or []
-                txt = "".join(p.get("text", "") for p in parts).strip()
-                txt = re.sub(r"\*\*+", "", txt)
-                txt = re.sub(r"^#+\s+.*$", "", txt, flags=re.MULTILINE).strip()
-                txt = _apply_quality_check_filter(txt, topic_title)
-                if len(txt.split()) >= (110 if is_short else 400):
-                    return txt
-    except Exception:
-        pass
+    candidate_models = [
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview",
+        "gemini-flash-latest",
+        "gemma-4-31b-it",
+    ]
+    for model_name in candidate_models:
+        try:
+            resp = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}",
+                json={
+                    "contents": [
+                        {"role": "user", "parts": [{"text": system_prompt + "\n\n" + user_prompt}]}
+                    ],
+                    "generationConfig": {"temperature": 0.55, "maxOutputTokens": 2400},
+                },
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                cands = data.get("candidates") or []
+                if cands:
+                    parts = ((cands[0].get("content") or {}).get("parts")) or []
+                    txt = "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+                    txt = re.sub(r"\*\*+", "", txt)
+                    txt = re.sub(r"^#+\s+.*$", "", txt, flags=re.MULTILINE).strip()
+                    txt = _apply_quality_check_filter(txt, topic_title)
+                    if is_short and len(txt.split()) > 265:
+                        # Compactar cada párrafo a su primera oración densa para mantener 70-88 segundos (205-250 palabras)
+                        paras = [p.strip() for p in txt.split("\n\n") if p.strip()][:8]
+                        trimmed_paras: list[str] = []
+                        for p_item in paras:
+                            sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+", p_item) if s.strip()]
+                            if not sents:
+                                continue
+                            acc = sents[0]
+                            if len(acc.split()) < 18 and len(sents) > 1:
+                                acc = f"{acc} {sents[1]}"
+                            trimmed_paras.append(acc)
+                        if len( " ".join(trimmed_paras).split() ) >= 185:
+                            txt = "\n\n".join(trimmed_paras)
+                    if len(txt.split()) >= (185 if is_short else 400):
+                        return txt
+        except Exception:
+            continue
     return None
 
 
@@ -802,18 +939,32 @@ def _build_local_documentary_script(
     # CONSTRUCCIÓN DE LA ESTRUCTURA NARRATIVA (REGLA 5)
     # =========================================================================
     if is_short:
-        # Formato Shorts / TikTok (60 a 85 segundos -> ~170 a 200 palabras)
-        p1_inicio = hook
-        p2_contexto = (
-            f"Ocurrió en {loc}, durante {era}. {facts[0]}"
-            if (loc and era and len(facts) > 0)
-            else (facts[0] if len(facts) > 0 else "")
-        )
-        p3_desarrollo = facts[1] if len(facts) > 1 else ""
-        p4_descubrimiento = facts[2] if len(facts) > 2 else (facts[0] if len(facts) > 0 else "")
-        p5_revelacion_cierre = f"{twist} ¿Conocías la verdadera historia detrás de este hallazgo? Déjalo en los comentarios."
+        # Formato Shorts / TikTok de > 1 minuto (68 a 88 segundos -> ~210 a 250 palabras en 7-8 escenas)
+        short_paras: list[str] = [hook]
+        if loc and era:
+            short_paras.append(f"Los registros ubican este escenario en {loc}, con antecedentes documentados en {era}.")
+        for f_item in facts[:6]:
+            if f_item and f_item not in short_paras:
+                short_paras.append(f_item)
+        # Outro adaptativo y contextual (sin frases genéricas fuera de contexto)
+        topic_lower = (topic_title or "").lower()
+        if any(k in topic_lower for k in ["escuadrón", "escuadron", "guerra", "batalla", "militar", "combate", "piloto", "ejército", "ejercito"]):
+            outro_q = "¿Conocías la verdadera historia y el heroico legado de este acontecimiento? Déjalo en los comentarios."
+        elif any(k in topic_lower for k in ["nieve", "clima", "volcán", "volcan", "terremoto", "sismo", "geolog", "fenómeno", "fenomeno"]):
+            outro_q = "¿Conocías la verdadera historia y los registros documentados de este suceso? Déjalo en los comentarios."
+        elif any(k in topic_lower for k in ["maya", "arqueolog", "pirámide", "piramide", "ciudad", "tumba", "descubrimiento"]):
+            outro_q = "¿Conocías los hallazgos y evidencias reales detrás de esta investigación? Déjalo en los comentarios."
+        else:
+            outro_q = f"¿Conocías los acontecimientos y la historia real detrás de este caso? Déjalo en los comentarios."
 
-        raw_script = "\n\n".join(p for p in [p1_inicio, p2_contexto, p3_desarrollo, p4_descubrimiento, p5_revelacion_cierre] if p)
+        short_paras.append(f"{twist} {outro_q}")
+
+        raw_script = "\n\n".join(p for p in short_paras if p)
+        try:
+            from studio.karaoke_subtitles import clean_and_correct_spanish_orthography
+            raw_script, _ = clean_and_correct_spanish_orthography(raw_script)
+        except Exception:
+            pass
         return _apply_quality_check_filter(raw_script, topic_title)
 
     # Formato Documental Largo (4 a 6 minutos -> ~650 a 780 palabras)
@@ -944,6 +1095,7 @@ def search_and_generate_youtube_script(
         "alternative_titles": titles_data["alternative_titles"],
         "thumbnail_hook": titles_data["thumbnail_hook"],
         "hashtags": titles_data["hashtags"],
+        "hooks": titles_data.get("hooks", []),
         "script": script_text,
         "word_count": word_count,
         "estimated_duration_sec": est_seconds,
