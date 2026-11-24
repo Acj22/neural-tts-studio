@@ -1667,24 +1667,26 @@ def save_settings_endpoint(req: SettingsRequest):
             val = raw_field.strip()
             multi = _parse_cookie_block(val)
             if multi and len(multi) >= 2:
-                # Conservar __Secure-OSID y COMPASS previos si la fila copiada fue hacia otro subdominio .google.com (ej. play.google.com/log)
-                prev_osid_cookie = existing.get("__Secure-OSID") or existing.get("OSID")
+                # Conservar OSID, __Secure-OSID y COMPASS previos si la fila copiada fue hacia otro subdominio .google.com (ej. play.google.com/log)
+                prev_osid_plain = existing.get("OSID")
+                prev_osid_secure = existing.get("__Secure-OSID")
                 prev_compass_cookie = existing.get("COMPASS")
                 existing.clear()
-                if prev_osid_cookie:
-                    existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": prev_osid_cookie["value"], "domain": "gemini.google.com"}
+                if prev_osid_plain:
+                    existing["OSID"] = {"name": "OSID", "value": prev_osid_plain["value"], "domain": "gemini.google.com"}
+                if prev_osid_secure:
+                    existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": prev_osid_secure["value"], "domain": "gemini.google.com"}
                 if prev_compass_cookie:
                     existing["COMPASS"] = prev_compass_cookie
                 for c in multi:
-                    if c["name"] == "OSID":
-                        existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": c["value"], "domain": "gemini.google.com"}
-                    else:
-                        existing[c["name"]] = c
+                    existing[c["name"]] = c
                     if c["name"] == "__Secure-1PSID":
                         video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
                     elif c["name"] == "__Secure-1PSIDTS":
                         video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = c["value"]
-                    elif c["name"] in ("__Secure-OSID", "OSID"):
+                    elif c["name"] == "__Secure-OSID":
+                        video_pipeline.IMAGE_SETTINGS["gemini_osid"] = c["value"]
+                    elif c["name"] == "OSID" and not video_pipeline.IMAGE_SETTINGS.get("gemini_osid"):
                         video_pipeline.IMAGE_SETTINGS["gemini_osid"] = c["value"]
                 cookie_updated = True
                 break
@@ -1703,28 +1705,31 @@ def save_settings_endpoint(req: SettingsRequest):
                 multi = _parse_cookie_block(val)
                 if multi:
                     for c in multi:
-                        if c["name"] == "OSID":
-                            existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": c["value"], "domain": "gemini.google.com"}
-                        else:
-                            existing[c["name"]] = c
+                        existing[c["name"]] = c
                         if c["name"] == "__Secure-1PSID":
                             video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = c["value"]
                         elif c["name"] == "__Secure-1PSIDTS":
                             video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = c["value"]
-                        elif c["name"] in ("__Secure-OSID", "OSID"):
+                        elif c["name"] == "__Secure-OSID":
                             video_pipeline.IMAGE_SETTINGS["gemini_osid"] = c["value"]
                     cookie_updated = True
                 else:
                     if val.startswith("sidts-"):
                         video_pipeline.IMAGE_SETTINGS["gemini_1psidts"] = val
                         existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": val, "domain": ".google.com"}
+                        existing["__Secure-3PSIDTS"] = {"name": "__Secure-3PSIDTS", "value": val, "domain": ".google.com"}
                     elif target_key == "gemini_osid":
-                        video_pipeline.IMAGE_SETTINGS["gemini_osid"] = val
-                        existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": val, "domain": "gemini.google.com"}
-                        existing.pop("OSID", None)
+                        if "ACgYKARoS" in val:
+                            existing["OSID"] = {"name": "OSID", "value": val, "domain": "gemini.google.com"}
+                        else:
+                            video_pipeline.IMAGE_SETTINGS["gemini_osid"] = val
+                            existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": val, "domain": "gemini.google.com"}
                     elif target_key == "gemini_1psid":
-                        video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = val
-                        existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": val, "domain": ".google.com"}
+                        if "ACgYKAWcS" in val:
+                            existing["__Secure-3PSID"] = {"name": "__Secure-3PSID", "value": val, "domain": ".google.com"}
+                        else:
+                            video_pipeline.IMAGE_SETTINGS["gemini_1psid"] = val
+                            existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": val, "domain": ".google.com"}
                     else:
                         video_pipeline.IMAGE_SETTINGS[target_key] = val
                     cookie_updated = True
@@ -1738,14 +1743,17 @@ def save_settings_endpoint(req: SettingsRequest):
         cookie_updated = True
 
     if cookie_updated:
-        # Asegurar concordancia de las 3 claves raíz SIN sobreescribir __Secure-3PSID ni __Secure-3PSIDTS (que tienen firma criptográfica distinta)
+        # Asegurar concordancia de las claves raíz SIN borrar OSID ni sobreescribir __Secure-3PSID
         if video_pipeline.IMAGE_SETTINGS.get("gemini_1psid"):
             existing["__Secure-1PSID"] = {"name": "__Secure-1PSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psid"], "domain": ".google.com"}
         if video_pipeline.IMAGE_SETTINGS.get("gemini_1psidts"):
             existing["__Secure-1PSIDTS"] = {"name": "__Secure-1PSIDTS", "value": video_pipeline.IMAGE_SETTINGS["gemini_1psidts"], "domain": ".google.com"}
-        if video_pipeline.IMAGE_SETTINGS.get("gemini_osid"):
-            existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": video_pipeline.IMAGE_SETTINGS["gemini_osid"], "domain": "gemini.google.com"}
-            existing.pop("OSID", None)
+        osid_root = video_pipeline.IMAGE_SETTINGS.get("gemini_osid") or ""
+        if osid_root:
+            if "ACgYKARoS" in osid_root:
+                existing["OSID"] = {"name": "OSID", "value": osid_root, "domain": "gemini.google.com"}
+            else:
+                existing["__Secure-OSID"] = {"name": "__Secure-OSID", "value": osid_root, "domain": "gemini.google.com"}
         video_pipeline.IMAGE_SETTINGS["gemini_cookies_list"] = list(existing.values())
         _clear_gemini_webapi_cache()
 
@@ -1796,8 +1804,6 @@ def verify_gemini_pro_session_endpoint():
         n = c.get("name")
         v = c.get("value")
         d = c.get("domain", ".google.com")
-        if n == "OSID":
-            continue
         if n and v:
             session.cookies.set(n, v, domain=d)
 
@@ -1806,7 +1812,10 @@ def verify_gemini_pro_session_endpoint():
     if psidts:
         session.cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com")
     if osid:
-        session.cookies.set("__Secure-OSID", osid, domain="gemini.google.com")
+        if "ACgYKARoS" in osid:
+            session.cookies.set("OSID", osid, domain="gemini.google.com")
+        else:
+            session.cookies.set("__Secure-OSID", osid, domain="gemini.google.com")
 
     try:
         r = session.get("https://gemini.google.com/app", timeout=12, allow_redirects=False)

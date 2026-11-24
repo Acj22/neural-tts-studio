@@ -1138,24 +1138,26 @@ def _generate_with_gemini_pro_web(
     async def _async_gen() -> tuple[Optional[Image.Image], str]:
         client = GeminiClient(psid or None, psidts)
         osid_val = (IMAGE_SETTINGS.get("gemini_osid") or "").strip()
-        exp_ts = int(time.time()) + 86400 * 30
 
-        # Configurar cookies adicionales con expires explícito para que save_cookies de gemini_webapi no las descarte entre escenas
+        # Configurar todas las cookies de la sesión incluyendo OSID, __Secure-OSID, __Secure-3PSID y __Secure-3PSIDTS
         for c in extra_cookies:
             c_name = (c.get("name") or "").strip()
             c_val = (c.get("value") or "").strip().replace("`$", "$")
             c_dom = (c.get("domain") or ".google.com").strip()
-            if c_name in ("OSID", "__Secure-OSID", "__Secure-1PSID", "__Secure-1PSIDTS"):
+            if c_name in ("__Secure-1PSID", "__Secure-1PSIDTS"):
                 continue
             if c_name and c_val:
-                client._cookies.set(c_name, c_val, domain=c_dom, secure=True, expires=exp_ts)
+                client._cookies.set(c_name, c_val, domain=c_dom, secure=True)
 
         if osid_val:
-            client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True, expires=exp_ts)
+            if "ACgYKARoS" in osid_val:
+                client._cookies.set("OSID", osid_val, domain="gemini.google.com", secure=True)
+            else:
+                client._cookies.set("__Secure-OSID", osid_val, domain="gemini.google.com", secure=True)
         if psid:
-            client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True, expires=exp_ts)
+            client._cookies.set("__Secure-1PSID", psid, domain=".google.com", secure=True)
         if psidts:
-            client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True, expires=exp_ts)
+            client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True)
 
         try:
             await client.init(timeout=30, auto_close=False, auto_refresh=False)
@@ -1164,7 +1166,7 @@ def _generate_with_gemini_pro_web(
             if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
                 return (
                     None,
-                    "Google indicó que las cookies guardadas deben actualizarse. En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el botón rojo 🔴 arriba a la izquierda de F12) para pausar nuevas filas, haz clic derecho en la última fila → Copy → Copy as cURL (cmd) o Copy as PowerShell, pégalo en 'Opción 1: Pegar cURL' y pulsa ⚡ Sincronizar Sesión.",
+                    "Google indicó que las cookies guardadas deben actualizarse. En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el botón rojo 🔴 arriba a la izquierda de F12) para pausar nuevas filas, haz clic derecho en una fila de gemini.google.com ('app', 'batchexecute' o 'StreamGenerate') → Copy → Copy as cURL (cmd) o Copy as PowerShell, pégalo en 'Opción 1: Pegar cURL' y pulsa ⚡ Sincronizar Sesión.",
                 )
 
             response = await client.generate_content(full_prompt, files=files, temporary=True)
@@ -1175,7 +1177,7 @@ def _generate_with_gemini_pro_web(
                 if live_ts and live_ts != IMAGE_SETTINGS.get("gemini_1psidts"):
                     IMAGE_SETTINGS["gemini_1psidts"] = live_ts
                     for c in (IMAGE_SETTINGS.get("gemini_cookies_list") or []):
-                        if c.get("name") == "__Secure-1PSIDTS":
+                        if c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
                             c["value"] = live_ts
                     sf = Path(__file__).parent / "settings.json"
                     sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
