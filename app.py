@@ -1833,23 +1833,29 @@ def verify_gemini_pro_session_endpoint():
                     "cookies_count": len(clist),
                 }
 
+        # Si Google rotó __Secure-1PSIDTS en la respuesta Set-Cookie, guardarla inmediatamente
+        live_ts = session.cookies.get("__Secure-1PSIDTS")
+        if live_ts and live_ts != psidts:
+            s["gemini_1psidts"] = live_ts
+            for c in clist:
+                if c.get("name") in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
+                    c["value"] = live_ts
+            SETTINGS_FILE.write_text(json.dumps(s, indent=2), encoding="utf-8")
+
         # Si responde HTTP 200 pero Google rechazó __Secure-1PSIDTS o muestra Sign in (sin token autenticado SNlM0e):
         has_snlm0e = '"SNlM0e"' in r.text
         is_guest = (
             not has_snlm0e
             or ">Sign in<" in r.text
             or ">Iniciar sesión<" in r.text
-            or "gemini.google.com/signin" in r.text
-            or "accounts.google.com/ServiceLogin" in r.text
         )
         if is_guest:
             return {
                 "valid": False,
                 "status": "rotated_or_guest",
                 "message": (
-                    "⚠️ Las cookies guardadas necesitan resincronizarse (antes una regla interna sobreescribía __Secure-3PSID con __Secure-1PSID). "
-                    "Solución: En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el círculo rojo 🔴 arriba a la izquierda de F12) para pausar que se agreguen nuevas filas al abrir la pestaña, "
-                    "haz clic derecho en la última fila → Copy → Copy as cURL (cmd) o Copy as PowerShell, pégalo arriba y pulsa ⚡ Sincronizar Sesión."
+                    "⚠️ La cookie temporal __Secure-1PSIDTS rotó en el navegador. "
+                    "Solución: En gemini.google.com abre F12 → Network (Red), haz clic derecho en la última fila ('batchexecute', 'StreamGenerate' o 'log') → Copy → Copy as PowerShell (o Copy as cURL cmd), pégalo arriba y pulsa ⚡ Sincronizar Sesión."
                 ),
                 "cookies_count": len(clist),
             }

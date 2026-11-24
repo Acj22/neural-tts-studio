@@ -1159,19 +1159,7 @@ def _generate_with_gemini_pro_web(
         if psidts:
             client._cookies.set("__Secure-1PSIDTS", psidts, domain=".google.com", secure=True)
 
-        try:
-            await client.init(timeout=30, auto_close=False, auto_refresh=False)
-
-            acc_status = getattr(client, "account_status", None)
-            if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
-                return (
-                    None,
-                    "Google indicó que las cookies guardadas deben actualizarse. En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el botón rojo 🔴 arriba a la izquierda de F12) para pausar nuevas filas, haz clic derecho en una fila de gemini.google.com ('app', 'batchexecute' o 'StreamGenerate') → Copy → Copy as cURL (cmd) o Copy as PowerShell, pégalo en 'Opción 1: Pegar cURL' y pulsa ⚡ Sincronizar Sesión.",
-                )
-
-            response = await client.generate_content(full_prompt, files=files, temporary=True)
-
-            # Sincronizar cookie de timestamp si Google la rotó naturalmente en esta llamada
+        def _persist_rotated_ts() -> None:
             try:
                 live_ts = client.cookies.get("__Secure-1PSIDTS")
                 if live_ts and live_ts != IMAGE_SETTINGS.get("gemini_1psidts"):
@@ -1183,6 +1171,20 @@ def _generate_with_gemini_pro_web(
                     sf.write_text(json.dumps(IMAGE_SETTINGS, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception:
                 pass
+
+        try:
+            await client.init(timeout=30, auto_close=False, auto_refresh=False)
+            _persist_rotated_ts()
+
+            acc_status = getattr(client, "account_status", None)
+            if acc_status == 1016 or str(acc_status).endswith("UNAUTHENTICATED"):
+                return (
+                    None,
+                    "Google indicó que las cookies guardadas deben actualizarse. En gemini.google.com abre F12 → Network (Red), presiona Ctrl+E (o el botón rojo 🔴 arriba a la izquierda de F12) para pausar nuevas filas, haz clic derecho en la última fila → Copy → Copy as PowerShell (o Copy as cURL cmd), pégalo en 'Opción 1: Pegar cURL' y pulsa ⚡ Sincronizar Sesión.",
+                )
+
+            response = await client.generate_content(full_prompt, files=files, temporary=True)
+            _persist_rotated_ts()
             txt_first = (response.text or "").strip()
             if not response.images and (
                 "Solo soy una IA que trabaja con textos" in txt_first
