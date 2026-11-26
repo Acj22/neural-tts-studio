@@ -4067,16 +4067,28 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       }
 
       try {
-        const res = await fetch(`/api/project/${currentProject.project_id}/scene/${sceneIndex}/image`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: customPrompt,
-            variation: !!(existingScene && existingScene.image_url) && !silent && !onlyIfMissing,
-            only_if_missing: Boolean(onlyIfMissing),
-            color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value)
-          })
+        const reqPayload = JSON.stringify({
+          prompt: customPrompt,
+          variation: !!(existingScene && existingScene.image_url) && !silent && !onlyIfMissing,
+          only_if_missing: Boolean(onlyIfMissing),
+          color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value)
         });
+        let res;
+        try {
+          res = await fetch(`/api/project/${currentProject.project_id}/scene/${sceneIndex}/image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: reqPayload
+          });
+        } catch (netErr) {
+          // Si el servidor local se reinició brevemente, esperar 3.5s y reintentar automáticamente sin cortar el lote
+          await new Promise((r) => setTimeout(r, 3500));
+          res = await fetch(`/api/project/${currentProject.project_id}/scene/${sceneIndex}/image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: reqPayload
+          });
+        }
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(parseErrorDetail(errData, res.status));
