@@ -2491,12 +2491,14 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-3">
                   <button
+                    id="btnGenMissingImgs"
                     onclick="generateAllMissingImages(false)"
                     class="px-4 py-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition"
                   >
                     🎨 Generar Imágenes Faltantes
                   </button>
                   <button
+                    id="btnRegenAllImgs"
                     onclick="generateAllMissingImages(true)"
                     class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-xs font-bold text-white shadow-lg transition"
                   >
@@ -3804,22 +3806,30 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         if (fullAuto) {
           const btnRenderMid = document.getElementById("btnRenderMP4");
           if (btnRenderMid) btnRenderMid.disabled = true;
+          isGeneratingYTImages = true;
+          _setBatchImageButtonsDisabled(true);
           const totalScenes = currentProject.scenes.length;
           let consecutiveFails = 0;
-          for (let i = 0; i < totalScenes; i++) {
-            const sc = currentProject.scenes[i];
-            const pct = 25 + ((i / totalScenes) * 55);
-            setYTProgress(true, `Paso 2: Generando imagen IA para Escena ${sc.index} de ${totalScenes} [${sc.timestamp_label}]...`, pct);
-            const ok = await generateSceneImage(sc.index, false);
-            if (ok) {
-              consecutiveFails = 0;
-            } else {
-              consecutiveFails++;
-              const curErr = (errBox.textContent || "").toLowerCase();
-              if (consecutiveFails >= 2 || curErr.includes("1psidts") || curErr.includes("batchexecute") || curErr.includes("sincronizar sesión")) {
-                break;
+          try {
+            for (let i = 0; i < totalScenes; i++) {
+              const sc = currentProject.scenes[i];
+              if (sc.image_url) continue;
+              const pct = 25 + ((i / totalScenes) * 55);
+              setYTProgress(true, `Paso 2: Generando imagen IA para Escena ${sc.index} de ${totalScenes} [${sc.timestamp_label}]...`, pct);
+              const ok = await generateSceneImage(sc.index, false, true);
+              if (ok) {
+                consecutiveFails = 0;
+              } else {
+                consecutiveFails++;
+                const curErr = (errBox.textContent || "").toLowerCase();
+                if (consecutiveFails >= 2 || curErr.includes("1psidts") || curErr.includes("batchexecute") || curErr.includes("sincronizar sesión") || curErr.includes("cookies")) {
+                  break;
+                }
               }
             }
+          } finally {
+            isGeneratingYTImages = false;
+            _setBatchImageButtonsDisabled(false);
           }
 
           const generatedCount = currentProject.scenes.filter((s) => !!s.image_url).length;
@@ -3828,8 +3838,15 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             throw new Error(existingErr || "No se pudo generar ninguna imagen para las escenas. Revisa la configuración del motor de imágenes e inténtalo de nuevo.");
           }
 
-          setYTProgress(true, "Paso 3: Ensamblando video Full HD 1080p (.MP4) con narración, imágenes y transiciones...", 90);
-          await renderCurrentProjectVideo(true);
+          if (generatedCount < totalScenes) {
+            const missingCount = totalScenes - generatedCount;
+            const existingErr = errBox.textContent.trim();
+            errBox.textContent = `${existingErr ? existingErr + " · " : ""}Se conservaron ${generatedCount} de ${totalScenes} imágenes generadas. Haz clic en '🎨 Generar Imágenes Faltantes' para completar solo las ${missingCount} escenas pendientes.`;
+            errBox.classList.remove("hidden");
+          } else {
+            setYTProgress(true, "Paso 3: Ensamblando video Full HD 1080p (.MP4) con narración, imágenes y transiciones...", 90);
+            await renderCurrentProjectVideo(true);
+          }
         }
 
         setYTProgress(false);
@@ -3944,20 +3961,73 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
             <div id="imgPreviewWrapper_${sc.index}">
               ${imgHtml}
             </div>
-            <div class="flex items-center justify-between gap-2">
+            <div id="sceneActions_${sc.index}" class="flex items-center justify-between gap-2">
               <button
                 id="btnGenImg_${sc.index}"
-                onclick="generateSceneImage(${sc.index}, false)"
+                onclick="generateSceneImage(${sc.index}, false, false)"
                 class="w-full py-2 px-3 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition"
               >
                 🎨 ${sc.image_url ? "Regenerar Imagen IA" : "Generar Imagen IA"}
               </button>
-              ${sc.image_url ? `<a href="${sc.image_url}" download="escena_${sc.index}.png" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200">⬇</a>` : ""}
+              ${sc.image_url ? `<a id="btnDlImg_${sc.index}" href="${sc.image_url}" download="escena_${sc.index}.png" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200">⬇</a>` : ""}
             </div>
           </div>
         `;
         listEl.appendChild(card);
       });
+    }
+
+    let isGeneratingYTImages = false;
+
+    function _setBatchImageButtonsDisabled(disabled) {
+      ["btnGenMissingImgs", "btnRegenAllImgs", "btnStep1", "btnAutoAll"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = disabled;
+      });
+    }
+
+    function updateSingleSceneCardUI(sc) {
+      if (!sc) return;
+      const wrapper = document.getElementById(`imgPreviewWrapper_${sc.index}`);
+      if (wrapper && sc.image_url) {
+        wrapper.innerHTML = `<img id="sceneImg_${sc.index}" src="${sc.image_url}" class="w-full h-44 object-cover rounded-lg border border-slate-700" />`;
+      }
+      const btn = document.getElementById(`btnGenImg_${sc.index}`);
+      if (btn) {
+        btn.textContent = `🎨 ${sc.image_url ? "Regenerar Imagen IA" : "Generar Imagen IA"}`;
+      }
+      const actions = document.getElementById(`sceneActions_${sc.index}`);
+      if (actions && sc.image_url) {
+        let dl = document.getElementById(`btnDlImg_${sc.index}`);
+        if (!dl) {
+          dl = document.createElement("a");
+          dl.id = `btnDlImg_${sc.index}`;
+          dl.className = "px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200";
+          dl.textContent = "⬇";
+          actions.appendChild(dl);
+        }
+        dl.href = sc.image_url;
+        dl.setAttribute("download", `escena_${sc.index}.png`);
+      }
+    }
+
+    async function syncCurrentProjectImagesFromServer() {
+      if (!currentProject || !currentProject.project_id) return;
+      try {
+        const res = await fetch(`/api/project/${currentProject.project_id}`);
+        if (!res.ok) return;
+        const serverProj = await res.json();
+        if (!serverProj || !Array.isArray(serverProj.scenes)) return;
+        serverProj.scenes.forEach((srvSc) => {
+          const localSc = currentProject.scenes.find((s) => s.index === srvSc.index);
+          if (localSc && srvSc.image_url && !localSc.image_url) {
+            localSc.image_url = srvSc.image_url;
+            updateSingleSceneCardUI(localSc);
+          }
+        });
+      } catch (e) {
+        /* ignorar error de red transitorio */
+      }
     }
 
     function _getActiveProviderLabel() {
@@ -3978,8 +4048,14 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       return map[val] || "IA";
     }
 
-    async function generateSceneImage(sceneIndex, silent = false) {
-      if (!currentProject) return;
+    async function generateSceneImage(sceneIndex, silent = false, onlyIfMissing = false) {
+      if (!currentProject) return false;
+      const existingScene = currentProject.scenes.find((s) => s.index === sceneIndex);
+      if (onlyIfMissing && existingScene && existingScene.image_url) {
+        updateSingleSceneCardUI(existingScene);
+        return true;
+      }
+
       const btn = document.getElementById(`btnGenImg_${sceneIndex}`);
       const promptEl = document.getElementById(`promptInput_${sceneIndex}`);
       const customPrompt = (promptEl && promptEl.dataset.dirty === "true") ? promptEl.value.trim() : null;
@@ -3996,7 +4072,8 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: customPrompt,
-            variation: !!(currentProject.scenes.find((s) => s.index === sceneIndex) || {}).image_url && !silent,
+            variation: !!(existingScene && existingScene.image_url) && !silent && !onlyIfMissing,
+            only_if_missing: Boolean(onlyIfMissing),
             color_match_strength: parseFloat(document.getElementById("ytColorMatchSlider").value)
           })
         });
@@ -4007,9 +4084,13 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
         const updatedScene = await res.json();
         const idx = currentProject.scenes.findIndex((s) => s.index === sceneIndex);
         if (idx !== -1) {
+          // Preservar image_url previa si por cualquier razón updatedScene viniera vacío
+          if (!updatedScene.image_url && currentProject.scenes[idx].image_url) {
+            updatedScene.image_url = currentProject.scenes[idx].image_url;
+          }
           currentProject.scenes[idx] = updatedScene;
         }
-        renderProjectUI();
+        updateSingleSceneCardUI(updatedScene);
         return true;
       } catch (err) {
         if (!silent) {
@@ -4024,31 +4105,73 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
       } finally {
         if (btn) {
           btn.disabled = false;
+          const curSc = currentProject.scenes.find((s) => s.index === sceneIndex);
+          btn.textContent = `🎨 ${(curSc && curSc.image_url) ? "Regenerar Imagen IA" : "Generar Imagen IA"}`;
         }
       }
     }
 
     async function generateAllMissingImages(forceAll = false) {
       if (!currentProject) return;
-      let targets = forceAll ? [...currentProject.scenes] : currentProject.scenes.filter((s) => !s.image_url);
-      if (targets.length === 0) {
-        targets = [...currentProject.scenes];
+      if (isGeneratingYTImages) {
+        return;
       }
-      const provLabel = _getActiveProviderLabel();
 
-      setYTProgress(true, `Generando ${targets.length} imágenes con ${provLabel}...`, 10);
-      let done = 0;
-      for (const sc of targets) {
-        done++;
-        const pct = 10 + (done / targets.length) * 85;
-        setYTProgress(true, `Generando con ${provLabel}: escena ${done} de ${targets.length} (Escena #${sc.index} [${sc.timestamp_label}])...`, pct);
-        const ok = await generateSceneImage(sc.index, false);
-        if (!ok) {
+      const errBox = document.getElementById("ytErrorAlert");
+      if (errBox) errBox.classList.add("hidden");
+
+      isGeneratingYTImages = true;
+      _setBatchImageButtonsDisabled(true);
+
+      try {
+        // Primero sincronizar con el servidor para recuperar cualquier imagen que ya exista en disco
+        await syncCurrentProjectImagesFromServer();
+
+        const targets = forceAll
+          ? [...currentProject.scenes]
+          : currentProject.scenes.filter((s) => !s.image_url);
+
+        if (targets.length === 0) {
           setYTProgress(false);
-          break;
+          if (!forceAll && errBox) {
+            errBox.textContent = "✅ Todas las escenas ya tienen su imagen generada. Si deseas reemplazarlas todas, usa '⭐ Regenerar Todas las Escenas'.";
+            errBox.classList.remove("hidden");
+          }
+          return;
         }
+
+        const provLabel = _getActiveProviderLabel();
+        setYTProgress(true, `Generando ${targets.length} imágenes faltantes con ${provLabel}...`, 10);
+        let done = 0;
+        let consecutiveFails = 0;
+
+        for (const sc of targets) {
+          // Doble verificación en vivo: si la escena ya tiene imagen y no es forceAll, saltarla sin tocarla
+          const liveSc = currentProject.scenes.find((s) => s.index === sc.index);
+          if (!forceAll && liveSc && liveSc.image_url) {
+            done++;
+            continue;
+          }
+
+          done++;
+          const pct = 10 + (done / targets.length) * 85;
+          setYTProgress(true, `Generando con ${provLabel}: imagen ${done} de ${targets.length} (Escena #${sc.index} [${sc.timestamp_label}])...`, pct);
+          const ok = await generateSceneImage(sc.index, false, !forceAll);
+          if (ok) {
+            consecutiveFails = 0;
+          } else {
+            consecutiveFails++;
+            const curErr = (errBox ? errBox.textContent : "").toLowerCase();
+            if (consecutiveFails >= 2 || curErr.includes("1psidts") || curErr.includes("batchexecute") || curErr.includes("sincronizar sesión") || curErr.includes("cookies")) {
+              break;
+            }
+          }
+        }
+      } finally {
+        isGeneratingYTImages = false;
+        _setBatchImageButtonsDisabled(false);
+        setYTProgress(false);
       }
-      setYTProgress(false);
     }
 
     async function renderCurrentProjectVideo(silent = false) {
@@ -4094,8 +4217,23 @@ Los científicos creen que explorar estos abismos podría revelarnos cómo surgi
           const errData = await res.json().catch(() => ({}));
           throw new Error(parseErrorDetail(errData, res.status));
         }
-        currentProject = await res.json();
-        renderProjectUI();
+        const renderedProj = await res.json();
+        // Fusionar sin perder ninguna image_url que ya exista en memoria
+        if (renderedProj && Array.isArray(renderedProj.scenes) && Array.isArray(currentProject.scenes)) {
+          renderedProj.scenes.forEach((rSc) => {
+            const curSc = currentProject.scenes.find((s) => s.index === rSc.index);
+            if (!rSc.image_url && curSc && curSc.image_url) {
+              rSc.image_url = curSc.image_url;
+            }
+          });
+        }
+        currentProject = renderedProj;
+        if (currentProject.video_url) {
+          document.getElementById("ytVideoContainer").classList.remove("hidden");
+          document.getElementById("ytVideoPlayer").src = currentProject.video_url;
+          document.getElementById("ytVideoDownloadLink").href = currentProject.video_url;
+        }
+        currentProject.scenes.forEach((sc) => updateSingleSceneCardUI(sc));
       } catch (err) {
         if (!silent) {
           errBox.textContent = err.message;

@@ -722,6 +722,7 @@ class SceneImageRequest(BaseModel):
     prompt: Optional[str] = Field(None, description="Prompt personalizado opcional para esta escena")
     color_match_strength: Optional[float] = Field(None, ge=0.0, le=1.0)
     variation: bool = Field(False, description="True para probar otra versión de la escena cambiando su semilla")
+    only_if_missing: bool = Field(False, description="True para conservar intacta la imagen si ya existe en disco")
 
 
 class SettingsRequest(BaseModel):
@@ -1114,7 +1115,9 @@ def update_project_voice_endpoint(project_id: str, req: UpdateProjectVoiceReques
     meta["master_audio_url"] = f"/projects/{project_id}/narracion_completa.wav?t={cache_bust}"
     meta["srt_url"] = f"/projects/{project_id}/subtitulos_timestamps.srt?t={cache_bust}"
 
-    meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    with _get_project_meta_lock(project_id):
+        _sync_project_images_from_disk(proj_dir, meta)
+        meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta
 
 
@@ -1296,8 +1299,41 @@ def update_project_style_endpoint(project_id: str, req: UpdateProjectStyleReques
             next_translated_en=next_en,
         )
 
-    meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    with _get_project_meta_lock(project_id):
+        _sync_project_images_from_disk(proj_dir, meta)
+        meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta
+
+
+_PROJECT_META_LOCKS: dict[str, threading.Lock] = {}
+_PROJECT_META_LOCKS_MUTEX = threading.Lock()
+
+
+def _get_project_meta_lock(project_id: str) -> threading.Lock:
+    with _PROJECT_META_LOCKS_MUTEX:
+        if project_id not in _PROJECT_META_LOCKS:
+            _PROJECT_META_LOCKS[project_id] = threading.Lock()
+        return _PROJECT_META_LOCKS[project_id]
+
+
+def _sync_project_images_from_disk(proj_dir: Path, meta: dict[str, Any]) -> bool:
+    """Sincroniza project.json con los archivos PNG reales en images/ para que ninguna imagen generada se pierda o se marque como faltante."""
+    changed = False
+    project_id = meta.get("project_id") or proj_dir.name
+    for sc in meta.get("scenes", []):
+        try:
+            idx = int(sc["index"])
+        except Exception:
+            continue
+        img_file = proj_dir / "images" / f"scene_{idx:03d}.png"
+        if img_file.exists() and img_file.stat().st_size > 1024:
+            if not sc.get("image_url"):
+                sc["image_url"] = f"/projects/{project_id}/images/scene_{idx:03d}.png?t={int(img_file.stat().st_mtime)}"
+                changed = True
+        elif sc.get("image_url") and not img_file.exists():
+            sc["image_url"] = None
+            changed = True
+    return changed
 
 
 @app.get("/api/projects")
@@ -1314,6 +1350,8 @@ def list_youtube_projects_endpoint():
     for fpath in candidates:
         try:
             data = json.loads(fpath.read_text(encoding="utf-8"))
+            if _sync_project_images_from_disk(fpath.parent, data):
+                fpath.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
             scenes = data.get("scenes", [])
             first_text = (scenes[0].get("text", "") if scenes else "").strip()
             preview = (first_text[:52] + "...") if len(first_text) > 52 else (first_text or data.get("project_id", ""))
@@ -1345,7 +1383,13 @@ def get_latest_project_endpoint():
     )
     if not candidates:
         raise HTTPException(status_code=404, detail="No hay proyectos.")
-    return json.loads(candidates[0].read_text(encoding="utf-8"))
+    meta_file = candidates[0]
+    proj_dir = meta_file.parent
+    with _get_project_meta_lock(proj_dir.name):
+        data = json.loads(meta_file.read_text(encoding="utf-8"))
+        if _sync_project_images_from_disk(proj_dir, data):
+            meta_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return data
 
 
 class YouTubeScriptSearchRequest(BaseModel):
@@ -1401,10 +1445,15 @@ def search_youtube_script_endpoint(req: YouTubeScriptSearchRequest):
 
 @app.get("/api/project/{project_id}")
 def get_project_endpoint(project_id: str):
-    meta_file = PROJECTS_DIR / project_id / "project.json"
+    proj_dir = PROJECTS_DIR / project_id
+    meta_file = proj_dir / "project.json"
     if not meta_file.exists():
         raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
-    return json.loads(meta_file.read_text(encoding="utf-8"))
+    with _get_project_meta_lock(project_id):
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        if _sync_project_images_from_disk(proj_dir, meta):
+            meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        return meta
 
 
 @app.post("/api/project/{project_id}/scene/{scene_index}/image")
@@ -1414,62 +1463,99 @@ def generate_scene_image_endpoint(project_id: str, scene_index: int, req: SceneI
     if not meta_file.exists():
         raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
 
-    meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    target_scene = None
-    for sc in meta["scenes"]:
-        if sc["index"] == scene_index:
-            target_scene = sc
-            break
-    if not target_scene:
-        raise HTTPException(status_code=404, detail="Escena no encontrada.")
-
-    legacy_markers = (
-        "PRIMARY SCENE TO ILLUSTRATE:",
-        "Story setting & environment continuity:",
-        "world map display",
-        "MAIN SUBJECT & ACTION IN FOREGROUND:",
-    )
-    if req.prompt and req.prompt.strip():
-        candidate_p = req.prompt.strip()
-        if not any(m in candidate_p for m in legacy_markers):
-            target_scene["image_prompt"] = candidate_p
-
-    if any(m in (target_scene.get("image_prompt") or "") for m in legacy_markers):
-        target_scene["image_prompt"] = build_scene_prompt(
-            scene_text=target_scene["text"],
-            style_key=meta.get("style", "cinematic"),
-            custom_style_prompt=meta.get("custom_style_prompt"),
-            ref_style_descriptor=meta.get("ref_style_descriptor"),
-            translated_en=target_scene.get("translated_en"),
-        )
-
-    ref_img_path = proj_dir / "reference_style.png"
-    strength = req.color_match_strength if req.color_match_strength is not None else float(meta.get("color_match_strength", 0.45))
-
-    # Semilla derivada por escena para que cada timestamp tenga una composición propia sin repetir encuadres
-    base_seed = int(meta.get("seed") or random.randint(1000, 9_999_999))
-    meta["seed"] = base_seed
-    if req.variation:
-        target_scene["variation"] = int(target_scene.get("variation", 0)) + 1
-    scene_seed = base_seed + (scene_index * 137) + 7919 * int(target_scene.get("variation", 0))
-
     dest_img = proj_dir / "images" / f"scene_{scene_index:03d}.png"
+    dest_img.parent.mkdir(parents=True, exist_ok=True)
+
+    with _get_project_meta_lock(project_id):
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        if _sync_project_images_from_disk(proj_dir, meta):
+            meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        target_scene = None
+        for sc in meta["scenes"]:
+            if sc["index"] == scene_index:
+                target_scene = sc
+                break
+        if not target_scene:
+            raise HTTPException(status_code=404, detail="Escena no encontrada.")
+
+        # Si se pidió solo generar faltantes (only_if_missing) y la imagen ya existe en disco, NO regenerar ni sobreescribir
+        if req.only_if_missing and dest_img.exists() and dest_img.stat().st_size > 1024:
+            if not target_scene.get("image_url"):
+                target_scene["image_url"] = f"/projects/{project_id}/images/scene_{scene_index:03d}.png?t={int(dest_img.stat().st_mtime)}"
+                meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            return target_scene
+
+        legacy_markers = (
+            "PRIMARY SCENE TO ILLUSTRATE:",
+            "Story setting & environment continuity:",
+            "world map display",
+            "MAIN SUBJECT & ACTION IN FOREGROUND:",
+        )
+        if req.prompt and req.prompt.strip():
+            candidate_p = req.prompt.strip()
+            if not any(m in candidate_p for m in legacy_markers):
+                target_scene["image_prompt"] = candidate_p
+
+        if any(m in (target_scene.get("image_prompt") or "") for m in legacy_markers):
+            target_scene["image_prompt"] = build_scene_prompt(
+                scene_text=target_scene["text"],
+                style_key=meta.get("style", "cinematic"),
+                custom_style_prompt=meta.get("custom_style_prompt"),
+                ref_style_descriptor=meta.get("ref_style_descriptor"),
+                translated_en=target_scene.get("translated_en"),
+            )
+
+        ref_img_path = proj_dir / "reference_style.png"
+        strength = req.color_match_strength if req.color_match_strength is not None else float(meta.get("color_match_strength", 0.45))
+
+        # Semilla derivada por escena para que cada timestamp tenga una composición propia sin repetir encuadres
+        base_seed = int(meta.get("seed") or random.randint(1000, 9_999_999))
+        meta["seed"] = base_seed
+        new_variation = int(target_scene.get("variation", 0)) + (1 if req.variation else 0)
+        target_scene["variation"] = new_variation
+        scene_seed = base_seed + (scene_index * 137) + 7919 * new_variation
+        prompt_to_use = target_scene["image_prompt"]
+        width_to_use = meta["width"]
+        height_to_use = meta["height"]
+
+    # Generar primero en un archivo temporal para nunca borrar ni corromper una imagen existente si falla la petición
+    tmp_dest_img = proj_dir / "images" / f".tmp_scene_{scene_index:03d}_{uuid.uuid4().hex[:6]}.png"
     try:
         generate_image_for_scene(
-            prompt=target_scene["image_prompt"],
-            width=meta["width"],
-            height=meta["height"],
-            dest_path=dest_img,
+            prompt=prompt_to_use,
+            width=width_to_use,
+            height=height_to_use,
+            dest_path=tmp_dest_img,
             seed=scene_seed,
             reference_image_path=ref_img_path if ref_img_path.exists() else None,
             color_match_strength=strength,
         )
+        if not tmp_dest_img.exists() or tmp_dest_img.stat().st_size <= 512:
+            raise RuntimeError("El archivo de imagen generado está vacío.")
+        tmp_dest_img.replace(dest_img)
     except Exception as exc:
+        try:
+            tmp_dest_img.unlink(missing_ok=True)
+        except Exception:
+            pass
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    target_scene["image_url"] = f"/projects/{project_id}/images/scene_{scene_index:03d}.png?t={int(time.time())}"
-    meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    return target_scene
+    # Re-leer project.json fresco bajo lock para nunca pisar otras escenas generadas mientras tanto
+    with _get_project_meta_lock(project_id):
+        fresh_meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        _sync_project_images_from_disk(proj_dir, fresh_meta)
+        fresh_meta["seed"] = base_seed
+        updated_scene = None
+        for sc in fresh_meta["scenes"]:
+            if sc["index"] == scene_index:
+                sc["image_prompt"] = prompt_to_use
+                sc["variation"] = new_variation
+                sc["image_url"] = f"/projects/{project_id}/images/scene_{scene_index:03d}.png?t={int(time.time())}"
+                updated_scene = sc
+                break
+        meta_file.write_text(json.dumps(fresh_meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        return updated_scene or target_scene
 
 
 def _mask_key(val: str) -> str:
@@ -2055,13 +2141,15 @@ def render_video_endpoint(project_id: str, req: RenderVideoRequest):
         raise HTTPException(status_code=409, detail="Ya se está renderizando este video. Por favor espera a que termine.")
 
     try:
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))
-        meta["transition"] = req.transition
-        meta["transition_duration"] = req.transition_duration
-        meta["subtitle_style"] = req.subtitle_style
-        meta["camera_effect"] = req.camera_effect
-        meta["bg_music"] = req.bg_music
-        meta["bg_music_volume"] = req.bg_music_volume
+        with _get_project_meta_lock(project_id):
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            _sync_project_images_from_disk(proj_dir, meta)
+            meta["transition"] = req.transition
+            meta["transition_duration"] = req.transition_duration
+            meta["subtitle_style"] = req.subtitle_style
+            meta["camera_effect"] = req.camera_effect
+            meta["bg_music"] = req.bg_music
+            meta["bg_music_volume"] = req.bg_music_volume
 
         custom_music_file = proj_dir / "custom_bg_music.bin"
         if req.custom_music_b64:
@@ -2084,11 +2172,21 @@ def render_video_endpoint(project_id: str, req: RenderVideoRequest):
             bg_music_volume=req.bg_music_volume,
             custom_music_path=custom_music_file if custom_music_file.exists() else None,
         )
-        create_project_zip(proj_dir, meta)
 
-        meta["video_url"] = f"/projects/{project_id}/video_youtube.mp4?t={int(time.time())}"
-        meta_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-        return meta
+        # Re-leer project.json fresco bajo lock para NO borrar imágenes que se hayan generado mientras se renderizaba el video
+        with _get_project_meta_lock(project_id):
+            fresh_meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            _sync_project_images_from_disk(proj_dir, fresh_meta)
+            fresh_meta["transition"] = req.transition
+            fresh_meta["transition_duration"] = req.transition_duration
+            fresh_meta["subtitle_style"] = req.subtitle_style
+            fresh_meta["camera_effect"] = req.camera_effect
+            fresh_meta["bg_music"] = req.bg_music
+            fresh_meta["bg_music_volume"] = req.bg_music_volume
+            fresh_meta["video_url"] = f"/projects/{project_id}/video_youtube.mp4?t={int(time.time())}"
+            create_project_zip(proj_dir, fresh_meta)
+            meta_file.write_text(json.dumps(fresh_meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            return fresh_meta
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:

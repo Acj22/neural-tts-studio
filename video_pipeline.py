@@ -1173,7 +1173,7 @@ def _generate_with_gemini_pro_web(
                 pass
 
         try:
-            await client.init(timeout=30, auto_close=False, auto_refresh=False)
+            await client.init(timeout=120, watchdog_timeout=90, auto_close=False, auto_refresh=False)
             _persist_rotated_ts()
 
             acc_status = getattr(client, "account_status", None)
@@ -1239,7 +1239,7 @@ def _generate_with_gemini_pro_web(
 
         t = _threading.Thread(target=_runner, daemon=True)
         t.start()
-        t.join(timeout=75)
+        t.join(timeout=135)
         return res_box[0]
 
 
